@@ -249,7 +249,8 @@ fn render_header(frame: &mut Frame, app: &App, area: Rect) {
 
 fn render_content(frame: &mut Frame, app: &App, area: Rect) {
     let lines = build_content_lines(app);
-    let total_lines = lines.len() as u16;
+    let wrap_width = area.width.saturating_sub(2).max(1) as usize;
+    let total_lines = estimate_wrapped_line_count(&lines, wrap_width);
     let visible = area.height.saturating_sub(2); // subtract borders
     let max_scroll = total_lines.saturating_sub(visible);
     let scroll = max_scroll.saturating_sub(app.scroll_offset);
@@ -260,6 +261,18 @@ fn render_content(frame: &mut Frame, app: &App, area: Rect) {
         .scroll((scroll, 0));
 
     frame.render_widget(content, area);
+}
+
+fn estimate_wrapped_line_count(lines: &[Line<'static>], wrap_width: usize) -> u16 {
+    lines.iter().fold(0u16, |acc, line| {
+        let content_width = line.to_string().chars().count();
+        let visual_lines = if content_width == 0 {
+            1usize
+        } else {
+            (content_width + wrap_width - 1) / wrap_width
+        };
+        acc.saturating_add(visual_lines as u16)
+    })
 }
 
 fn build_content_lines(app: &App) -> Vec<Line<'static>> {
