@@ -1,13 +1,8 @@
-mod ast;
-mod diagnostic;
-mod lexer;
-mod parser;
-mod token;
-mod validator;
-
 use std::env;
 use std::fs;
 use std::process;
+
+use storycript_parser::{diagnostic, lexer, parser, validator};
 
 fn main() {
     let args: Vec<String> = env::args().collect();

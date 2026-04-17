@@ -1,0 +1,9 @@
+[package]
+name = "storycript-player"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+storycript-parser = { path = "../parser/rust" }
+ratatui = "0.28"
+crossterm = "0.28"
