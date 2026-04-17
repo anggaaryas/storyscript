@@ -1,0 +1,276 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "StoryScript",
+  "scopeName": "source.storyscript",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#init-block" },
+    { "include": "#scene-block" },
+    { "include": "#phase-tag" },
+    { "include": "#directive" },
+    { "include": "#dialogue-portrait" },
+    { "include": "#dialogue-simple" },
+    { "include": "#choice-block" },
+    { "include": "#control-flow" },
+    { "include": "#variable" },
+    { "include": "#string" },
+    { "include": "#number" },
+    { "include": "#boolean" },
+    { "include": "#operator" },
+    { "include": "#arrow" },
+    { "include": "#punctuation" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.line.double-slash.storyscript",
+      "match": "//.*$"
+    },
+
+    "init-block": {
+      "match": "(\\*)\\s+(INIT)\\b",
+      "captures": {
+        "1": { "name": "keyword.operator.scene.storyscript" },
+        "2": { "name": "keyword.control.init.storyscript" }
+      }
+    },
+
+    "scene-block": {
+      "match": "(\\*)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\b",
+      "captures": {
+        "1": { "name": "keyword.operator.scene.storyscript" },
+        "2": { "name": "entity.name.function.scene.storyscript" }
+      }
+    },
+
+    "phase-tag": {
+      "match": "(#)(PREP|STORY)\\b",
+      "captures": {
+        "1": { "name": "punctuation.definition.phase.storyscript" },
+        "2": { "name": "keyword.control.phase.storyscript" }
+      }
+    },
+
+    "directive": {
+      "patterns": [
+        { "include": "#directive-actor" },
+        { "include": "#directive-start" },
+        { "include": "#directive-bg" },
+        { "include": "#directive-bgm" },
+        { "include": "#directive-sfx" },
+        { "include": "#directive-jump" },
+        { "include": "#directive-end" },
+        { "include": "#directive-choice" }
+      ]
+    },
+
+    "directive-actor": {
+      "begin": "(@actor)\\s+([A-Z_][A-Z0-9_]*)\\s+(\"[^\"]*\")",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.directive.actor.storyscript" },
+        "2": { "name": "entity.name.type.actor-id.storyscript" },
+        "3": { "name": "string.quoted.double.actor-name.storyscript" }
+      },
+      "end": "(?<=})|(?<=;)|(?=$)",
+      "patterns": [
+        { "include": "#actor-portrait-map" },
+        { "include": "#comment" }
+      ]
+    },
+
+    "actor-portrait-map": {
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.portrait-map.begin.storyscript" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.portrait-map.end.storyscript" }
+      },
+      "patterns": [
+        {
+          "match": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(->)\\s*(\"[^\"]*\")",
+          "captures": {
+            "1": { "name": "variable.other.emotion-key.storyscript" },
+            "2": { "name": "keyword.operator.arrow.storyscript" },
+            "3": { "name": "string.quoted.double.asset-path.storyscript" }
+          }
+        },
+        { "include": "#comment" }
+      ]
+    },
+
+    "directive-start": {
+      "match": "(@start)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.control.directive.start.storyscript" },
+        "2": { "name": "entity.name.function.scene-ref.storyscript" }
+      }
+    },
+
+    "directive-bg": {
+      "match": "(@bg)\\s+(\"[^\"]*\")",
+      "captures": {
+        "1": { "name": "keyword.control.directive.bg.storyscript" },
+        "2": { "name": "string.quoted.double.asset-path.storyscript" }
+      }
+    },
+
+    "directive-bgm": {
+      "patterns": [
+        {
+          "match": "(@bgm)\\s+(STOP)\\b",
+          "captures": {
+            "1": { "name": "keyword.control.directive.bgm.storyscript" },
+            "2": { "name": "constant.language.stop.storyscript" }
+          }
+        },
+        {
+          "match": "(@bgm)\\s+(\"[^\"]*\")",
+          "captures": {
+            "1": { "name": "keyword.control.directive.bgm.storyscript" },
+            "2": { "name": "string.quoted.double.asset-path.storyscript" }
+          }
+        }
+      ]
+    },
+
+    "directive-sfx": {
+      "match": "(@sfx)\\s+(\"[^\"]*\")",
+      "captures": {
+        "1": { "name": "keyword.control.directive.sfx.storyscript" },
+        "2": { "name": "string.quoted.double.asset-path.storyscript" }
+      }
+    },
+
+    "directive-jump": {
+      "match": "(@jump)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.control.directive.jump.storyscript" },
+        "2": { "name": "entity.name.function.scene-ref.storyscript" }
+      }
+    },
+
+    "directive-end": {
+      "match": "@end\\b",
+      "name": "keyword.control.directive.end.storyscript"
+    },
+
+    "directive-choice": {
+      "match": "@choice\\b",
+      "name": "keyword.control.directive.choice.storyscript"
+    },
+
+    "dialogue-portrait": {
+      "match": "([A-Z_][A-Z0-9_]*)\\s*\\(\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*,\\s*(Left|Right|Center|L|R|C)\\s*\\)\\s*(:)",
+      "captures": {
+        "1": { "name": "entity.name.type.actor-id.storyscript" },
+        "2": { "name": "variable.other.emotion-key.storyscript" },
+        "3": { "name": "constant.language.position.storyscript" },
+        "4": { "name": "punctuation.separator.dialogue.storyscript" }
+      }
+    },
+
+    "dialogue-simple": {
+      "match": "([A-Z_][A-Z0-9_]*)\\s*(:)\\s*(?=\")",
+      "captures": {
+        "1": { "name": "entity.name.type.actor-id.storyscript" },
+        "2": { "name": "punctuation.separator.dialogue.storyscript" }
+      }
+    },
+
+    "choice-block": {
+      "match": "(\"[^\"]*\")\\s*(->)\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "string.quoted.double.choice-label.storyscript" },
+        "2": { "name": "keyword.operator.arrow.storyscript" },
+        "3": { "name": "entity.name.function.scene-ref.storyscript" }
+      }
+    },
+
+    "control-flow": {
+      "match": "\\b(if|else)\\b",
+      "name": "keyword.control.flow.storyscript"
+    },
+
+    "variable": {
+      "match": "(\\$)([a-zA-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "punctuation.definition.variable.storyscript" },
+        "2": { "name": "variable.other.storyscript" }
+      }
+    },
+
+    "string": {
+      "name": "string.quoted.double.storyscript",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.storyscript" }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.storyscript" }
+      }
+    },
+
+    "number": {
+      "match": "\\b[0-9]+(\\.[0-9]+)?\\b",
+      "name": "constant.numeric.storyscript"
+    },
+
+    "boolean": {
+      "match": "\\b(true|false)\\b",
+      "name": "constant.language.boolean.storyscript"
+    },
+
+    "operator": {
+      "patterns": [
+        {
+          "match": "==|!=|<=|>=|<|>",
+          "name": "keyword.operator.comparison.storyscript"
+        },
+        {
+          "match": "\\+\\=|-\\=",
+          "name": "keyword.operator.assignment.compound.storyscript"
+        },
+        {
+          "match": "=",
+          "name": "keyword.operator.assignment.storyscript"
+        },
+        {
+          "match": "\\+|-",
+          "name": "keyword.operator.arithmetic.storyscript"
+        }
+      ]
+    },
+
+    "arrow": {
+      "match": "->",
+      "name": "keyword.operator.arrow.storyscript"
+    },
+
+    "punctuation": {
+      "patterns": [
+        {
+          "match": "\\{",
+          "name": "punctuation.definition.block.begin.storyscript"
+        },
+        {
+          "match": "\\}",
+          "name": "punctuation.definition.block.end.storyscript"
+        },
+        {
+          "match": "\\(",
+          "name": "punctuation.definition.paren.begin.storyscript"
+        },
+        {
+          "match": "\\)",
+          "name": "punctuation.definition.paren.end.storyscript"
+        },
+        {
+          "match": ";",
+          "name": "punctuation.terminator.storyscript"
+        }
+      ]
+    }
+  }
+}

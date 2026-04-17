@@ -1,0 +1,42 @@
+{
+  "name": "storyscript-syntax",
+  "displayName": "StoryScript Language Support",
+  "description": "Syntax highlighting for .StoryScript files",
+  "version": "0.1.0",
+  "publisher": "storycript",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "storyscript",
+        "aliases": [
+          "StoryScript",
+          "storyscript"
+        ],
+        "extensions": [
+          ".StoryScript"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/storyscript-icon.png",
+          "dark": "./icons/storyscript-icon.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "storyscript",
+        "scopeName": "source.storyscript",
+        "path": "./syntaxes/storyscript.tmLanguage.json"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.9.0"
+  }
+}
