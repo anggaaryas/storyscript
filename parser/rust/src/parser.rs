@@ -707,42 +707,7 @@ impl Parser {
                 self.parse_dialogue(scene)
             }
             Token::Dollar => {
-                let (l, c) = self.current_span();
-                // Variable reference in #STORY for read-only access — but assignment is forbidden.
-                // Check if this is an assignment attempt
-                let saved = self.pos;
-                self.advance(); // $
-                if let Token::Ident(_) = self.peek() {
-                    let saved2 = self.pos;
-                    self.advance(); // name
-                    if matches!(self.peek(), Token::Eq | Token::PlusEq | Token::MinusEq) {
-                        self.diagnostics.push(Diagnostic::new(
-                            DiagnosticCode::EPhaseTokenForbidden,
-                            "Variable mutation is forbidden in #STORY",
-                            Phase::Parse,
-                            scene,
-                            l,
-                            c,
-                        ));
-                        // Skip past the assignment
-                        self.advance(); // op
-                        let _ = self.parse_expression();
-                        self.eat_optional_semicolon();
-                        return None;
-                    }
-                    self.pos = saved2;
-                }
-                self.pos = saved;
-                // Not an assignment; it shouldn't appear as a standalone statement
-                self.diagnostics.push(Diagnostic::new(
-                    DiagnosticCode::ESyntax,
-                    "Unexpected '$' in #STORY (variables can only be read in expressions)",
-                    Phase::Parse,
-                    scene,
-                    l,
-                    c,
-                ));
-                None
+                self.parse_story_var_output(scene)
             }
             Token::AtBg | Token::AtBgm | Token::AtSfx => {
                 let (l, c) = self.current_span();
@@ -774,6 +739,100 @@ impl Parser {
                 ));
                 None
             }
+        }
+    }
+
+    fn parse_story_var_output(&mut self, scene: &str) -> Option<StoryStatement> {
+        let (line, column) = self.current_span();
+        self.advance(); // $
+
+        let name = if let Token::Ident(name) = self.peek().clone() {
+            self.advance();
+            name
+        } else {
+            self.diagnostics.push(Diagnostic::new(
+                DiagnosticCode::ESyntax,
+                "Expected variable name after '$' in #STORY",
+                Phase::Parse,
+                scene,
+                line,
+                column,
+            ));
+            return None;
+        };
+
+        if matches!(self.peek(), Token::Eq | Token::PlusEq | Token::MinusEq) {
+            self.diagnostics.push(Diagnostic::new(
+                DiagnosticCode::EPhaseTokenForbidden,
+                "Variable mutation is forbidden in #STORY",
+                Phase::Parse,
+                scene,
+                line,
+                column,
+            ));
+            self.advance(); // assignment operator
+            let _ = self.parse_expression();
+            self.eat_optional_semicolon();
+            return None;
+        }
+
+        if matches!(
+            self.peek(),
+            Token::Plus
+                | Token::Minus
+                | Token::EqEq
+                | Token::NotEq
+                | Token::Lt
+                | Token::LtEq
+                | Token::Gt
+                | Token::GtEq
+                | Token::LParen
+                | Token::Arrow
+        ) {
+            self.diagnostics.push(Diagnostic::new(
+                DiagnosticCode::ESyntax,
+                "Standalone variable output in #STORY must be exactly '$name'",
+                Phase::Parse,
+                scene,
+                line,
+                column,
+            ));
+            self.recover_story_statement_tail();
+            return None;
+        }
+
+        self.eat_optional_semicolon();
+
+        Some(StoryStatement::VarOutput {
+            name,
+            line,
+            column,
+        })
+    }
+
+    fn recover_story_statement_tail(&mut self) {
+        while !matches!(
+            self.peek(),
+            Token::Semicolon
+                | Token::RBrace
+                | Token::Eof
+                | Token::HashPrep
+                | Token::HashStory
+                | Token::AtChoice
+                | Token::AtJump
+                | Token::AtEnd
+                | Token::If
+                | Token::AtBg
+                | Token::AtBgm
+                | Token::AtSfx
+                | Token::StringLit(_)
+                | Token::Dollar
+        ) {
+            self.advance();
+        }
+
+        if self.peek() == &Token::Semicolon {
+            self.advance();
         }
     }
 

@@ -1,4 +1,5 @@
 use crate::diagnostic::{Diagnostic, DiagnosticCode, Phase};
+use crate::interpolation::ESCAPED_DOLLAR_MARKER;
 use crate::token::{Spanned, Token};
 
 pub struct Lexer {
@@ -91,6 +92,7 @@ impl Lexer {
                         Some('t') => s.push('\t'),
                         Some('\\') => s.push('\\'),
                         Some('"') => s.push('"'),
+                        Some('$') => s.push(ESCAPED_DOLLAR_MARKER),
                         Some(c) => s.push(c),
                         None => {
                             self.diagnostics.push(Diagnostic::new(

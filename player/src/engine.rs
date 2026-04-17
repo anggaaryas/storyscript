@@ -1,5 +1,6 @@
 use std::collections::{HashMap, VecDeque};
 use storycript_parser::ast::*;
+use storycript_parser::interpolation::{render_interpolated, ESCAPED_DOLLAR_MARKER};
 
 // ---------------------------------------------------------------------------
 // Runtime value
@@ -147,7 +148,9 @@ impl Engine {
 
         // Execute #PREP (silent — modifies state, sets assets)
         if let Some(prep) = &scene.prep {
-            self.execute_prep(&prep.statements);
+            if !self.execute_prep(&prep.statements) {
+                return;
+            }
         }
 
         // Emit scene header
@@ -163,15 +166,25 @@ impl Engine {
     // #PREP execution
     // -----------------------------------------------------------------------
 
-    fn execute_prep(&mut self, stmts: &[PrepStatement]) {
+    fn execute_prep(&mut self, stmts: &[PrepStatement]) -> bool {
         for stmt in stmts {
             match stmt {
                 PrepStatement::BgDirective { path, .. } => {
-                    self.bg = Some(path.clone());
+                    let resolved = match self.resolve_string_or_error(path, "@bg path") {
+                        Some(value) => value,
+                        None => return false,
+                    };
+                    self.bg = Some(resolved);
                 }
                 PrepStatement::BgmDirective { value, .. } => {
                     self.bgm = match value {
-                        BgmValue::Path(p) => Some(p.clone()),
+                        BgmValue::Path(p) => {
+                            let resolved = match self.resolve_string_or_error(p, "@bgm path") {
+                                Some(value) => value,
+                                None => return false,
+                            };
+                            Some(resolved)
+                        }
                         BgmValue::Stop => None,
                     };
                 }
@@ -208,13 +221,19 @@ impl Engine {
                 }
                 PrepStatement::IfElse(if_else) => {
                     if self.eval_bool(&if_else.condition) {
-                        self.execute_prep(&if_else.then_branch);
+                        if !self.execute_prep(&if_else.then_branch) {
+                            return false;
+                        }
                     } else if let Some(else_branch) = &if_else.else_branch {
-                        self.execute_prep(else_branch);
+                        if !self.execute_prep(else_branch) {
+                            return false;
+                        }
                     }
                 }
             }
         }
+
+        true
     }
 
     // -----------------------------------------------------------------------
@@ -225,15 +244,40 @@ impl Engine {
         for stmt in stmts {
             match stmt {
                 StoryStatement::Narration { text, .. } => {
+                    let resolved = match self.resolve_string_or_error(text, "narration") {
+                        Some(value) => value,
+                        None => return,
+                    };
                     self.pending
-                        .push_back(InternalEvent::Narration(text.clone()));
+                        .push_back(InternalEvent::Narration(resolved));
+                }
+                StoryStatement::VarOutput { name, .. } => {
+                    if let Some(value) = self.variables.get(name) {
+                        self.pending
+                            .push_back(InternalEvent::Narration(Self::value_to_plain_text(value)));
+                    } else {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            format!("Variable '${}' was missing during STORY output", name),
+                        );
+                        return;
+                    }
                 }
                 StoryStatement::Dialogue(dlg) => {
-                    let actor_name = self
+                    let actor_name_template = self
                         .actors
                         .get(&dlg.actor_id)
                         .map(|a| a.display_name.clone())
                         .unwrap_or_else(|| dlg.actor_id.clone());
+
+                    let actor_name = match self.resolve_string_or_error(
+                        &actor_name_template,
+                        "actor display name",
+                    ) {
+                        Some(value) => value,
+                        None => return,
+                    };
+
                     let (emotion, position) = match &dlg.form {
                         DialogueForm::NameOnly => (None, None),
                         DialogueForm::Portrait { emotion, position } => {
@@ -245,36 +289,64 @@ impl Engine {
                             (Some(emotion.clone()), Some(pos_str.to_string()))
                         }
                     };
+
+                    let text = match self.resolve_string_or_error(&dlg.text, "dialogue") {
+                        Some(value) => value,
+                        None => return,
+                    };
+
                     self.pending.push_back(InternalEvent::Dialogue {
                         actor_name,
                         actor_id: dlg.actor_id.clone(),
                         emotion,
                         position,
-                        text: dlg.text.clone(),
+                        text,
                     });
                 }
                 StoryStatement::IfElse(if_else) => {
                     if self.eval_bool(&if_else.condition) {
                         self.flatten_story(&if_else.then_branch);
+                        if self.finished {
+                            return;
+                        }
                     } else if let Some(else_branch) = &if_else.else_branch {
                         self.flatten_story(else_branch);
+                        if self.finished {
+                            return;
+                        }
                     }
                 }
                 StoryStatement::Choice(choice_block) => {
-                    let options: Vec<ChoiceDisplay> = choice_block
-                        .options
-                        .iter()
-                        .filter(|opt| {
-                            opt.condition
-                                .as_ref()
-                                .map(|c| self.eval_bool(c))
-                                .unwrap_or(true)
-                        })
-                        .map(|opt| ChoiceDisplay {
-                            text: opt.text.clone(),
+                    let mut options: Vec<ChoiceDisplay> = Vec::new();
+                    for opt in &choice_block.options {
+                        let available = opt
+                            .condition
+                            .as_ref()
+                            .map(|c| self.eval_bool(c))
+                            .unwrap_or(true);
+                        if !available {
+                            continue;
+                        }
+
+                        let text = match self.resolve_string_or_error(&opt.text, "choice label") {
+                            Some(value) => value,
+                            None => return,
+                        };
+
+                        options.push(ChoiceDisplay {
+                            text,
                             target: opt.target.clone(),
-                        })
-                        .collect();
+                        });
+                    }
+
+                    if options.is_empty() {
+                        self.raise_runtime_error(
+                            "R_CHOICE_EXHAUSTED",
+                            "All @choice options were filtered out at runtime".to_string(),
+                        );
+                        return;
+                    }
+
                     self.pending.push_back(InternalEvent::Choices(options));
                 }
                 StoryStatement::Jump { target, .. } => {
@@ -351,7 +423,7 @@ impl Engine {
         match expr {
             Expr::IntLit(n) => Value::Int(*n),
             Expr::BoolLit(b) => Value::Bool(*b),
-            Expr::StringLit(s) => Value::Str(s.clone()),
+            Expr::StringLit(s) => Value::Str(self.resolve_string_best_effort(s)),
             Expr::VarRef { name, .. } => self
                 .variables
                 .get(name)
@@ -398,6 +470,57 @@ impl Engine {
             Value::Int(n) => n != 0,
             _ => false,
         }
+    }
+
+    fn resolve_string_or_error(&mut self, template: &str, context: &str) -> Option<String> {
+        match self.resolve_string(template) {
+            Ok(value) => Some(value),
+            Err(message) => {
+                self.raise_runtime_error(
+                    "RUNTIME",
+                    format!("Interpolation failed in {}: {}", context, message),
+                );
+                None
+            }
+        }
+    }
+
+    fn resolve_string(&self, template: &str) -> Result<String, String> {
+        render_interpolated(template, |name| {
+            self.variables.get(name).map(Self::value_to_plain_text)
+        })
+        .map_err(|e| e.message)
+    }
+
+    fn resolve_string_best_effort(&self, template: &str) -> String {
+        match render_interpolated(template, |name| {
+            self.variables
+                .get(name)
+                .map(Self::value_to_plain_text)
+                .or_else(|| Some(format!("${{{}}}", name)))
+        }) {
+            Ok(value) => value,
+            Err(_) => template
+                .chars()
+                .map(|ch| if ch == ESCAPED_DOLLAR_MARKER { '$' } else { ch })
+                .collect(),
+        }
+    }
+
+    fn value_to_plain_text(value: &Value) -> String {
+        match value {
+            Value::Int(n) => n.to_string(),
+            Value::Bool(b) => b.to_string(),
+            Value::Str(s) => s.clone(),
+        }
+    }
+
+    fn raise_runtime_error(&mut self, code: &str, message: String) {
+        self.pending.clear();
+        self.pending
+            .push_back(InternalEvent::Narration(format!("[{}] {}", code, message)));
+        self.pending.push_back(InternalEvent::End);
+        self.finished = true;
     }
 }
 

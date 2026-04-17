@@ -1,0 +1,35 @@
+// Feature demo: standalone STORY variable output + global inline interpolation.
+
+* INIT {
+    $apple_count = 3;
+    $pilot_name = "Mira";
+    $bg_variant = "orchard_day";
+    $sfx_name = "pickup_ping";
+
+    @actor NARR "${pilot_name}";
+    @start orchard_market;
+}
+
+* orchard_market {
+    #PREP
+    @bg "bg/${bg_variant}.png";
+    @sfx "sfx/${sfx_name}.wav";
+    $apple_count += 2;
+
+    #STORY
+    "Apple count: ${apple_count}";
+    "Price tag stays literal: \$5 each.";
+    NARR: "Fresh stock report: ${apple_count} apples ready.";
+
+    $apple_count;
+
+    @choice {
+        "Deliver ${apple_count} apples" -> delivery_complete;
+    }
+}
+
+* delivery_complete {
+    #STORY
+    NARR: "Delivery confirmed. Final total = ${apple_count}.";
+    @end;
+}

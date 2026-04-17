@@ -125,6 +125,7 @@ pub struct StoryBlock {
 #[derive(Debug, Clone)]
 pub enum StoryStatement {
     Narration { text: String, line: usize, column: usize },
+    VarOutput { name: String, line: usize, column: usize },
     Dialogue(Dialogue),
     IfElse(StoryIfElse),
     Choice(ChoiceBlock),

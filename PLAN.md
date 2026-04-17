@@ -45,12 +45,12 @@ A standard scene is defined using `* <scene_label> { ... }`. Every scene operate
 The invisible backend phase. The parser executes all math, updates state arrays, and queues engine assets instantly before rendering anything to the screen. 
 
 * **Allowed Tokens:** `$`, `@bg`, `@bgm`, `@sfx`, `if`/`else`.
-* **Forbidden Tokens:** `"Narrative text"`, `ActorID()`, `@choice`, `@jump`, `@end`.
+* **Forbidden Tokens:** `"Narrative text"`, `ActorID()`, standalone STORY output (`$var`), `@choice`, `@jump`, `@end`.
 
 ### Phase 2: `#STORY` (Rendering & Interaction Phase)
 The player-facing phase. The UI sequentially renders text and dialogue. Execution pauses when requiring user input or a hard scene transition.
 
-* **Allowed Tokens:** `"Narrative text"`, `ActorID()`, `if`/`else`, `@choice`, `@jump`, `@end`, and **read-only** variable access (`$var`) inside expressions.
+* **Allowed Tokens:** `"Narrative text"`, `ActorID()`, `if`/`else`, `@choice`, `@jump`, `@end`, standalone variable output (`$var`), and **read-only** variable access (`$var`) inside expressions.
 * **Forbidden Tokens:** `@bg`, `@bgm`, `@sfx`, and variable assignment/mutation (`=`, `+=`, `-=`, etc.).
 * **Strict Rule:** Every reachable execution path in `#STORY` must terminate with a transition directive (`@choice`, `@jump`, or `@end`) as its final executed token.
 * **Compiler Enforcement:** The compiler must statically verify this termination rule for `#STORY` control flow.
@@ -81,6 +81,28 @@ if ($system_stability <= 30) {
 } else {
     $critical_warning = false;
 }
+```
+
+### Variable Read Output & Interpolation
+
+StoryScript supports two read-only variable rendering forms:
+
+* **Standalone variable output (only in `#STORY`):**
+    * Syntax: `$variable_name` (optional trailing `;`).
+    * Must be exactly `$name`; arithmetic/comparison tails are invalid in this statement form.
+* **Inline interpolation in string literals (all phases):**
+    * Placeholder syntax: `${variable_name}`.
+    * Supported in all string literal contexts: narration/dialogue text, choice labels, directive paths, actor display names, and string expressions.
+    * Placeholder names follow normal identifier rules (`[A-Za-z_][A-Za-z0-9_]*`).
+    * Literal dollar uses escape `\$`.
+
+Interpolation and standalone variable output are read-only and evaluated against current runtime variable state at execution time.
+
+```plaintext
+#STORY
+"Apple count: ${apple_count}"
+"Price tag stays literal: \$5"
+$apple_count
 ```
 
 ### Engine Directives (Only in `#PREP`)
@@ -169,6 +191,7 @@ The compiler must fail the script when any of the following is true:
 * Any portrait-form dialogue targets an actor declared without portraits.
 * Any variable is read before declaration.
 * Any variable assignment targets an undeclared variable.
+* Any interpolation placeholder is malformed (for example: `${`, `${}`, `${1bad}`, `${name`).
 * Any constant-folded `@choice` block is provably empty at compile time.
 * Any reachable `#STORY` path can complete without executing `@choice`, `@jump`, or `@end`.
 
@@ -183,7 +206,7 @@ Diagnostic code naming:
 #### Compile-Time
 | Code | Trigger |
 | :--- | :--- |
-| `E_SYNTAX` | Any lexical/tokenization/parser error. |
+| `E_SYNTAX` | Any lexical/tokenization/parser error, including malformed interpolation placeholder syntax. |
 | `E_INIT_COUNT` | The script contains zero or multiple `* INIT` blocks. |
 | `E_INIT_ORDER` | `* INIT` is not the first top-level block. |
 | `E_START_COUNT` | `* INIT` contains zero or multiple `@start` directives. |
@@ -201,7 +224,7 @@ Diagnostic code naming:
 | `E_POSITION_INVALID` | Portrait-form dialogue uses an invalid position token. |
 | `E_EMOTION_UNKNOWN` | Portrait-form dialogue uses an unknown emotion key. |
 | `E_PORTRAIT_MODE_INVALID` | Portrait-form dialogue targets an actor declared without portraits. |
-| `E_VARIABLE_UNDECLARED_READ` | A variable is read before declaration. |
+| `E_VARIABLE_UNDECLARED_READ` | A variable is read before declaration (including `${var}` interpolation and standalone STORY output `$var`). |
 | `E_VARIABLE_UNDECLARED_WRITE` | A variable assignment targets an undeclared variable. |
 | `E_CHOICE_STATIC_EMPTY` | `@choice` is provably empty after compile-time constant folding. |
 | `E_STORY_UNTERMINATED_PATH` | A reachable `#STORY` path can fall through without `@choice`, `@jump`, or `@end`. |

@@ -65,7 +65,8 @@ StoryScript uses:
 
 - `* INIT` for global state, actors, and `@start`
 - `#PREP` for state mutation and engine directives (`@bg`, `@bgm`, `@sfx`)
-- `#STORY` for narration, dialogue, branching, and transitions
+- `#STORY` for narration, dialogue, branching, transitions, and standalone variable output (`$var`)
+- `${var}` inline interpolation in string literals across all phases (`\$` for literal dollar)
 
 Minimal example:
 
@@ -82,7 +83,8 @@ Minimal example:
 
 	#STORY
 	"The bridge lights flicker."
-	CMDR: "Status report."
+	CMDR: "Status report. Morale=${morale}"
+	$morale
 
 	@choice {
 		"Investigate the signal" -> signal_room

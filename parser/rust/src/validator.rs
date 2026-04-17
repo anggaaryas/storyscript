@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ast::*;
 use crate::diagnostic::{Diagnostic, DiagnosticCode, Phase};
+use crate::interpolation::scan_placeholders;
 
 /// Performs semantic validation on a parsed StoryScript AST.
 /// Returns a list of diagnostics (errors and warnings).
@@ -28,6 +29,15 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
                 var.column,
             ));
         }
+
+        validate_expr_contents(
+            &var.value,
+            var.line,
+            var.column,
+            &declared_vars,
+            "INIT",
+            &mut diags,
+        );
     }
 
     // Check duplicate actors & emotion keys
@@ -46,6 +56,16 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
         }
 
         let mut emotions: HashSet<String> = HashSet::new();
+
+        validate_interpolated_string(
+            &actor.display_name,
+            actor.line,
+            actor.column,
+            &declared_vars,
+            "INIT",
+            &mut diags,
+        );
+
         for portrait in &actor.portraits {
             if !emotions.insert(portrait.emotion.clone()) {
                 diags.push(Diagnostic::new(
@@ -60,6 +80,15 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
                     portrait.column,
                 ));
             }
+
+            validate_interpolated_string(
+                &portrait.path,
+                portrait.line,
+                portrait.column,
+                &declared_vars,
+                "INIT",
+                &mut diags,
+            );
         }
     }
 
@@ -152,18 +181,40 @@ fn validate_prep_statements(
                         assign.column,
                     ));
                 }
-                validate_expr_vars(&assign.value, declared_vars, scene, diags);
+                validate_expr_contents(
+                    &assign.value,
+                    assign.line,
+                    assign.column,
+                    declared_vars,
+                    scene,
+                    diags,
+                );
             }
             PrepStatement::IfElse(if_else) => {
-                validate_expr_vars(&if_else.condition, declared_vars, scene, diags);
+                validate_expr_contents(
+                    &if_else.condition,
+                    if_else.line,
+                    if_else.column,
+                    declared_vars,
+                    scene,
+                    diags,
+                );
                 validate_prep_statements(&if_else.then_branch, declared_vars, scene, diags);
                 if let Some(else_branch) = &if_else.else_branch {
                     validate_prep_statements(else_branch, declared_vars, scene, diags);
                 }
             }
-            PrepStatement::BgDirective { .. }
-            | PrepStatement::BgmDirective { .. }
-            | PrepStatement::SfxDirective { .. } => {}
+            PrepStatement::BgDirective { path, line, column } => {
+                validate_interpolated_string(path, *line, *column, declared_vars, scene, diags);
+            }
+            PrepStatement::BgmDirective { value, line, column } => {
+                if let BgmValue::Path(path) = value {
+                    validate_interpolated_string(path, *line, *column, declared_vars, scene, diags);
+                }
+            }
+            PrepStatement::SfxDirective { path, line, column } => {
+                validate_interpolated_string(path, *line, *column, declared_vars, scene, diags);
+            }
         }
     }
 }
@@ -183,6 +234,15 @@ fn validate_story_statements(
     for stmt in stmts {
         match stmt {
             StoryStatement::Dialogue(dlg) => {
+                validate_interpolated_string(
+                    &dlg.text,
+                    dlg.line,
+                    dlg.column,
+                    declared_vars,
+                    scene,
+                    diags,
+                );
+
                 // Check actor exists
                 match actor_map.get(&dlg.actor_id) {
                     None => {
@@ -256,10 +316,29 @@ fn validate_story_statements(
                             opt.column,
                         ));
                     }
+
+                    validate_interpolated_string(
+                        &opt.text,
+                        opt.line,
+                        opt.column,
+                        declared_vars,
+                        scene,
+                        diags,
+                    );
+
                     if opt.condition.is_none() {
                         all_conditional = false;
                         provably_empty = false;
                     } else {
+                        validate_expr_contents(
+                            opt.condition.as_ref().unwrap(),
+                            opt.line,
+                            opt.column,
+                            declared_vars,
+                            scene,
+                            diags,
+                        );
+
                         // Check if condition is provably false at compile time
                         if let Some(val) = try_const_eval_bool(opt.condition.as_ref().unwrap()) {
                             if val {
@@ -293,7 +372,14 @@ fn validate_story_statements(
                 }
             }
             StoryStatement::IfElse(if_else) => {
-                validate_expr_vars(&if_else.condition, declared_vars, scene, diags);
+                validate_expr_contents(
+                    &if_else.condition,
+                    if_else.line,
+                    if_else.column,
+                    declared_vars,
+                    scene,
+                    diags,
+                );
                 validate_story_statements(
                     &if_else.then_branch,
                     declared_vars,
@@ -313,9 +399,22 @@ fn validate_story_statements(
                     );
                 }
             }
-            StoryStatement::Narration { .. }
-            | StoryStatement::End { .. }
-            | StoryStatement::SfxDirective { .. } => {}
+            StoryStatement::Narration { text, line, column } => {
+                validate_interpolated_string(text, *line, *column, declared_vars, scene, diags);
+            }
+            StoryStatement::VarOutput { name, line, column } => {
+                if !declared_vars.contains(name) {
+                    diags.push(Diagnostic::new(
+                        DiagnosticCode::EVariableUndeclaredRead,
+                        format!("Read of undeclared variable '${}'", name),
+                        Phase::Validation,
+                        scene,
+                        *line,
+                        *column,
+                    ));
+                }
+            }
+            StoryStatement::End { .. } | StoryStatement::SfxDirective { .. } => {}
         }
     }
 }
@@ -324,8 +423,10 @@ fn validate_story_statements(
 // Variable reference validation in expressions
 // ---------------------------------------------------------------------------
 
-fn validate_expr_vars(
+fn validate_expr_contents(
     expr: &Expr,
+    fallback_line: usize,
+    fallback_column: usize,
     declared_vars: &HashSet<String>,
     scene: &str,
     diags: &mut Vec<Diagnostic>,
@@ -343,11 +444,74 @@ fn validate_expr_vars(
                 ));
             }
         }
+        Expr::StringLit(text) => {
+            validate_interpolated_string(
+                text,
+                fallback_line,
+                fallback_column,
+                declared_vars,
+                scene,
+                diags,
+            );
+        }
         Expr::BinOp { left, right, .. } => {
-            validate_expr_vars(left, declared_vars, scene, diags);
-            validate_expr_vars(right, declared_vars, scene, diags);
+            validate_expr_contents(
+                left,
+                fallback_line,
+                fallback_column,
+                declared_vars,
+                scene,
+                diags,
+            );
+            validate_expr_contents(
+                right,
+                fallback_line,
+                fallback_column,
+                declared_vars,
+                scene,
+                diags,
+            );
         }
         _ => {}
+    }
+}
+
+fn validate_interpolated_string(
+    text: &str,
+    line: usize,
+    column: usize,
+    declared_vars: &HashSet<String>,
+    scene: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
+    match scan_placeholders(text) {
+        Ok(placeholders) => {
+            for placeholder in placeholders {
+                if !declared_vars.contains(&placeholder.name) {
+                    diags.push(Diagnostic::new(
+                        DiagnosticCode::EVariableUndeclaredRead,
+                        format!(
+                            "Read of undeclared variable '${}' in interpolation",
+                            placeholder.name
+                        ),
+                        Phase::Validation,
+                        scene,
+                        line,
+                        column.saturating_add(placeholder.offset.saturating_add(1)),
+                    ));
+                }
+            }
+        }
+        Err(err) => {
+            diags.push(Diagnostic::new(
+                DiagnosticCode::ESyntax,
+                format!("Invalid interpolation syntax: {}", err.message),
+                Phase::Validation,
+                scene,
+                line,
+                column.saturating_add(err.offset.saturating_add(1)),
+            ));
+        }
     }
 }
 

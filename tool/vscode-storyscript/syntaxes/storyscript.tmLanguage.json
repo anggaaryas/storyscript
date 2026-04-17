@@ -209,7 +209,34 @@
       "end": "\"",
       "endCaptures": {
         "0": { "name": "punctuation.definition.string.end.storyscript" }
-      }
+      },
+      "patterns": [
+        { "include": "#string-dollar-escape" },
+        { "include": "#interpolation" }
+      ]
+    },
+
+    "string-dollar-escape": {
+      "match": "\\\\\\$",
+      "name": "constant.character.escape.dollar.storyscript"
+    },
+
+    "interpolation": {
+      "begin": "(\\$\\{)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.interpolation.begin.storyscript" }
+      },
+      "end": "(\\})",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.interpolation.end.storyscript" }
+      },
+      "name": "meta.interpolation.storyscript",
+      "patterns": [
+        {
+          "match": "[a-zA-Z_][a-zA-Z0-9_]*",
+          "name": "variable.other.storyscript"
+        }
+      ]
     },
 
     "number": {
