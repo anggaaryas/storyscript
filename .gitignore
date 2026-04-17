@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Rust/Cargo
+/target/
+**/target/
+Cargo.lock
+
+# Build artifacts
+*.rlib
+*.so
+*.dylib
+*.dll
+*.exe
+*.app
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.out
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
