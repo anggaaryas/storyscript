@@ -17,14 +17,14 @@ Before any scenes are parsed, the engine must define global variables, load acto
 
     // Standard Actor (With Portraits)
     @actor TEO "Teona" {
-        neutral -> "teo_neutral.png"
-        calm -> "teo_calm.png"
-        focus -> "teo_focus.png"
+        neutral -> "teo_neutral.png";
+        calm -> "teo_calm.png";
+        focus -> "teo_focus.png";
     }
     @actor GIP "Gippie" {
-        default -> "gip_smile.png"
-        playful -> "gip_wink.png"
-        alert -> "gip_alert.png"
+        default -> "gip_smile.png";
+        playful -> "gip_wink.png";
+        alert -> "gip_alert.png";
     }
 
     // Actor without portrait
@@ -129,14 +129,14 @@ Automatically transitions to the next scene without user input. Used for script 
     $bypass_key = false;
     
     @actor TEO "Teona" {
-        calm -> "teo_calm.png"
-        focus -> "teo_focus.png"
+        calm -> "teo_calm.png";
+        focus -> "teo_focus.png";
     }
     
     @actor GIP "Gippie" {
-        default -> "gip_smile.png"
-        playful -> "gip_wink.png"
-        alert -> "gip_alert.png"
+        default -> "gip_smile.png";
+        playful -> "gip_wink.png";
+        alert -> "gip_alert.png";
     }
     
     @start server_core_hub;
