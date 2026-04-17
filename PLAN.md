@@ -4,6 +4,7 @@
 Before any scenes are parsed, the engine must define global variables, load actor assets into memory, and explicitly define the game's entry point. This is strictly handled in the reserved `* INIT` block.
 
 **Syntax Rules:**
+* Exactly one `* INIT { ... }` block must exist in the entire script.
 * Must be the absolute first block evaluated by the compiler.
 * Handles global variable declaration (`$`).
 * Handles character registration (`@actor`) using block-based dictionary syntax.
@@ -44,14 +45,24 @@ A standard scene is defined using `* <scene_label> { ... }`. Every scene operate
 The invisible backend phase. The parser executes all math, updates state arrays, and queues engine assets instantly before rendering anything to the screen. 
 
 * **Allowed Tokens:** `$`, `@bg`, `@bgm`, `@sfx`, `if`/`else`.
-* **Forbidden Tokens:** `"Narrative text"`, `ActorID()`, `@choice`, `@jump`.
+* **Forbidden Tokens:** `"Narrative text"`, `ActorID()`, `@choice`, `@jump`, `@end`.
 
 ### Phase 2: `#STORY` (Rendering & Interaction Phase)
 The player-facing phase. The UI sequentially renders text and dialogue. Execution pauses when requiring user input or a hard scene transition.
 
-* **Allowed Tokens:** `"Narrative text"`, `ActorID()`, `if`/`else`, `@choice`, `@jump`.
-* **Forbidden Tokens:** `@bg`, `@bgm`, `@sfx`, `$`. 
-* **Strict Rule:** A navigation directive (`@choice` or `@jump`) must be the absolute final executed token in this block.
+* **Allowed Tokens:** `"Narrative text"`, `ActorID()`, `if`/`else`, `@choice`, `@jump`, `@end`, and **read-only** variable access (`$var`) inside expressions.
+* **Forbidden Tokens:** `@bg`, `@bgm`, `@sfx`, and variable assignment/mutation (`=`, `+=`, `-=`, etc.).
+* **Strict Rule:** Every reachable execution path in `#STORY` must terminate with a transition directive (`@choice`, `@jump`, or `@end`) as its final executed token.
+* **Compiler Enforcement:** The compiler must statically verify this termination rule for `#STORY` control flow.
+
+### Scene Block Requirements
+Each scene must follow these structural rules:
+
+* `#PREP` is optional.
+* `#PREP` may appear at most once.
+* `#STORY` is mandatory and must appear exactly once.
+* If `#PREP` exists, it must appear before `#STORY`.
+* A scene definition ends when its block closing brace `}` is reached. Runtime script termination is handled by `@end` inside `#STORY`.
 
 ---
 
@@ -59,6 +70,10 @@ The player-facing phase. The UI sequentially renders text and dialogue. Executio
 
 ### Variables & Logic
 Standard C-style conditionals are supported in both `#PREP` and `#STORY` blocks. Variables must be prefixed with `$`.
+
+**Mutation Rule:**
+* In `#PREP`: variable reads and writes are allowed.
+* In `#STORY`: variable reads are allowed, but writes are forbidden.
 
 ```plaintext
 if ($system_stability <= 30) {
@@ -74,16 +89,18 @@ Directives tell the visual/audio engine what to queue.
 | Directive | Purpose | Syntax | Example |
 | :--- | :--- | :--- | :--- |
 | **@bg** | Loads a background image. | `@bg "<path>"` | `@bg "server_room.png"` |
-| **@bgm** | Plays looping background music. | `@bgm "<path>" / STOP` | `@bgm "tense_hum.wav"` |
+| **@bgm** | Plays looping background music, or stops it. | `@bgm "<path>"` or `@bgm STOP` | `@bgm "tense_hum.wav"` |
 | **@sfx** | Plays a one-shot sound effect. | `@sfx "<path>"` | `@sfx "spark.wav"` |
 
 ### Dialogue & Narration (Only in `#STORY`)
 Narration is handled via standard string literals. Dialogue utilizes the registered Actor IDs from the `INIT` block. 
 
-The parser enforces strict rules based on the presence of parentheses to prevent missing-asset crashes.
+The parser supports two dialogue forms for any registered actor ID.
 
-* **With Portrait:** Must contain exactly two parameters: `(<emotion_key>, <Position>)`. Valid positions are `Left`, `Center`, `Right` (or `L`, `C`, `R`).
-* **Without Portrait:** Omit parentheses entirely. The engine renders the display name and text with no sprite.
+* **Portrait Form:** `ActorID(<emotion_key>, <Position>): "..."` renders sprite and text. Valid positions are `Left`, `Center`, `Right` (or `L`, `C`, `R`).
+* **Name-Only Form:** `ActorID: "..."` renders text only and suppresses sprite rendering.
+* **Constraint:** If portrait form is used, `<emotion_key>` must exist on that actor's portrait map.
+* **Constraint:** If an actor was declared without a portrait map, portrait form is invalid for that actor.
 
 ```plaintext
 "The main console flashes red."
@@ -95,11 +112,13 @@ TEO(focus, Left): "We need to isolate the memory leak."
 GIP: "On it, boss!"
 ```
 
-### Navigation Directives (Only in `#STORY`)
-These directives handle transitioning out of the current scene and must be the final token read in a block.
+### Navigation & Termination Directives (Only in `#STORY`)
+These directives handle transitioning out of the current scene and must be the final executed token on each reachable `#STORY` path.
 
 **@choice**
 Halts the engine and renders a user-selectable menu. Options map to the next scene via `->`. Supports nested conditionals.
+
+If all options are filtered out after conditional evaluation, the engine raises a runtime error (`ChoiceExhausted`) and stops execution.
 
 ```plaintext
 @choice {
@@ -118,6 +137,137 @@ Automatically transitions to the next scene without user input. Used for script 
 "The servers finally quiet down into a steady hum."
 @jump scene_rest_period;
 ```
+
+**@end**
+Terminates script execution immediately. Use this when the current scene is a terminal/final scene.
+
+```plaintext
+"The reactor cools to silence."
+@end;
+```
+
+### Compile-Time Validation Rules
+The compiler must fail the script when any of the following is true:
+
+* Any lexical or syntax error exists.
+* The script contains zero or multiple `* INIT` blocks.
+* `* INIT` is not the first top-level block.
+* `* INIT` contains zero or multiple `@start` directives.
+* Duplicate scene labels exist.
+* Duplicate actor IDs exist.
+* Duplicate emotion keys exist inside an actor portrait map.
+* Duplicate global variable declarations exist in `* INIT`.
+* `@start` points to a non-existent scene.
+* Any `@jump` target does not exist.
+* Any `@choice` option target does not exist.
+* Any scene has invalid phase structure (missing `#STORY`, repeated `#PREP`, repeated `#STORY`, or `#PREP` placed after `#STORY`).
+* Any statement appears in a forbidden phase (for example: `@bg` in `#STORY`, dialogue/narration in `#PREP`, transition directives in `#PREP`, or variable mutation in `#STORY`).
+* Any dialogue line references an unknown actor ID.
+* Any portrait-form dialogue has invalid parameter shape (must be exactly `<emotion_key>, <Position>`).
+* Any portrait-form dialogue uses an invalid position token.
+* Any portrait-form dialogue uses an unknown emotion key.
+* Any portrait-form dialogue targets an actor declared without portraits.
+* Any variable is read before declaration.
+* Any variable assignment targets an undeclared variable.
+* Any constant-folded `@choice` block is provably empty at compile time.
+* Any reachable `#STORY` path can complete without executing `@choice`, `@jump`, or `@end`.
+
+### Standard Diagnostic Codes
+Use the following stable diagnostic codes in compiler/runtime output.
+
+Diagnostic code naming:
+* `E_*` = compile-time error
+* `W_*` = compile-time warning
+* `R_*` = runtime error
+
+#### Compile-Time
+| Code | Trigger |
+| :--- | :--- |
+| `E_SYNTAX` | Any lexical/tokenization/parser error. |
+| `E_INIT_COUNT` | The script contains zero or multiple `* INIT` blocks. |
+| `E_INIT_ORDER` | `* INIT` is not the first top-level block. |
+| `E_START_COUNT` | `* INIT` contains zero or multiple `@start` directives. |
+| `E_SCENE_DUPLICATE` | Duplicate scene labels exist. |
+| `E_ACTOR_DUPLICATE` | Duplicate actor IDs exist. |
+| `E_EMOTION_DUPLICATE` | Duplicate emotion keys exist inside one actor portrait map. |
+| `E_GLOBAL_DUPLICATE` | Duplicate global variable declarations exist in `* INIT`. |
+| `E_START_TARGET_MISSING` | `@start` points to a non-existent scene. |
+| `E_JUMP_TARGET_MISSING` | Any `@jump` target does not exist. |
+| `E_CHOICE_TARGET_MISSING` | Any `@choice` option target does not exist. |
+| `E_SCENE_STRUCTURE` | A scene has invalid phase structure (`#STORY` missing/repeated, `#PREP` repeated, or `#PREP` after `#STORY`). |
+| `E_PHASE_TOKEN_FORBIDDEN` | A statement/token is used in a forbidden phase (`#PREP` or `#STORY`). |
+| `E_ACTOR_UNKNOWN` | A dialogue line references an unknown actor ID. |
+| `E_DIALOGUE_SHAPE_INVALID` | Portrait-form dialogue does not use exactly `<emotion_key>, <Position>`. |
+| `E_POSITION_INVALID` | Portrait-form dialogue uses an invalid position token. |
+| `E_EMOTION_UNKNOWN` | Portrait-form dialogue uses an unknown emotion key. |
+| `E_PORTRAIT_MODE_INVALID` | Portrait-form dialogue targets an actor declared without portraits. |
+| `E_VARIABLE_UNDECLARED_READ` | A variable is read before declaration. |
+| `E_VARIABLE_UNDECLARED_WRITE` | A variable assignment targets an undeclared variable. |
+| `E_CHOICE_STATIC_EMPTY` | `@choice` is provably empty after compile-time constant folding. |
+| `E_STORY_UNTERMINATED_PATH` | A reachable `#STORY` path can fall through without `@choice`, `@jump`, or `@end`. |
+
+#### Compile-Time Warnings
+| Code | Trigger |
+| :--- | :--- |
+| `W_CHOICE_POSSIBLY_EMPTY` | `@choice` cannot be proven empty at compile time, but may evaluate to no options at runtime. |
+
+#### Runtime
+| Code | Trigger |
+| :--- | :--- |
+| `R_CHOICE_EXHAUSTED` | All `@choice` options are filtered out after condition evaluation. |
+| `R_ASSET_NOT_FOUND` | Referenced background, portrait, BGM, or SFX asset cannot be found at runtime. |
+| `R_ASSET_LOAD_FAILED` | Asset exists but fails to load/decode at runtime. |
+| `R_AUDIO_DEVICE_FAILURE` | Audio subsystem/device cannot initialize or play requested sound. |
+| `R_SAVE_STATE_CORRUPT` | Save data is malformed or incompatible with expected schema. |
+
+Backward compatibility:
+* `ChoiceExhausted` is retained as a legacy alias for `R_CHOICE_EXHAUSTED`.
+
+### Diagnostic Message Format
+All diagnostics (compile-time, warning, runtime) must be emitted in a consistent structure.
+
+Required fields:
+* `code`: Diagnostic code (`E_*`, `W_*`, `R_*`).
+* `message`: Human-readable explanation.
+* `phase`: One of `LEX`, `PARSE`, `VALIDATION`, `PREP`, `STORY`, `RUNTIME`.
+* `scene`: Scene label when applicable; otherwise `INIT` or `GLOBAL`.
+* `line`: 1-based source line when source-mapped.
+* `column`: 1-based source column when source-mapped.
+
+Canonical text format:
+* `<code> [<phase>] <scene>:<line>:<column> <message>`
+
+Canonical JSON format:
+```json
+{
+    "code": "E_STORY_UNTERMINATED_PATH",
+    "message": "Reachable #STORY path can fall through without @choice, @jump, or @end.",
+    "phase": "VALIDATION",
+    "scene": "server_core_hub",
+    "line": 42,
+    "column": 5
+}
+```
+
+Formatting rules:
+* `line` and `column` may be `0` when no exact source location exists (for example: deserialized runtime state errors).
+* Multiple diagnostics must be sorted by ascending `(line, column, code)` within the same file.
+* The compiler should continue reporting additional compile-time diagnostics after the first error when safe recovery is possible.
+
+### `#STORY` Termination Analysis
+The compiler must perform static control-flow analysis on each `#STORY` block.
+
+* If a condition cannot be proven constant at compile time, both branches are treated as reachable.
+* A path is considered terminated only when its final executable statement is `@choice`, `@jump`, or `@end`.
+* If any reachable path can fall through to the end of `#STORY` without a transition, compilation fails.
+* Branches proven unreachable by constant folding do not need to terminate.
+
+### Statement Terminators
+Semicolons are optional.
+
+* A statement may end with `;` or a newline.
+* Trailing semicolons are accepted and ignored by the parser.
+* Use one style consistently within a project to improve readability.
 
 ---
 
