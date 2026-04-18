@@ -204,14 +204,27 @@ You can also open the extension folder in VS Code and use the Extensions UI to i
 
 ## Flutter
 
-```
+This repository includes a Flutter plugin integration for the Rust runtime. The following commands build the web bindings and run the Flutter example with the required WebAssembly shared-memory headers.
+
+### Build the Flutter Web bindings
+
+```bash
+cd storyscript_player_core
 flutter_rust_bridge_codegen build-web --wasm-pack-rustflags "-Ctarget-feature=+atomics -Clink-args=--shared-memory -Clink-args=--max-memory=1073741824 -Clink-args=--import-memory -Clink-args=--export=__wasm_init_tls -Clink-args=--export=__tls_size -Clink-args=--export=__tls_align -Clink-args=--export=__tls_base"
 ```
 
-```
+This generates the WebAssembly artifacts required for Flutter Web when using `flutter_rust_bridge`.
+
+### Run the Flutter web app locally
+
+```bash
+cd storyscript_player_core
 flutter run --web-header=Cross-Origin-Opener-Policy=same-origin --web-header=Cross-Origin-Embedder-Policy=require-corp
 ```
 
+These headers are necessary for `shared-memory` WebAssembly builds and allow the web app to load the generated Wasm module correctly.
+
+> Note: Ensure you have Flutter installed and that `wasm-pack` is available in your PATH before running these commands.
 
 ## License
 
