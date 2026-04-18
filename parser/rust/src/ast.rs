@@ -1,3 +1,5 @@
+use rust_decimal::Decimal;
+
 /// Abstract Syntax Tree types for StoryScript.
 
 #[derive(Debug, Clone)]
@@ -22,9 +24,18 @@ pub struct InitBlock {
 #[derive(Debug, Clone)]
 pub struct VarDecl {
     pub name: String,
+    pub var_type: VarType,
     pub value: Expr,
     pub line: usize,
     pub column: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VarType {
+    Integer,
+    String,
+    Boolean,
+    Decimal,
 }
 
 #[derive(Debug, Clone)]
@@ -73,9 +84,21 @@ pub struct PrepBlock {
 
 #[derive(Debug, Clone)]
 pub enum PrepStatement {
-    BgDirective { path: String, line: usize, column: usize },
-    BgmDirective { value: BgmValue, line: usize, column: usize },
-    SfxDirective { path: String, line: usize, column: usize },
+    BgDirective {
+        path: String,
+        line: usize,
+        column: usize,
+    },
+    BgmDirective {
+        value: BgmValue,
+        line: usize,
+        column: usize,
+    },
+    SfxDirective {
+        path: String,
+        line: usize,
+        column: usize,
+    },
     VarAssign(VarAssign),
     IfElse(PrepIfElse),
 }
@@ -97,9 +120,9 @@ pub struct VarAssign {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AssignOp {
-    Set,     // =
-    AddEq,   // +=
-    SubEq,   // -=
+    Set,   // =
+    AddEq, // +=
+    SubEq, // -=
 }
 
 #[derive(Debug, Clone)]
@@ -124,14 +147,33 @@ pub struct StoryBlock {
 
 #[derive(Debug, Clone)]
 pub enum StoryStatement {
-    Narration { text: String, line: usize, column: usize },
-    VarOutput { name: String, line: usize, column: usize },
+    Narration {
+        text: String,
+        line: usize,
+        column: usize,
+    },
+    VarOutput {
+        name: String,
+        line: usize,
+        column: usize,
+    },
     Dialogue(Dialogue),
     IfElse(StoryIfElse),
     Choice(ChoiceBlock),
-    Jump { target: String, line: usize, column: usize },
-    End { line: usize, column: usize },
-    SfxDirective { path: String, line: usize, column: usize },
+    Jump {
+        target: String,
+        line: usize,
+        column: usize,
+    },
+    End {
+        line: usize,
+        column: usize,
+    },
+    SfxDirective {
+        path: String,
+        line: usize,
+        column: usize,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -199,9 +241,14 @@ pub struct ChoiceOption {
 #[derive(Debug, Clone)]
 pub enum Expr {
     IntLit(i64),
+    DecimalLit(Decimal),
     BoolLit(bool),
     StringLit(String),
-    VarRef { name: String, line: usize, column: usize },
+    VarRef {
+        name: String,
+        line: usize,
+        column: usize,
+    },
     BinOp {
         left: Box<Expr>,
         op: BinOperator,

@@ -1,57 +1,65 @@
+use rust_decimal::Decimal;
+
 /// Token types for the StoryScript lexer.
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     // Structural
-    Star,           // *
-    LBrace,         // {
-    RBrace,         // }
-    LParen,         // (
-    RParen,         // )
-    Semicolon,      // ;
-    Colon,          // :
-    Arrow,          // ->
-    Comma,          // ,
-    Dollar,         // $
+    Star,      // *
+    LBrace,    // {
+    RBrace,    // }
+    LParen,    // (
+    RParen,    // )
+    Semicolon, // ;
+    Colon,     // :
+    Arrow,     // ->
+    Comma,     // ,
+    Dollar,    // $
 
     // Literals
-    StringLit(String),   // "..."
+    StringLit(String), // "..."
     IntLit(i64),
+    DecimalLit(Decimal),
     BoolLit(bool),
 
     // Identifiers & keywords
     Ident(String),
-    Init,            // INIT
-    HashPrep,        // #PREP
-    HashStory,       // #STORY
+    Init,      // INIT
+    HashPrep,  // #PREP
+    HashStory, // #STORY
 
     // Directives
-    AtActor,         // @actor
-    AtBg,            // @bg
-    AtBgm,           // @bgm
-    AtSfx,           // @sfx
-    AtChoice,        // @choice
-    AtJump,          // @jump
-    AtEnd,           // @end
-    AtStart,         // @start
+    AtActor,  // @actor
+    AtBg,     // @bg
+    AtBgm,    // @bgm
+    AtSfx,    // @sfx
+    AtChoice, // @choice
+    AtJump,   // @jump
+    AtEnd,    // @end
+    AtStart,  // @start
 
     // Keywords
     If,
     Else,
-    Stop,            // STOP (for @bgm STOP)
+    As,
+    TypeInteger,
+    TypeString,
+    TypeBoolean,
+    TypeDecimal,
+    Stop, // STOP (for @bgm STOP)
 
     // Operators
-    Eq,              // =
-    EqEq,            // ==
-    NotEq,           // !=
-    Lt,              // <
-    LtEq,            // <=
-    Gt,              // >
-    GtEq,            // >=
-    Plus,            // +
-    Minus,           // -
-    PlusEq,          // +=
-    MinusEq,         // -=
+    Eq,      // =
+    EqEq,    // ==
+    NotEq,   // !=
+    Lt,      // <
+    LtEq,    // <=
+    Gt,      // >
+    GtEq,    // >=
+    Plus,    // +
+    Minus,   // -
+    PlusEq,  // +=
+    MinusEq, // -=
 
     // Special
     Eof,
@@ -72,6 +80,7 @@ impl Token {
             Token::Dollar => "'$'",
             Token::StringLit(_) => "string",
             Token::IntLit(_) => "integer",
+            Token::DecimalLit(_) => "decimal",
             Token::BoolLit(_) => "boolean",
             Token::Ident(_) => "identifier",
             Token::Init => "'INIT'",
@@ -87,6 +96,11 @@ impl Token {
             Token::AtStart => "'@start'",
             Token::If => "'if'",
             Token::Else => "'else'",
+            Token::As => "'as'",
+            Token::TypeInteger => "'integer'",
+            Token::TypeString => "'string'",
+            Token::TypeBoolean => "'boolean'",
+            Token::TypeDecimal => "'decimal'",
             Token::Stop => "'STOP'",
             Token::Eq => "'='",
             Token::EqEq => "'=='",
@@ -113,6 +127,10 @@ pub struct Spanned {
 
 impl Spanned {
     pub fn new(token: Token, line: usize, column: usize) -> Self {
-        Self { token, line, column }
+        Self {
+            token,
+            line,
+            column,
+        }
     }
 }

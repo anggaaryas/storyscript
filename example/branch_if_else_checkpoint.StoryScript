@@ -4,8 +4,8 @@
 // ============================================================================
 
 * INIT {
-    $has_route_map = false
-    $guard_trust = 35
+    $has_route_map as boolean = false
+    $guard_trust as integer = 35
 
     @actor RIN "Rin" {
         calm -> "rin_calm.png"

@@ -67,12 +67,17 @@ StoryScript uses:
 - `#PREP` for state mutation and engine directives (`@bg`, `@bgm`, `@sfx`)
 - `#STORY` for narration, dialogue, branching, transitions, and standalone variable output (`$var`)
 - `${var}` inline interpolation in string literals across all phases (`\$` for literal dollar)
+- Typed declarations in `* INIT` using `as integer|string|boolean|decimal`
+- Variable type is immutable after declaration
 
 Minimal example:
 
 ```StoryScript
 * INIT {
-	$morale = 50
+	$morale as integer = 50
+	$captain_name as string = "Ari"
+	$threat_level as decimal = 1.5
+	$alerted as boolean = false
 	@actor CMDR "Commander"
 	@start opening
 }

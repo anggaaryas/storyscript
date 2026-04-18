@@ -6,17 +6,17 @@
 
 * INIT {
     // --- Global State ---
-    $morale = 60
-    $hull_integrity = 100
-    $signal_decoded = false
-    $power_reserves = 80
-    $trusted_kai = false
-    $alien_contact = false
-    $distress_sent = false
-    $reactor_stable = true
-    $crew_count = 3
-    $explored_signal = false
-    $has_weapon = false
+    $morale as integer = 60
+    $hull_integrity as integer = 100
+    $signal_decoded as boolean = false
+    $power_reserves as integer = 80
+    $trusted_kai as boolean = false
+    $alien_contact as boolean = false
+    $distress_sent as boolean = false
+    $reactor_stable as boolean = true
+    $crew_count as integer = 3
+    $explored_signal as boolean = false
+    $has_weapon as boolean = false
 
     // --- Actor Registration ---
     @actor CMDR "Commander Voss" {

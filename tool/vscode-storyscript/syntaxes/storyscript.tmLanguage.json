@@ -12,6 +12,7 @@
     { "include": "#dialogue-simple" },
     { "include": "#choice-block" },
     { "include": "#control-flow" },
+    { "include": "#type-annotation" },
     { "include": "#variable" },
     { "include": "#string" },
     { "include": "#number" },
@@ -190,6 +191,19 @@
     "control-flow": {
       "match": "\\b(if|else)\\b",
       "name": "keyword.control.flow.storyscript"
+    },
+
+    "type-annotation": {
+      "patterns": [
+        {
+          "match": "\\b(as)\\b",
+          "name": "keyword.control.type.as.storyscript"
+        },
+        {
+          "match": "\\b(integer|string|boolean|decimal)\\b",
+          "name": "storage.type.storyscript"
+        }
+      ]
     },
 
     "variable": {

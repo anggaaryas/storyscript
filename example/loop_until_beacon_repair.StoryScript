@@ -4,13 +4,13 @@
 // ============================================================================
 
 * INIT {
-    $fragments = 0
-    $fatigue = 0
-    $signal_stable = false
-    $ridge_fragment_found = false
-    $hull_fragment_found = false
-    $trench_fragment_found = false
-    $found_new_part = false
+    $fragments as integer = 0
+    $fatigue as integer = 0
+    $signal_stable as boolean = false
+    $ridge_fragment_found as boolean = false
+    $hull_fragment_found as boolean = false
+    $trench_fragment_found as boolean = false
+    $found_new_part as boolean = false
 
     @actor ILYA "Ilya" {
         focused -> "ilya_focused.png"

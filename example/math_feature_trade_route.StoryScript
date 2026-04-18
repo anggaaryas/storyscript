@@ -4,13 +4,13 @@
 // ============================================================================
 
 * INIT {
-    $credits = 12
-    $repair_cost = 9
-    $bonus = 4
-    $risk_penalty = 2
-    $generator_power = 6
-    $route_score = 0
-    $deal_done = false
+    $credits as integer = 12
+    $repair_cost as integer = 9
+    $bonus as integer = 4
+    $risk_penalty as integer = 2
+    $generator_power as integer = 6
+    $route_score as integer = 0
+    $deal_done as boolean = false
 
     @actor MIRA "Mira" {
         calm -> "mira_calm.png"

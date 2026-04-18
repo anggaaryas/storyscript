@@ -37,10 +37,7 @@ pub fn scan_placeholders(input: &str) -> Result<Vec<Placeholder>, InterpolationE
 
         if ch == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
             let (name, end_idx) = parse_placeholder(&chars, i)?;
-            out.push(Placeholder {
-                name,
-                offset: i,
-            });
+            out.push(Placeholder { name, offset: i });
             i = end_idx + 1;
             continue;
         }
@@ -51,10 +48,7 @@ pub fn scan_placeholders(input: &str) -> Result<Vec<Placeholder>, InterpolationE
     Ok(out)
 }
 
-pub fn render_interpolated<F>(
-    input: &str,
-    mut resolve: F,
-) -> Result<String, InterpolationError>
+pub fn render_interpolated<F>(input: &str, mut resolve: F) -> Result<String, InterpolationError>
 where
     F: FnMut(&str) -> Option<String>,
 {
@@ -93,7 +87,10 @@ where
     Ok(out)
 }
 
-fn parse_placeholder(chars: &[char], start_idx: usize) -> Result<(String, usize), InterpolationError> {
+fn parse_placeholder(
+    chars: &[char],
+    start_idx: usize,
+) -> Result<(String, usize), InterpolationError> {
     let mut i = start_idx + 2; // skip `${`
     if i >= chars.len() {
         return Err(InterpolationError::new(
@@ -171,7 +168,10 @@ mod tests {
     #[test]
     fn rejects_malformed_placeholder() {
         let err = scan_placeholders("Bad: ${1x}").unwrap_err();
-        assert!(err.message.contains("Invalid interpolation variable name start"));
+        assert!(
+            err.message
+                .contains("Invalid interpolation variable name start")
+        );
     }
 
     #[test]

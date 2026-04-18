@@ -7,3 +7,4 @@ edition = "2024"
 storycript-parser = { path = "../parser/rust" }
 ratatui = "0.28"
 crossterm = "0.28"
+rust_decimal = "1.41.0"

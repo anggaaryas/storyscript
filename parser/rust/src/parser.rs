@@ -189,6 +189,10 @@ impl Parser {
         self.advance(); // $
         if let Token::Ident(name) = self.peek().clone() {
             self.advance();
+            if !self.expect(&Token::As) {
+                return None;
+            }
+            let var_type = self.parse_var_type()?;
             if !self.expect(&Token::Eq) {
                 return None;
             }
@@ -196,6 +200,7 @@ impl Parser {
             self.eat_optional_semicolon();
             Some(VarDecl {
                 name,
+                var_type,
                 value,
                 line,
                 column,
@@ -211,6 +216,32 @@ impl Parser {
             ));
             None
         }
+    }
+
+    fn parse_var_type(&mut self) -> Option<VarType> {
+        let (line, column) = self.current_span();
+        let var_type = match self.peek() {
+            Token::TypeInteger => VarType::Integer,
+            Token::TypeString => VarType::String,
+            Token::TypeBoolean => VarType::Boolean,
+            Token::TypeDecimal => VarType::Decimal,
+            _ => {
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticCode::ESyntax,
+                    format!(
+                        "Expected variable type (integer, string, boolean, decimal), found {}",
+                        self.peek().name()
+                    ),
+                    Phase::Parse,
+                    "INIT",
+                    line,
+                    column,
+                ));
+                return None;
+            }
+        };
+        self.advance();
+        Some(var_type)
     }
 
     fn parse_actor_decl(&mut self) -> Option<ActorDecl> {
@@ -385,10 +416,7 @@ impl Parser {
                     let (l, c) = self.current_span();
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticCode::ESceneStructure,
-                        format!(
-                            "Expected #PREP or #STORY, found {}",
-                            self.peek().name()
-                        ),
+                        format!("Expected #PREP or #STORY, found {}", self.peek().name()),
                         Phase::Parse,
                         &label,
                         l,
@@ -436,10 +464,7 @@ impl Parser {
     fn parse_prep_block(&mut self, scene: &str, line: usize, column: usize) -> PrepBlock {
         let mut statements = Vec::new();
 
-        while !matches!(
-            self.peek(),
-            Token::HashStory | Token::RBrace | Token::Eof
-        ) {
+        while !matches!(self.peek(), Token::HashStory | Token::RBrace | Token::Eof) {
             if let Some(stmt) = self.parse_prep_statement(scene) {
                 statements.push(stmt);
             } else {
@@ -462,7 +487,11 @@ impl Parser {
                 if let Token::StringLit(path) = self.peek().clone() {
                     self.advance();
                     self.eat_optional_semicolon();
-                    Some(PrepStatement::BgDirective { path, line: l, column: c })
+                    Some(PrepStatement::BgDirective {
+                        path,
+                        line: l,
+                        column: c,
+                    })
                 } else {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticCode::ESyntax,
@@ -496,7 +525,11 @@ impl Parser {
                     return None;
                 };
                 self.eat_optional_semicolon();
-                Some(PrepStatement::BgmDirective { value, line: l, column: c })
+                Some(PrepStatement::BgmDirective {
+                    value,
+                    line: l,
+                    column: c,
+                })
             }
             Token::AtSfx => {
                 let (l, c) = self.current_span();
@@ -504,7 +537,11 @@ impl Parser {
                 if let Token::StringLit(path) = self.peek().clone() {
                     self.advance();
                     self.eat_optional_semicolon();
-                    Some(PrepStatement::SfxDirective { path, line: l, column: c })
+                    Some(PrepStatement::SfxDirective {
+                        path,
+                        line: l,
+                        column: c,
+                    })
                 } else {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticCode::ESyntax,
@@ -553,9 +590,18 @@ impl Parser {
         if let Token::Ident(name) = self.peek().clone() {
             self.advance();
             let op = match self.peek() {
-                Token::Eq => { self.advance(); AssignOp::Set }
-                Token::PlusEq => { self.advance(); AssignOp::AddEq }
-                Token::MinusEq => { self.advance(); AssignOp::SubEq }
+                Token::Eq => {
+                    self.advance();
+                    AssignOp::Set
+                }
+                Token::PlusEq => {
+                    self.advance();
+                    AssignOp::AddEq
+                }
+                Token::MinusEq => {
+                    self.advance();
+                    AssignOp::SubEq
+                }
                 _ => {
                     let (l, c) = self.current_span();
                     self.diagnostics.push(Diagnostic::new(
@@ -571,7 +617,13 @@ impl Parser {
             };
             let value = self.parse_expression()?;
             self.eat_optional_semicolon();
-            Some(VarAssign { name, op, value, line, column })
+            Some(VarAssign {
+                name,
+                op,
+                value,
+                line,
+                column,
+            })
         } else {
             self.diagnostics.push(Diagnostic::new(
                 DiagnosticCode::ESyntax,
@@ -645,7 +697,10 @@ impl Parser {
     fn parse_story_block(&mut self, scene: &str, line: usize, column: usize) -> StoryBlock {
         let mut statements = Vec::new();
 
-        while !matches!(self.peek(), Token::RBrace | Token::Eof | Token::HashPrep | Token::HashStory) {
+        while !matches!(
+            self.peek(),
+            Token::RBrace | Token::Eof | Token::HashPrep | Token::HashStory
+        ) {
             if let Some(stmt) = self.parse_story_statement(scene) {
                 statements.push(stmt);
             } else {
@@ -670,18 +725,24 @@ impl Parser {
                 let (l, c) = self.current_span();
                 self.advance();
                 self.eat_optional_semicolon();
-                Some(StoryStatement::Narration { text, line: l, column: c })
+                Some(StoryStatement::Narration {
+                    text,
+                    line: l,
+                    column: c,
+                })
             }
-            Token::AtChoice => {
-                self.parse_choice_block(scene)
-            }
+            Token::AtChoice => self.parse_choice_block(scene),
             Token::AtJump => {
                 let (l, c) = self.current_span();
                 self.advance();
                 if let Token::Ident(target) = self.peek().clone() {
                     self.advance();
                     self.eat_optional_semicolon();
-                    Some(StoryStatement::Jump { target, line: l, column: c })
+                    Some(StoryStatement::Jump {
+                        target,
+                        line: l,
+                        column: c,
+                    })
                 } else {
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticCode::ESyntax,
@@ -700,15 +761,9 @@ impl Parser {
                 self.eat_optional_semicolon();
                 Some(StoryStatement::End { line: l, column: c })
             }
-            Token::If => {
-                self.parse_story_if_else(scene)
-            }
-            Token::Ident(_) => {
-                self.parse_dialogue(scene)
-            }
-            Token::Dollar => {
-                self.parse_story_var_output(scene)
-            }
+            Token::If => self.parse_story_if_else(scene),
+            Token::Ident(_) => self.parse_dialogue(scene),
+            Token::Dollar => self.parse_story_var_output(scene),
             Token::AtBg | Token::AtBgm | Token::AtSfx => {
                 let (l, c) = self.current_span();
                 self.diagnostics.push(Diagnostic::new(
@@ -803,11 +858,7 @@ impl Parser {
 
         self.eat_optional_semicolon();
 
-        Some(StoryStatement::VarOutput {
-            name,
-            line,
-            column,
-        })
+        Some(StoryStatement::VarOutput { name, line, column })
     }
 
     fn recover_story_statement_tail(&mut self) {
@@ -891,7 +942,10 @@ impl Parser {
                     let (l, c) = self.current_span();
                     self.diagnostics.push(Diagnostic::new(
                         DiagnosticCode::EPositionInvalid,
-                        format!("Invalid position '{}'. Valid: Left, Center, Right, L, C, R", position_str),
+                        format!(
+                            "Invalid position '{}'. Valid: Left, Center, Right, L, C, R",
+                            position_str
+                        ),
                         Phase::Parse,
                         scene,
                         l,
@@ -982,7 +1036,10 @@ impl Parser {
                             let (l, c) = self.current_span();
                             self.diagnostics.push(Diagnostic::new(
                                 DiagnosticCode::ESyntax,
-                                format!("Expected choice option string inside conditional, found {}", self.peek().name()),
+                                format!(
+                                    "Expected choice option string inside conditional, found {}",
+                                    self.peek().name()
+                                ),
                                 Phase::Parse,
                                 scene,
                                 l,
@@ -1018,7 +1075,11 @@ impl Parser {
         }))
     }
 
-    fn parse_choice_option(&mut self, scene: &str, condition: Option<Expr>) -> Option<ChoiceOption> {
+    fn parse_choice_option(
+        &mut self,
+        scene: &str,
+        condition: Option<Expr>,
+    ) -> Option<ChoiceOption> {
         let (line, column) = self.current_span();
         let text = if let Token::StringLit(s) = self.peek().clone() {
             self.advance();
@@ -1176,6 +1237,10 @@ impl Parser {
             Token::IntLit(n) => {
                 self.advance();
                 Some(Expr::IntLit(n))
+            }
+            Token::DecimalLit(n) => {
+                self.advance();
+                Some(Expr::DecimalLit(n))
             }
             Token::BoolLit(b) => {
                 self.advance();

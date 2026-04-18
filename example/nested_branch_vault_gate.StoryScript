@@ -4,9 +4,9 @@
 // ============================================================================
 
 * INIT {
-    $has_badge = false
-    $voice_match = false
-    $bribe_tokens = 0
+    $has_badge as boolean = false
+    $voice_match as boolean = false
+    $bribe_tokens as integer = 0
 
     @actor NYA "Nya" {
         steady -> "nya_steady.png"

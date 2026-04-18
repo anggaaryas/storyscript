@@ -1,6 +1,7 @@
 use crate::diagnostic::{Diagnostic, DiagnosticCode, Phase};
 use crate::interpolation::ESCAPED_DOLLAR_MARKER;
 use crate::token::{Spanned, Token};
+use rust_decimal::Decimal;
 
 pub struct Lexer {
     source: Vec<char>,
@@ -86,27 +87,25 @@ impl Lexer {
         loop {
             match self.advance() {
                 Some('"') => break,
-                Some('\\') => {
-                    match self.advance() {
-                        Some('n') => s.push('\n'),
-                        Some('t') => s.push('\t'),
-                        Some('\\') => s.push('\\'),
-                        Some('"') => s.push('"'),
-                        Some('$') => s.push(ESCAPED_DOLLAR_MARKER),
-                        Some(c) => s.push(c),
-                        None => {
-                            self.diagnostics.push(Diagnostic::new(
-                                DiagnosticCode::ESyntax,
-                                "Unterminated string literal",
-                                Phase::Lex,
-                                "GLOBAL",
-                                self.line,
-                                self.column,
-                            ));
-                            break;
-                        }
+                Some('\\') => match self.advance() {
+                    Some('n') => s.push('\n'),
+                    Some('t') => s.push('\t'),
+                    Some('\\') => s.push('\\'),
+                    Some('"') => s.push('"'),
+                    Some('$') => s.push(ESCAPED_DOLLAR_MARKER),
+                    Some(c) => s.push(c),
+                    None => {
+                        self.diagnostics.push(Diagnostic::new(
+                            DiagnosticCode::ESyntax,
+                            "Unterminated string literal",
+                            Phase::Lex,
+                            "GLOBAL",
+                            self.line,
+                            self.column,
+                        ));
+                        break;
                     }
-                }
+                },
                 Some(c) => s.push(c),
                 None => {
                     self.diagnostics.push(Diagnostic::new(
@@ -135,6 +134,23 @@ impl Lexer {
                 break;
             }
         }
+
+        if self.peek() == Some('.') && self.peek_next().is_some_and(|c| c.is_ascii_digit()) {
+            s.push('.');
+            self.advance();
+
+            while let Some(c) = self.peek() {
+                if c.is_ascii_digit() {
+                    s.push(c);
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+
+            return Token::DecimalLit(Decimal::from_str_exact(&s).unwrap());
+        }
+
         Token::IntLit(s.parse().unwrap())
     }
 
@@ -153,6 +169,11 @@ impl Lexer {
             "INIT" => Token::Init,
             "if" => Token::If,
             "else" => Token::Else,
+            "as" => Token::As,
+            "integer" => Token::TypeInteger,
+            "string" => Token::TypeString,
+            "boolean" => Token::TypeBoolean,
+            "decimal" => Token::TypeDecimal,
             "true" => Token::BoolLit(true),
             "false" => Token::BoolLit(false),
             "STOP" => Token::Stop,
@@ -375,6 +396,28 @@ mod tests {
         assert_eq!(tokens[8].token, Token::Minus);
         assert_eq!(tokens[9].token, Token::PlusEq);
         assert_eq!(tokens[10].token, Token::MinusEq);
+    }
+
+    #[test]
+    fn test_decimal_literal() {
+        let mut lexer = Lexer::new("42 3.14");
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens[0].token, Token::IntLit(42));
+        assert_eq!(
+            tokens[1].token,
+            Token::DecimalLit(Decimal::from_str_exact("3.14").unwrap())
+        );
+    }
+
+    #[test]
+    fn test_type_keywords() {
+        let mut lexer = Lexer::new("as integer string boolean decimal");
+        let tokens = lexer.tokenize();
+        assert_eq!(tokens[0].token, Token::As);
+        assert_eq!(tokens[1].token, Token::TypeInteger);
+        assert_eq!(tokens[2].token, Token::TypeString);
+        assert_eq!(tokens[3].token, Token::TypeBoolean);
+        assert_eq!(tokens[4].token, Token::TypeDecimal);
     }
 
     #[test]

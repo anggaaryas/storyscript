@@ -4,7 +4,7 @@
 // dan menyelamatkan kerajaannya dari ancaman kegelapan abadi.
 //
 // Fitur yang didemonstrasikan:
-//   - Variabel: integer, boolean, string
+//   - Variabel: integer, boolean, string, decimal
 //   - @actor dengan dan tanpa portrait
 //   - Interpolasi ${var} di narasi dan dialog
 //   - Operasi aritmetika: =, +=, -=, ekspresi gabungan ($a + $b - $c)
@@ -19,33 +19,34 @@
 
 * INIT {
     // --- Statistik Pahlawan ---
-    $nyawa = 100
-    $kekuatan = 10
-    $sihir = 0
-    $koin = 50
-    $keberanian = 30
+    $nyawa as integer = 100
+    $kekuatan as integer = 10
+    $sihir as integer = 0
+    $koin as integer = 50
+    $keberanian as integer = 30
+    $rasio_kemenangan as decimal = 0.75
 
     // --- Identitas ---
-    $nama_pahlawan = "Raka"
+    $nama_pahlawan as string = "Raka"
 
     // --- Status Dunia ---
-    $kepercayaan_raja = 0
-    $kegelapan = 80
-    $pecahan_terkumpul = 0
+    $kepercayaan_raja as integer = 0
+    $kegelapan as integer = 80
+    $pecahan_terkumpul as integer = 0
 
     // --- Inventaris & Kemampuan ---
-    $punya_jimat = false
-    $punya_sihir_api = false
-    $punya_pedang_leluhur = false
-    $sudah_terlatih = false
+    $punya_jimat as boolean = false
+    $punya_sihir_api as boolean = false
+    $punya_pedang_leluhur as boolean = false
+    $sudah_terlatih as boolean = false
 
     // --- Kemajuan Pengumpulan Serpihan ---
-    $shard_hutan = false
-    $shard_gunung = false
-    $shard_danau = false
+    $shard_hutan as boolean = false
+    $shard_gunung as boolean = false
+    $shard_danau as boolean = false
 
     // --- Status Akhir ---
-    $selamat = false
+    $selamat as boolean = false
 
     // --- Pendaftaran Aktor ---
     @actor RAKA "${nama_pahlawan}" {

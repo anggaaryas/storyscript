@@ -6,15 +6,22 @@ Before any scenes are parsed, the engine must define global variables, load acto
 **Syntax Rules:**
 * Exactly one `* INIT { ... }` block must exist in the entire script.
 * Must be the absolute first block evaluated by the compiler.
-* Handles global variable declaration (`$`).
+* Handles global variable declaration (`$`) with explicit type annotation.
 * Handles character registration (`@actor`) using block-based dictionary syntax.
 * **Mandatory:** Must contain exactly one `@start` directive pointing to the first scene.
+
+**Typed Variable Declaration:**
+* Syntax: `$name as <type> = <expr>`
+* Supported `<type>`: `integer`, `string`, `boolean`, `decimal`
+* Variable type is immutable after declaration.
 
 ```plaintext
 * INIT {
     // Variable Registration
-    $system_stability = 45;
-    $manual_override = false;
+    $system_stability as integer = 45;
+    $manual_override as boolean = false;
+    $pilot_name as string = "Teona";
+    $stability_ratio as decimal = 0.45;
 
     // Standard Actor (With Portraits)
     @actor TEO "Teona" {
@@ -74,6 +81,7 @@ Standard C-style conditionals are supported in both `#PREP` and `#STORY` blocks.
 **Mutation Rule:**
 * In `#PREP`: variable reads and writes are allowed.
 * In `#STORY`: variable reads are allowed, but writes are forbidden.
+* Assignment in `#PREP` must preserve declared variable type (`decimal` may accept integer assignment).
 
 ```plaintext
 if ($system_stability <= 30) {
@@ -191,6 +199,10 @@ The compiler must fail the script when any of the following is true:
 * Any portrait-form dialogue targets an actor declared without portraits.
 * Any variable is read before declaration.
 * Any variable assignment targets an undeclared variable.
+* Any variable assignment violates declared type.
+* Any compound assignment (`+=`, `-=`) targets non-numeric variable types.
+* Any expression uses incompatible operand types for its operator.
+* Any condition expression (`if`, `@choice if`) is not boolean.
 * Any interpolation placeholder is malformed (for example: `${`, `${}`, `${1bad}`, `${name`).
 * Any constant-folded `@choice` block is provably empty at compile time.
 * Any reachable `#STORY` path can complete without executing `@choice`, `@jump`, or `@end`.
@@ -226,6 +238,10 @@ Diagnostic code naming:
 | `E_PORTRAIT_MODE_INVALID` | Portrait-form dialogue targets an actor declared without portraits. |
 | `E_VARIABLE_UNDECLARED_READ` | A variable is read before declaration (including `${var}` interpolation and standalone STORY output `$var`). |
 | `E_VARIABLE_UNDECLARED_WRITE` | A variable assignment targets an undeclared variable. |
+| `E_VARIABLE_TYPE_MISMATCH` | Variable assignment or initializer type is incompatible with its declared variable type. |
+| `E_VARIABLE_COMPOUND_ASSIGN_INVALID` | Compound assignment (`+=`, `-=`) is used on non-numeric variable type. |
+| `E_EXPRESSION_TYPE_INVALID` | Expression operator is used with incompatible operand types. |
+| `E_CONDITION_TYPE_INVALID` | Condition expression does not evaluate to boolean. |
 | `E_CHOICE_STATIC_EMPTY` | `@choice` is provably empty after compile-time constant folding. |
 | `E_STORY_UNTERMINATED_PATH` | A reachable `#STORY` path can fall through without `@choice`, `@jump`, or `@end`. |
 
@@ -298,8 +314,8 @@ Semicolons are optional.
 
 ```plaintext
 * INIT {
-    $system_stability = 40;
-    $bypass_key = false;
+    $system_stability as integer = 40;
+    $bypass_key as boolean = false;
     
     @actor TEO "Teona" {
         calm -> "teo_calm.png"

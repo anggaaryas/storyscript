@@ -1,15 +1,18 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, hash_map::Entry};
 
 use crate::ast::*;
 use crate::diagnostic::{Diagnostic, DiagnosticCode, Phase};
 use crate::interpolation::scan_placeholders;
+use rust_decimal::Decimal;
+
+type VarTypes = HashMap<String, VarType>;
 
 /// Performs semantic validation on a parsed StoryScript AST.
 /// Returns a list of diagnostics (errors and warnings).
 pub fn validate(script: &Script) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
 
-    let mut declared_vars: HashSet<String> = HashSet::new();
+    let mut declared_vars: VarTypes = HashMap::new();
     let mut actor_map: HashMap<String, &ActorDecl> = HashMap::new();
     let mut scene_labels: HashSet<String> = HashSet::new();
 
@@ -17,27 +20,48 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
     // INIT validation
     // -----------------------------------------------------------------------
 
-    // Check duplicate global variables
+    // Check duplicate globals and initializer type compatibility
     for var in &script.init.variables {
-        if !declared_vars.insert(var.name.clone()) {
-            diags.push(Diagnostic::new(
-                DiagnosticCode::EGlobalDuplicate,
-                format!("Duplicate global variable '${}'", var.name),
-                Phase::Validation,
-                "INIT",
-                var.line,
-                var.column,
-            ));
+        match declared_vars.entry(var.name.clone()) {
+            Entry::Vacant(slot) => {
+                slot.insert(var.var_type);
+            }
+            Entry::Occupied(_) => {
+                diags.push(Diagnostic::new(
+                    DiagnosticCode::EGlobalDuplicate,
+                    format!("Duplicate global variable '${}'", var.name),
+                    Phase::Validation,
+                    "INIT",
+                    var.line,
+                    var.column,
+                ));
+            }
         }
 
-        validate_expr_contents(
+        if let Some(value_type) = infer_expr_type(
             &var.value,
             var.line,
             var.column,
             &declared_vars,
             "INIT",
             &mut diags,
-        );
+        ) {
+            if !is_assignable(var.var_type, value_type) {
+                diags.push(Diagnostic::new(
+                    DiagnosticCode::EVariableTypeMismatch,
+                    format!(
+                        "Variable '${}' is declared as {}, but initializer has type {}",
+                        var.name,
+                        type_name(var.var_type),
+                        type_name(value_type)
+                    ),
+                    Phase::Validation,
+                    "INIT",
+                    var.line,
+                    var.column,
+                ));
+            }
+        }
     }
 
     // Check duplicate actors & emotion keys
@@ -164,14 +188,15 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
 
 fn validate_prep_statements(
     stmts: &[PrepStatement],
-    declared_vars: &HashSet<String>,
+    declared_vars: &VarTypes,
     scene: &str,
     diags: &mut Vec<Diagnostic>,
 ) {
     for stmt in stmts {
         match stmt {
             PrepStatement::VarAssign(assign) => {
-                if !declared_vars.contains(&assign.name) {
+                let declared_type = declared_vars.get(&assign.name).copied();
+                if declared_type.is_none() {
                     diags.push(Diagnostic::new(
                         DiagnosticCode::EVariableUndeclaredWrite,
                         format!("Assignment to undeclared variable '${}'", assign.name),
@@ -181,7 +206,8 @@ fn validate_prep_statements(
                         assign.column,
                     ));
                 }
-                validate_expr_contents(
+
+                let value_type = infer_expr_type(
                     &assign.value,
                     assign.line,
                     assign.column,
@@ -189,9 +215,94 @@ fn validate_prep_statements(
                     scene,
                     diags,
                 );
+
+                if let (Some(target_type), Some(rhs_type)) = (declared_type, value_type) {
+                    match assign.op {
+                        AssignOp::Set => {
+                            if !is_assignable(target_type, rhs_type) {
+                                diags.push(Diagnostic::new(
+                                    DiagnosticCode::EVariableTypeMismatch,
+                                    format!(
+                                        "Cannot assign {} to variable '${}' of type {}",
+                                        type_name(rhs_type),
+                                        assign.name,
+                                        type_name(target_type)
+                                    ),
+                                    Phase::Validation,
+                                    scene,
+                                    assign.line,
+                                    assign.column,
+                                ));
+                            }
+                        }
+                        AssignOp::AddEq | AssignOp::SubEq => match target_type {
+                            VarType::Integer => {
+                                if rhs_type != VarType::Integer {
+                                    diags.push(Diagnostic::new(
+                                        DiagnosticCode::EVariableTypeMismatch,
+                                        format!(
+                                            "'{}' with ${} requires integer RHS, found {}",
+                                            match assign.op {
+                                                AssignOp::AddEq => "+=",
+                                                AssignOp::SubEq => "-=",
+                                                AssignOp::Set => "=",
+                                            },
+                                            assign.name,
+                                            type_name(rhs_type)
+                                        ),
+                                        Phase::Validation,
+                                        scene,
+                                        assign.line,
+                                        assign.column,
+                                    ));
+                                }
+                            }
+                            VarType::Decimal => {
+                                if !is_numeric_type(rhs_type) {
+                                    diags.push(Diagnostic::new(
+                                            DiagnosticCode::EVariableTypeMismatch,
+                                            format!(
+                                                "'{}' with ${} requires numeric RHS (integer or decimal), found {}",
+                                                match assign.op {
+                                                    AssignOp::AddEq => "+=",
+                                                    AssignOp::SubEq => "-=",
+                                                    AssignOp::Set => "=",
+                                                },
+                                                assign.name,
+                                                type_name(rhs_type)
+                                            ),
+                                            Phase::Validation,
+                                            scene,
+                                            assign.line,
+                                            assign.column,
+                                        ));
+                                }
+                            }
+                            VarType::String | VarType::Boolean => {
+                                diags.push(Diagnostic::new(
+                                        DiagnosticCode::EVariableCompoundAssignInvalid,
+                                        format!(
+                                            "'{}' is only valid for integer/decimal variables; '${}' is {}",
+                                            match assign.op {
+                                                AssignOp::AddEq => "+=",
+                                                AssignOp::SubEq => "-=",
+                                                AssignOp::Set => "=",
+                                            },
+                                            assign.name,
+                                            type_name(target_type)
+                                        ),
+                                        Phase::Validation,
+                                        scene,
+                                        assign.line,
+                                        assign.column,
+                                    ));
+                            }
+                        },
+                    }
+                }
             }
             PrepStatement::IfElse(if_else) => {
-                validate_expr_contents(
+                let condition_type = infer_expr_type(
                     &if_else.condition,
                     if_else.line,
                     if_else.column,
@@ -199,6 +310,19 @@ fn validate_prep_statements(
                     scene,
                     diags,
                 );
+                if let Some(cond_ty) = condition_type {
+                    if cond_ty != VarType::Boolean {
+                        diags.push(Diagnostic::new(
+                            DiagnosticCode::EConditionTypeInvalid,
+                            format!("if condition must be boolean, found {}", type_name(cond_ty)),
+                            Phase::Validation,
+                            scene,
+                            if_else.line,
+                            if_else.column,
+                        ));
+                    }
+                }
+
                 validate_prep_statements(&if_else.then_branch, declared_vars, scene, diags);
                 if let Some(else_branch) = &if_else.else_branch {
                     validate_prep_statements(else_branch, declared_vars, scene, diags);
@@ -207,7 +331,11 @@ fn validate_prep_statements(
             PrepStatement::BgDirective { path, line, column } => {
                 validate_interpolated_string(path, *line, *column, declared_vars, scene, diags);
             }
-            PrepStatement::BgmDirective { value, line, column } => {
+            PrepStatement::BgmDirective {
+                value,
+                line,
+                column,
+            } => {
                 if let BgmValue::Path(path) = value {
                     validate_interpolated_string(path, *line, *column, declared_vars, scene, diags);
                 }
@@ -225,7 +353,7 @@ fn validate_prep_statements(
 
 fn validate_story_statements(
     stmts: &[StoryStatement],
-    declared_vars: &HashSet<String>,
+    declared_vars: &VarTypes,
     actor_map: &HashMap<String, &ActorDecl>,
     scene_labels: &HashSet<String>,
     scene: &str,
@@ -286,7 +414,11 @@ fn validate_story_statements(
                     }
                 }
             }
-            StoryStatement::Jump { target, line, column } => {
+            StoryStatement::Jump {
+                target,
+                line,
+                column,
+            } => {
                 if !scene_labels.contains(target) {
                     diags.push(Diagnostic::new(
                         DiagnosticCode::EJumpTargetMissing,
@@ -330,17 +462,33 @@ fn validate_story_statements(
                         all_conditional = false;
                         provably_empty = false;
                     } else {
-                        validate_expr_contents(
-                            opt.condition.as_ref().unwrap(),
+                        let cond_expr = opt.condition.as_ref().expect("checked is_some");
+                        let cond_ty = infer_expr_type(
+                            cond_expr,
                             opt.line,
                             opt.column,
                             declared_vars,
                             scene,
                             diags,
                         );
+                        if let Some(ty) = cond_ty {
+                            if ty != VarType::Boolean {
+                                diags.push(Diagnostic::new(
+                                    DiagnosticCode::EConditionTypeInvalid,
+                                    format!(
+                                        "@choice condition must be boolean, found {}",
+                                        type_name(ty)
+                                    ),
+                                    Phase::Validation,
+                                    scene,
+                                    opt.line,
+                                    opt.column,
+                                ));
+                            }
+                        }
 
                         // Check if condition is provably false at compile time
-                        if let Some(val) = try_const_eval_bool(opt.condition.as_ref().unwrap()) {
+                        if let Some(val) = try_const_eval_bool(cond_expr) {
                             if val {
                                 provably_empty = false;
                             }
@@ -372,7 +520,7 @@ fn validate_story_statements(
                 }
             }
             StoryStatement::IfElse(if_else) => {
-                validate_expr_contents(
+                let cond_ty = infer_expr_type(
                     &if_else.condition,
                     if_else.line,
                     if_else.column,
@@ -380,6 +528,19 @@ fn validate_story_statements(
                     scene,
                     diags,
                 );
+                if let Some(ty) = cond_ty {
+                    if ty != VarType::Boolean {
+                        diags.push(Diagnostic::new(
+                            DiagnosticCode::EConditionTypeInvalid,
+                            format!("if condition must be boolean, found {}", type_name(ty)),
+                            Phase::Validation,
+                            scene,
+                            if_else.line,
+                            if_else.column,
+                        ));
+                    }
+                }
+
                 validate_story_statements(
                     &if_else.then_branch,
                     declared_vars,
@@ -403,7 +564,7 @@ fn validate_story_statements(
                 validate_interpolated_string(text, *line, *column, declared_vars, scene, diags);
             }
             StoryStatement::VarOutput { name, line, column } => {
-                if !declared_vars.contains(name) {
+                if !declared_vars.contains_key(name) {
                     diags.push(Diagnostic::new(
                         DiagnosticCode::EVariableUndeclaredRead,
                         format!("Read of undeclared variable '${}'", name),
@@ -420,30 +581,21 @@ fn validate_story_statements(
 }
 
 // ---------------------------------------------------------------------------
-// Variable reference validation in expressions
+// Expression type inference
 // ---------------------------------------------------------------------------
 
-fn validate_expr_contents(
+fn infer_expr_type(
     expr: &Expr,
     fallback_line: usize,
     fallback_column: usize,
-    declared_vars: &HashSet<String>,
+    declared_vars: &VarTypes,
     scene: &str,
     diags: &mut Vec<Diagnostic>,
-) {
+) -> Option<VarType> {
     match expr {
-        Expr::VarRef { name, line, column } => {
-            if !declared_vars.contains(name) {
-                diags.push(Diagnostic::new(
-                    DiagnosticCode::EVariableUndeclaredRead,
-                    format!("Read of undeclared variable '${}'", name),
-                    Phase::Validation,
-                    scene,
-                    *line,
-                    *column,
-                ));
-            }
-        }
+        Expr::IntLit(_) => Some(VarType::Integer),
+        Expr::DecimalLit(_) => Some(VarType::Decimal),
+        Expr::BoolLit(_) => Some(VarType::Boolean),
         Expr::StringLit(text) => {
             validate_interpolated_string(
                 text,
@@ -453,9 +605,24 @@ fn validate_expr_contents(
                 scene,
                 diags,
             );
+            Some(VarType::String)
         }
-        Expr::BinOp { left, right, .. } => {
-            validate_expr_contents(
+        Expr::VarRef { name, line, column } => match declared_vars.get(name).copied() {
+            Some(var_type) => Some(var_type),
+            None => {
+                diags.push(Diagnostic::new(
+                    DiagnosticCode::EVariableUndeclaredRead,
+                    format!("Read of undeclared variable '${}'", name),
+                    Phase::Validation,
+                    scene,
+                    *line,
+                    *column,
+                ));
+                None
+            }
+        },
+        Expr::BinOp { left, op, right } => {
+            let left_type = infer_expr_type(
                 left,
                 fallback_line,
                 fallback_column,
@@ -463,7 +630,7 @@ fn validate_expr_contents(
                 scene,
                 diags,
             );
-            validate_expr_contents(
+            let right_type = infer_expr_type(
                 right,
                 fallback_line,
                 fallback_column,
@@ -471,8 +638,123 @@ fn validate_expr_contents(
                 scene,
                 diags,
             );
+
+            let (left_type, right_type) = match (left_type, right_type) {
+                (Some(l), Some(r)) => (l, r),
+                _ => return None,
+            };
+
+            match op {
+                BinOperator::Add | BinOperator::Sub => {
+                    if left_type == VarType::Integer && right_type == VarType::Integer {
+                        Some(VarType::Integer)
+                    } else if is_numeric_type(left_type) && is_numeric_type(right_type) {
+                        Some(VarType::Decimal)
+                    } else {
+                        diags.push(Diagnostic::new(
+                            DiagnosticCode::EExpressionTypeInvalid,
+                            format!(
+                                "Operator '{}' requires numeric operands, found {} and {}",
+                                match op {
+                                    BinOperator::Add => "+",
+                                    BinOperator::Sub => "-",
+                                    BinOperator::EqEq => "==",
+                                    BinOperator::NotEq => "!=",
+                                    BinOperator::Lt => "<",
+                                    BinOperator::LtEq => "<=",
+                                    BinOperator::Gt => ">",
+                                    BinOperator::GtEq => ">=",
+                                },
+                                type_name(left_type),
+                                type_name(right_type)
+                            ),
+                            Phase::Validation,
+                            scene,
+                            fallback_line,
+                            fallback_column,
+                        ));
+                        None
+                    }
+                }
+                BinOperator::EqEq | BinOperator::NotEq => {
+                    if left_type == right_type
+                        || (is_numeric_type(left_type) && is_numeric_type(right_type))
+                    {
+                        Some(VarType::Boolean)
+                    } else {
+                        diags.push(Diagnostic::new(
+                            DiagnosticCode::EExpressionTypeInvalid,
+                            format!(
+                                "Operator '{}' cannot compare {} with {}",
+                                match op {
+                                    BinOperator::EqEq => "==",
+                                    BinOperator::NotEq => "!=",
+                                    BinOperator::Add => "+",
+                                    BinOperator::Sub => "-",
+                                    BinOperator::Lt => "<",
+                                    BinOperator::LtEq => "<=",
+                                    BinOperator::Gt => ">",
+                                    BinOperator::GtEq => ">=",
+                                },
+                                type_name(left_type),
+                                type_name(right_type)
+                            ),
+                            Phase::Validation,
+                            scene,
+                            fallback_line,
+                            fallback_column,
+                        ));
+                        None
+                    }
+                }
+                BinOperator::Lt | BinOperator::LtEq | BinOperator::Gt | BinOperator::GtEq => {
+                    if is_numeric_type(left_type) && is_numeric_type(right_type) {
+                        Some(VarType::Boolean)
+                    } else {
+                        diags.push(Diagnostic::new(
+                            DiagnosticCode::EExpressionTypeInvalid,
+                            format!(
+                                "Operator '{}' requires numeric operands, found {} and {}",
+                                match op {
+                                    BinOperator::Lt => "<",
+                                    BinOperator::LtEq => "<=",
+                                    BinOperator::Gt => ">",
+                                    BinOperator::GtEq => ">=",
+                                    BinOperator::Add => "+",
+                                    BinOperator::Sub => "-",
+                                    BinOperator::EqEq => "==",
+                                    BinOperator::NotEq => "!=",
+                                },
+                                type_name(left_type),
+                                type_name(right_type)
+                            ),
+                            Phase::Validation,
+                            scene,
+                            fallback_line,
+                            fallback_column,
+                        ));
+                        None
+                    }
+                }
+            }
         }
-        _ => {}
+    }
+}
+
+fn is_numeric_type(var_type: VarType) -> bool {
+    matches!(var_type, VarType::Integer | VarType::Decimal)
+}
+
+fn is_assignable(target: VarType, source: VarType) -> bool {
+    target == source || (target == VarType::Decimal && source == VarType::Integer)
+}
+
+fn type_name(var_type: VarType) -> &'static str {
+    match var_type {
+        VarType::Integer => "integer",
+        VarType::String => "string",
+        VarType::Boolean => "boolean",
+        VarType::Decimal => "decimal",
     }
 }
 
@@ -480,14 +762,14 @@ fn validate_interpolated_string(
     text: &str,
     line: usize,
     column: usize,
-    declared_vars: &HashSet<String>,
+    declared_vars: &VarTypes,
     scene: &str,
     diags: &mut Vec<Diagnostic>,
 ) {
     match scan_placeholders(text) {
         Ok(placeholders) => {
             for placeholder in placeholders {
-                if !declared_vars.contains(&placeholder.name) {
+                if !declared_vars.contains_key(&placeholder.name) {
                     diags.push(Diagnostic::new(
                         DiagnosticCode::EVariableUndeclaredRead,
                         format!(
@@ -528,9 +810,9 @@ fn story_terminates(stmts: &[StoryStatement]) -> bool {
 
     // Check the last statement
     match stmts.last().unwrap() {
-        StoryStatement::Jump { .. }
-        | StoryStatement::End { .. }
-        | StoryStatement::Choice(_) => true,
+        StoryStatement::Jump { .. } | StoryStatement::End { .. } | StoryStatement::Choice(_) => {
+            true
+        }
         StoryStatement::IfElse(if_else) => {
             let then_terminates = story_terminates(&if_else.then_branch);
             let else_terminates = if_else
@@ -564,14 +846,27 @@ fn try_const_eval_bool(expr: &Expr) -> Option<bool> {
                     _ => None,
                 },
                 _ => {
-                    // Try bool == bool
-                    match (try_const_eval_bool(left), try_const_eval_bool(right)) {
+                    match (try_const_eval_decimal(left), try_const_eval_decimal(right)) {
                         (Some(l), Some(r)) => match op {
                             BinOperator::EqEq => Some(l == r),
                             BinOperator::NotEq => Some(l != r),
+                            BinOperator::Lt => Some(l < r),
+                            BinOperator::LtEq => Some(l <= r),
+                            BinOperator::Gt => Some(l > r),
+                            BinOperator::GtEq => Some(l >= r),
                             _ => None,
                         },
-                        _ => None,
+                        _ => {
+                            // Try bool == bool
+                            match (try_const_eval_bool(left), try_const_eval_bool(right)) {
+                                (Some(l), Some(r)) => match op {
+                                    BinOperator::EqEq => Some(l == r),
+                                    BinOperator::NotEq => Some(l != r),
+                                    _ => None,
+                                },
+                                _ => None,
+                            }
+                        }
                     }
                 }
             }
@@ -586,6 +881,23 @@ fn try_const_eval_int(expr: &Expr) -> Option<i64> {
         Expr::BinOp { left, op, right } => {
             let l = try_const_eval_int(left)?;
             let r = try_const_eval_int(right)?;
+            match op {
+                BinOperator::Add => Some(l + r),
+                BinOperator::Sub => Some(l - r),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+fn try_const_eval_decimal(expr: &Expr) -> Option<Decimal> {
+    match expr {
+        Expr::DecimalLit(n) => Some(*n),
+        Expr::IntLit(n) => Some(Decimal::from(*n)),
+        Expr::BinOp { left, op, right } => {
+            let l = try_const_eval_decimal(left)?;
+            let r = try_const_eval_decimal(right)?;
             match op {
                 BinOperator::Add => Some(l + r),
                 BinOperator::Sub => Some(l - r),
@@ -617,7 +929,7 @@ mod tests {
     fn test_valid_minimal_script() {
         let src = r#"
 * INIT {
-    $x = 10
+    $x as integer = 10
     @actor A "Alice"
     @start main
 }
@@ -649,7 +961,11 @@ mod tests {
 }
 "#;
         let diags = parse_and_validate(src);
-        assert!(diags.iter().any(|d| d.code == DiagnosticCode::ESceneDuplicate));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::ESceneDuplicate)
+        );
     }
 
     #[test]
@@ -665,7 +981,11 @@ mod tests {
 }
 "#;
         let diags = parse_and_validate(src);
-        assert!(diags.iter().any(|d| d.code == DiagnosticCode::EStoryUnterminatedPath));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EStoryUnterminatedPath)
+        );
     }
 
     #[test]
@@ -682,7 +1002,11 @@ mod tests {
 }
 "#;
         let diags = parse_and_validate(src);
-        assert!(diags.iter().any(|d| d.code == DiagnosticCode::EActorUnknown));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EActorUnknown)
+        );
     }
 
     #[test]
@@ -698,6 +1022,34 @@ mod tests {
 }
 "#;
         let diags = parse_and_validate(src);
-        assert!(diags.iter().any(|d| d.code == DiagnosticCode::EJumpTargetMissing));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EJumpTargetMissing)
+        );
+    }
+
+    #[test]
+    fn test_variable_type_mismatch() {
+        let src = r#"
+* INIT {
+    $score as integer = 10
+    @actor A "Alice"
+    @start main
+}
+* main {
+    #PREP
+    $score = "oops"
+
+    #STORY
+    @end
+}
+"#;
+        let diags = parse_and_validate(src);
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EVariableTypeMismatch)
+        );
     }
 }

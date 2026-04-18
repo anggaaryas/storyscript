@@ -1,0 +1,57 @@
+// ============================================================================
+// DECIMAL + INTEGER MIXED OPS EXAMPLE
+// Focus: valid mixed numeric operations between decimal and integer variables.
+// ============================================================================
+
+* INIT {
+    $pilot_name as string = "Lyra";
+    $extra_cells as integer = 2;
+    $fuel_ratio as decimal = 1.50;
+    $stability as decimal = 0.80;
+    $mission_ready as boolean = false;
+
+    @actor AI "${pilot_name}-AI";
+    @start calibration;
+}
+
+* calibration {
+
+    #PREP
+    @bg "hangar_night.png";
+    @bgm "calibration_loop.ogg";
+
+    // decimal = decimal + integer (allowed)
+    $fuel_ratio = $fuel_ratio + $extra_cells;
+
+    // decimal += integer (allowed)
+    $stability += 1;
+
+    // decimal -= decimal (allowed)
+    $stability -= 0.25;
+
+    if ($fuel_ratio >= 3.0) {
+        $mission_ready = true;
+    } else {
+        $mission_ready = false;
+    }
+
+    #STORY
+    AI: "Fuel ratio after mixed math: ${fuel_ratio}.";
+    AI: "Stability index now: ${stability}.";
+
+    if ($mission_ready == true) {
+        "Systems green. Launch corridor unlocked.";
+    } else {
+        "Calibration incomplete. Launch corridor remains sealed.";
+    }
+
+    @choice {
+        "Proceed to launch pad" -> launch_pad;
+    }
+}
+
+* launch_pad {
+    #STORY
+    AI: "Final mixed-value report: fuel=${fuel_ratio}, stability=${stability}.";
+    @end;
+}

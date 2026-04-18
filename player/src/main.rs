@@ -9,12 +9,9 @@ use std::process;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::{
-    prelude::*,
-    widgets::*,
-};
+use ratatui::{prelude::*, widgets::*};
 
 use engine::{Engine, StepResult, Value};
 
@@ -146,7 +143,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if root_app.chooser.files.is_empty() {
         root_app.chooser.message = Some(
-            "No .StoryScript files found. Put one in the current directory or ../example.".to_string(),
+            "No .StoryScript files found. Put one in the current directory or ../example."
+                .to_string(),
         );
     }
 
@@ -260,7 +258,7 @@ fn render_player(frame: &mut Frame, app: &App) {
 
     let chunks = Layout::vertical([
         Constraint::Length(3), // header
-        Constraint::Min(5),   // content
+        Constraint::Min(5),    // content
         Constraint::Length(4), // footer
     ])
     .split(area);
@@ -294,7 +292,11 @@ fn render_player_header(frame: &mut Frame, app: &App, area: Rect) {
     .block(
         Block::bordered()
             .title(" ▶ StoryScript Player ")
-            .title_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            .title_style(
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
     );
 
     frame.render_widget(header, area);
@@ -350,7 +352,11 @@ fn build_content_lines(app: &App) -> Vec<Line<'static>> {
 }
 
 fn append_step_lines(lines: &mut Vec<Line<'static>>, result: &StepResult, dimmed: bool) {
-    let dim = if dimmed { Modifier::DIM } else { Modifier::empty() };
+    let dim = if dimmed {
+        Modifier::DIM
+    } else {
+        Modifier::empty()
+    };
 
     match result {
         StepResult::Narration(text) => {
@@ -476,10 +482,9 @@ fn render_player_footer(frame: &mut Frame, app: &App, area: Rect) {
         .join("  ");
 
     let controls = match &app.current {
-        Some(StepResult::Choices(choices)) => format!(
-            "[1-{}] Choose  [Q] Back To File Chooser",
-            choices.len()
-        ),
+        Some(StepResult::Choices(choices)) => {
+            format!("[1-{}] Choose  [Q] Back To File Chooser", choices.len())
+        }
         Some(StepResult::End) => "[Q] Back To File Chooser".to_string(),
         _ => "[Enter] Continue  [↑↓] Scroll  [Q] Back To File Chooser".to_string(),
     };
@@ -489,10 +494,7 @@ fn render_player_footer(frame: &mut Frame, app: &App, area: Rect) {
             var_display,
             Style::default().fg(Color::DarkGray),
         )),
-        Line::from(Span::styled(
-            controls,
-            Style::default().fg(Color::Green),
-        )),
+        Line::from(Span::styled(controls, Style::default().fg(Color::Green))),
     ]);
 
     let footer = Paragraph::new(footer_text).block(
@@ -520,7 +522,11 @@ fn render_file_chooser(frame: &mut Frame, chooser: &FileChooser) {
     .block(
         Block::bordered()
             .title(" StoryScript File Chooser ")
-            .title_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            .title_style(
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
     );
     frame.render_widget(header, chunks[0]);
 
@@ -565,7 +571,10 @@ fn render_file_chooser(frame: &mut Frame, chooser: &FileChooser) {
             selected_text,
             Style::default().fg(Color::DarkGray),
         )),
-        Line::from(Span::styled(message_text, Style::default().fg(Color::Green))),
+        Line::from(Span::styled(
+            message_text,
+            Style::default().fg(Color::Green),
+        )),
     ]))
     .block(
         Block::bordered()

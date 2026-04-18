@@ -1,10 +1,10 @@
 // Feature demo: standalone STORY variable output + global inline interpolation.
 
 * INIT {
-    $apple_count = 3;
-    $pilot_name = "Mira";
-    $bg_variant = "orchard_day";
-    $sfx_name = "pickup_ping";
+    $apple_count as integer = 3;
+    $pilot_name as string = "Mira";
+    $bg_variant as string = "orchard_day";
+    $sfx_name as string = "pickup_ping";
 
     @actor NARR "${pilot_name}";
     @start orchard_market;

@@ -12,6 +12,7 @@ Provides syntax highlighting and language support for `.StoryScript` files.
   - Navigation directives (`@choice`, `@jump`, `@end`)
   - Dialogue — portrait form (`ACTOR(emotion, Position): "..."`) and name-only form (`ACTOR: "..."`)
   - Variables (`$variable_name`)
+  - Typed declarations in `* INIT` (`$var as integer|string|boolean|decimal = ...`)
   - Standalone STORY variable output (`$variable_name` line)
   - Inline interpolation placeholders (`${variable_name}`) in strings
   - Control flow (`if`, `else`)
@@ -58,6 +59,8 @@ Then restart VS Code.
 | Emotion key | `variable.other.emotion-key` |
 | Position (`Left`, `Right`, etc.) | `constant.language.position` |
 | Variables (`$var`) | `variable.other` |
+| Type annotation (`as`) | `keyword.control.type.as` |
+| Type names (`integer`, `string`, `boolean`, `decimal`) | `storage.type` |
 | Interpolation (`${var}`) | `meta.interpolation` + `variable.other` |
 | Strings | `string.quoted.double` |
 | Numbers | `constant.numeric` |
