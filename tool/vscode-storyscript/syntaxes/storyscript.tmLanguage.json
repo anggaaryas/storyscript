@@ -75,14 +75,14 @@
     },
 
     "directive-actor": {
-      "begin": "(@actor)\\s+([A-Z_][A-Z0-9_]*)\\s+(\"[^\"]*\")",
+      "begin": "(@actor)\\s+([A-Z_][A-Z0-9_]*)",
       "beginCaptures": {
         "1": { "name": "keyword.control.directive.actor.storyscript" },
-        "2": { "name": "entity.name.type.actor-id.storyscript" },
-        "3": { "name": "string.quoted.double.actor-name.storyscript" }
+        "2": { "name": "entity.name.type.actor-id.storyscript" }
       },
       "end": "(?<=})|(?<=;)|(?=$)",
       "patterns": [
+        { "include": "#string-actor-name" },
         { "include": "#actor-portrait-map" },
         { "include": "#comment" }
       ]
@@ -126,38 +126,45 @@
     },
 
     "directive-bg": {
-      "match": "(@bg)\\s+(\"[^\"]*\")",
-      "captures": {
-        "1": { "name": "keyword.control.directive.bg.storyscript" },
-        "2": { "name": "string.quoted.double.asset-path.storyscript" }
-      }
+      "begin": "(@bg)\\b",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.directive.bg.storyscript" }
+      },
+      "end": "(?=;|$)",
+      "patterns": [
+        { "include": "#string-asset-path" },
+        { "include": "#comment" }
+      ]
     },
 
     "directive-bgm": {
+      "begin": "(@bgm)\\b",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.directive.bgm.storyscript" }
+      },
+      "end": "(?=;|$)",
       "patterns": [
         {
-          "match": "(@bgm)\\s+(STOP)\\b",
+          "match": "\\b(STOP)\\b",
           "captures": {
-            "1": { "name": "keyword.control.directive.bgm.storyscript" },
-            "2": { "name": "constant.language.stop.storyscript" }
+            "1": { "name": "constant.language.stop.storyscript" }
           }
         },
-        {
-          "match": "(@bgm)\\s+(\"[^\"]*\")",
-          "captures": {
-            "1": { "name": "keyword.control.directive.bgm.storyscript" },
-            "2": { "name": "string.quoted.double.asset-path.storyscript" }
-          }
-        }
+        { "include": "#string-asset-path" },
+        { "include": "#comment" }
       ]
     },
 
     "directive-sfx": {
-      "match": "(@sfx)\\s+(\"[^\"]*\")",
-      "captures": {
-        "1": { "name": "keyword.control.directive.sfx.storyscript" },
-        "2": { "name": "string.quoted.double.asset-path.storyscript" }
-      }
+      "begin": "(@sfx)\\b",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.directive.sfx.storyscript" }
+      },
+      "end": "(?=;|$)",
+      "patterns": [
+        { "include": "#string-asset-path" },
+        { "include": "#comment" }
+      ]
     },
 
     "directive-jump": {
@@ -197,12 +204,18 @@
     },
 
     "choice-block": {
-      "match": "(\"[^\"]*\")\\s*(->)\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
-      "captures": {
-        "1": { "name": "string.quoted.double.choice-label.storyscript" },
-        "2": { "name": "keyword.operator.arrow.storyscript" },
-        "3": { "name": "entity.name.function.scene-ref.storyscript" }
-      }
+      "begin": "(?=\\s*\"(?:[^\"\\\\]|\\\\.)*\"\\s*->\\s*[a-zA-Z_][a-zA-Z0-9_]*)",
+      "end": "(?=;|$)",
+      "patterns": [
+        { "include": "#string-choice-label" },
+        {
+          "match": "(->)\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.operator.arrow.storyscript" },
+            "2": { "name": "entity.name.function.scene-ref.storyscript" }
+          }
+        }
+      ]
     },
 
     "control-flow": {
@@ -233,6 +246,54 @@
 
     "string": {
       "name": "string.quoted.double.storyscript",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.storyscript" }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.storyscript" }
+      },
+      "patterns": [
+        { "include": "#string-dollar-escape" },
+        { "include": "#interpolation" }
+      ]
+    },
+
+    "string-actor-name": {
+      "name": "string.quoted.double.actor-name.storyscript",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.storyscript" }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.storyscript" }
+      },
+      "patterns": [
+        { "include": "#string-dollar-escape" },
+        { "include": "#interpolation" }
+      ]
+    },
+
+    "string-asset-path": {
+      "name": "string.quoted.double.asset-path.storyscript",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.storyscript" }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.storyscript" }
+      },
+      "patterns": [
+        { "include": "#string-dollar-escape" },
+        { "include": "#interpolation" }
+      ]
+    },
+
+    "string-choice-label": {
+      "name": "string.quoted.double.choice-label.storyscript",
       "begin": "\"",
       "beginCaptures": {
         "0": { "name": "punctuation.definition.string.begin.storyscript" }
