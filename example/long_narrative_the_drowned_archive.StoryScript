@@ -1,0 +1,380 @@
+// ============================================================================
+// THE DROWNED ARCHIVE
+// A StoryScript example showcasing very long narrative strings.
+//
+// A lone archivist descends into a submerged library beneath the ruins of
+// the Velthari Empire, seeking the last surviving copy of the Codex of
+// Unwritten Names — a text said to contain the true names of every god
+// that has ever gone silent.
+//
+// Features demonstrated:
+//   - Very long narrative strings (multi-sentence, paragraph-length)
+//   - Variables: integer, boolean, string, decimal
+//   - @actor with portraits and moods
+//   - Interpolation ${var} inside long narrative lines
+//   - Branching via @choice
+//   - Conditional if/else in #PREP
+//   - @jump for scene transitions
+//   - @bg, @bgm, @sfx
+//   - @end with multiple endings
+// ============================================================================
+
+* INIT {
+    // --- Protagonist State ---
+    $name           as string  = "Seren"
+    $lantern_oil    as integer = 3
+    $depth_reached  as integer = 0
+    $pages_found    as integer = 0
+    $breath_held    as integer = 0
+    $courage        as integer = 50
+    $knowledge      as decimal = 0.0
+
+    // --- Story Flags ---
+    $found_codex       as boolean = false
+    $met_the_warden    as boolean = false
+    $sacrificed_name   as boolean = false
+    $escaped           as boolean = false
+    $took_the_key      as boolean = false
+    $flood_triggered   as boolean = false
+
+    // --- Actor Registration ---
+    @actor SEREN "${name}" {
+        calm       -> "seren_calm.png"
+        focused    -> "seren_focused.png"
+        afraid     -> "seren_afraid.png"
+        awed       -> "seren_awed.png"
+        resolute   -> "seren_resolute.png"
+        exhausted  -> "seren_exhausted.png"
+    }
+
+    @actor WARDEN "The Archive Warden" {
+        still      -> "warden_still.png"
+        curious    -> "warden_curious.png"
+        ancient    -> "warden_ancient.png"
+        sorrowful  -> "warden_sorrowful.png"
+        threatening -> "warden_threatening.png"
+    }
+
+    @actor NARRATOR "Narrator"
+
+    // --- Entry Point ---
+    @start the_descent
+}
+
+// ============================================================================
+// SCENE 1 — THE DESCENT
+// ============================================================================
+
+* the_descent {
+
+    #PREP
+    $depth_reached = 1
+    @bg "flooded_stairwell.png"
+    @bgm "deep_water_ambience.ogg"
+    @sfx "water_drip_echo.wav"
+
+    #STORY
+    "The stairwell descends at a steep angle, its carved stone steps worn smooth by centuries of water that crept up from below and never fully receded. Each step ${name} takes sends a hollow echo bouncing off the walls — a sound that travels too far, as if the archive below is even larger than the old maps suggested. The lantern she carries is the oil-fed kind, its brass casing green with age, its flame a steady amber tongue that bends and shivers at the slightest shift of underground air. She counts the steps as she goes, an old habit from her training years, when her teacher told her that counting was the first defense against the mind's tendency to convince itself it has gone farther than it really has."
+
+    "By the time she reaches the thirty-second step, the water begins. It is ankle-deep at first, then knee-deep by the forty-seventh step, its surface perfectly still and perfectly black, reflecting the lantern's flame as a single burning point suspended in an infinite void. The cold is not the cold of winter or ice — it is older than that, a cold that comes from places light has not touched in four hundred years, a cold that settles into the bones with a kind of patient permanence, as if it has already decided it will still be there long after she is gone."
+
+    SEREN(focused, Left): "Thirty-two steps above the waterline. Twelve more to the first landing, if the survey records are accurate. They never are, but they're all I have."
+
+    "The survey records are, in fact, off by three steps — the landing arrives at the fifty-eighth step, not the fifty-fifth, because someone during the original survey apparently miscounted, or perhaps the archive has settled further into the silt than anyone accounted for. The landing is a wide stone platform with iron rings set into the walls, the kind that were used to tie off rowing boats when the archive was first flooded during the Velthari Collapse. The rings are still there. No boats are."
+
+    SEREN(calm, Left): "First landing. Lantern oil: ${lantern_oil} charges remaining. Depth: ${depth_reached} tier below the surface. Codex location per the fragmentary index — tier three, vault seven, shelf row four from the bottom. Assuming the shelves haven't collapsed."
+
+    "She says this aloud to no one, because the silence down here is the kind that presses against the ears and makes the mind invent voices to fill it. Speaking her own voice into the dark is a way of reminding the dark that she is real, and that she knows where she is going, and that she intends to come back."
+
+    @jump the_first_vault
+}
+
+// ============================================================================
+// SCENE 2 — THE FIRST VAULT
+// ============================================================================
+
+* the_first_vault {
+
+    #PREP
+    $depth_reached = 2
+    $pages_found   = $pages_found + 2
+    @bg "submerged_vault_entrance.png"
+    @bgm "drowned_library_theme.ogg"
+    @sfx "heavy_door_groan.wav"
+
+    #STORY
+    "The vault door is iron, six inches thick, and has been standing open for an unknowable number of years, held in place not by any mechanism but by sheer corrosion — it has rusted itself open as thoroughly as another door might have rusted itself shut. Beyond it, the archive opens up in a way that makes ${name} stop walking and simply look for a long, slow moment, the lantern held out at arm's length as if offering light to the dark as a gift."
+
+    "The shelves begin immediately inside the door and run in long parallel rows all the way to the far wall, which is far enough away that the lantern's reach falls short of it by a considerable margin. Each shelf is stone — not wood, which would have rotted, but cut stone, carved from the walls themselves and jutting out like ribs, stacked twelve high. Every shelf holds books. Not all of the books have survived; some are swollen into unreadable masses, their pages fused by water and time into single dense blocks of matter that bear only the distant memory of text. But many have survived, sealed in wax-treated covers or stored in ceramic boxes that the water has not yet cracked. There are hundreds of them. Perhaps thousands. The Velthari were thorough archivists."
+
+    SEREN(awed, Left): "Four hundred years underwater and they still kept the ceramic boxes sealed. Whoever built this place — they knew they were building something meant to outlast them."
+
+    "She moves slowly down the first row, trailing one hand along the shelf edges, reading spine labels where they remain legible. The Velthari wrote in a compressed administrative script that she has spent eleven years learning to read and can now parse at roughly the speed of a careful reader reading their native language — slowly, but without stopping. The titles she passes are mundane: tax ledgers, agricultural surveys, correspondence logs from the reign of the Third Protector. Vital, once. Now simply old."
+
+    "${pages_found} pages of coherent text recovered from the first row alone. Fragments. Nothing from the Codex yet."
+
+    "She reaches the end of the first row and turns, and finds the second row, and then the third. The archive is not a labyrinth — it is more organized than that, laid out on a strict grid that would have been legible to any trained Velthari archivist walking it in the time before the flood. But she is not a Velthari archivist, and the grid as she understands it is reconstructed from partial maps, and so she navigates by counting rows and estimating position and trusting that the vault numbering carved above each door is still intact enough to read."
+
+    @jump the_second_tier
+}
+
+// ============================================================================
+// SCENE 3 — THE SECOND TIER
+// ============================================================================
+
+* the_second_tier {
+
+    #PREP
+    $depth_reached = 3
+    $lantern_oil   = $lantern_oil - 1
+    @bg "collapsed_passage.png"
+    @bgm "tension_pulse.ogg"
+    @sfx "stone_crack_distant.wav"
+
+    #STORY
+    "The passage between the first and second tiers has partially collapsed — not recently, by the look of it, but sometime in the past century, when a section of the ceiling gave way and deposited a cascade of stone blocks across the corridor, filling it to about waist height on her left side and leaving a gap barely wide enough to squeeze through on the right. She studies the gap for a moment, assessing it the way her teacher taught her: look at what is bearing what weight, trace the load paths, decide whether the thing that has not yet fallen has a reason to remain where it is, or whether it is simply waiting. The ceiling above the gap shows two long diagonal fracture lines converging toward a central keystone that has shifted but not dropped. It has not dropped in a hundred years, which is either evidence of stability or evidence that it is very nearly ready to go."
+
+    "She squeezes through sideways, holding the lantern above her head, taking very slow and very quiet steps, because noise, she was told once by a man who spent his career in collapsed places, is just vibration, and vibration is just force, and force applied to a structure that is already at its limit is the last thing you want to contribute to the situation."
+
+    SEREN(afraid, Left): "The ceiling is holding. It has held for a century. It will hold for the next four minutes while I get through this passage. Those are simply facts I am choosing to believe with great conviction."
+
+    "She makes it through. The ceiling does not fall. She allows herself exactly three seconds of relief before continuing, because three seconds is the amount of time her teacher said was sufficient for relief after a near-miss, and after that you were simply delaying the work."
+
+    "The second tier is different from the first. Where the first vault was organized — methodical, rational, the work of people who expected someone would come looking — the second tier has the quality of a place where the organization began to break down as the Collapse approached. Boxes have been stacked in the aisles rather than on shelves. Some shelves have been cleared of their original contents and restocked with materials that do not match the vault's cataloguing system. There is a smell here that she cannot immediately identify, faint beneath the dominant smell of old water and old stone, something slightly acrid, slightly warm."
+
+    "She identifies it after a moment: old wax. Someone burned a great many candles in this tier, once, a very long time ago. Worked here through the dark, by candlelight, doing something that needed doing urgently enough that the usual cataloguing protocols were abandoned."
+
+    @choice {
+        "Search the hastily stacked boxes" -> search_the_boxes
+        "Follow the candle wax trail deeper" -> follow_the_wax
+    }
+}
+
+// ============================================================================
+// BRANCH A — SEARCH THE BOXES
+// ============================================================================
+
+* search_the_boxes {
+
+    #PREP
+    $pages_found = $pages_found + 5
+    $knowledge   = $knowledge + 0.15
+    @bg "collapsed_passage.png"
+    @bgm "discovery_underscore.ogg"
+    @sfx "paper_rustle.wav"
+
+    #STORY
+    "The boxes are not catalogued, but they are not random either — she notices after the fifth one that they have been stacked in a deliberate sequence, each layer offset from the one below it in a pattern that allows the lids to be removed from any box without disturbing the ones above it. Someone stacked these in a hurry, but they were a careful person even in a hurry, the kind of careful that becomes automatic after enough years of practice and cannot be switched off even when everything is falling apart around you."
+
+    "Inside the boxes: documents. Not ledgers or surveys — correspondence. Private letters, written in a cramped and urgent hand that is harder to read than the administrative script, full of abbreviations and implied referents and the kind of shorthand that develops between two people who have written to each other for twenty years and stopped bothering to explain context. But she reads carefully, and slowly, and the shape of what happened here begins to assemble itself in her mind like a mosaic being laid one tessera at a time."
+
+    "A senior archivist, in the final weeks before the Collapse, had been receiving warnings from someone in the eastern provinces — someone who understood what was coming before most of the capital did. The letters become increasingly desperate as they go. The last one, dated four days before the Collapse, is four sentences long: 'They know about the Codex. Move it now. Do not trust the Vault Seven record — the index was copied by someone who changed the location. The real shelf is not four from the bottom. It is four from the top.'"
+
+    SEREN(focused, Left): "Four from the top. Someone falsified the index. The Codex isn't where the fragmentary records say it is — it was moved, deliberately, to protect it from someone who was already looking."
+
+    "${pages_found} recovered pages now. $knowledge knowledge coefficient. The picture is getting clearer and considerably more complicated."
+
+    @jump the_warden_chamber
+}
+
+// ============================================================================
+// BRANCH B — FOLLOW THE WAX TRAIL
+// ============================================================================
+
+* follow_the_wax {
+
+    #PREP
+    $met_the_warden = true
+    $courage        = $courage - 10
+    @bg "candlelit_alcove.png"
+    @bgm "eerie_low_drone.ogg"
+    @sfx "candle_flicker.wav"
+
+    #STORY
+    "The wax trail leads her away from the stacked boxes, through a narrow side passage she almost missed because the entrance has been partially covered by a fallen shelf, and into a small alcove she did not know existed because it does not appear on any map she has seen. The alcove is roughly circular, perhaps five meters across, with a low ceiling and carved walls covered in text — not Velthari administrative script, but something older, the carved glyphs of the Antevar period, which predates the Velthari Empire by at least two centuries and which she can read only imperfectly, with a great deal of effort and a high probability of getting the subtle meanings wrong."
+
+    "In the center of the alcove, seated cross-legged on a low stone platform that has been carved to look like a stylized wave, is a figure."
+
+    "The figure is not moving. It is dressed in robes that were once white and are now the color of the water — a deep mineral gray — and it has been sitting in that position for long enough that the robes have begun to take on the texture of the stone beneath them, as if the boundary between the person and the platform is being slowly, patiently erased. Its hands rest in its lap, palms up, empty. Its head is bowed. Whether it is dead, or sleeping, or something else entirely, she cannot tell from the doorway."
+
+    "Then it breathes. Slowly. Deeply. The way something breathes when it has been breathing for a very long time and has ceased to find any urgency in the act."
+
+    WARDEN(still, Center): "You are the forty-third. Since the water came. I have counted."
+
+    SEREN(afraid, Left): "You've been here since the Collapse? That's — that's four centuries."
+
+    WARDEN(ancient, Center): "I was here before the Collapse. I was here when they built the first shelf. I was given a task and I have not completed it, and so I remain. That is how it works, when you accept the commission of the Archive. You remain until the work is done, or until there is no one left to receive the work, whichever comes first."
+
+    @jump the_warden_chamber
+}
+
+// ============================================================================
+// SCENE 4 — THE WARDEN'S CHAMBER
+// ============================================================================
+
+* the_warden_chamber {
+
+    #PREP
+    $depth_reached = 4
+    $lantern_oil   = $lantern_oil - 1
+    @bg "deep_vault_chamber.png"
+    @bgm "archive_warden_theme.ogg"
+    @sfx "water_resonance.wav"
+
+    if ($met_the_warden == true) {
+        // Already encountered the Warden — she speaks first
+    } else {
+        $met_the_warden = true
+    }
+
+    #STORY
+    "The third tier is the deepest she has been, and the deepest the fragmentary maps account for. The water here is above her waist when she enters, the cold of it something she has stopped registering consciously because conscious registration takes effort and she needs that effort elsewhere. The lantern she holds above her head — at ${lantern_oil} oil charges remaining, she is conserving carefully, moving it in slow arcs to read the shelf labels rather than holding it steady and letting the oil burn at full rate."
+
+    "The vaults at this depth are fewer and larger. Where the upper tiers were subdivided into dozens of small rooms, the third tier appears to be three enormous chambers connected by archways, their ceilings vaulted high enough that they vanish above the lantern's reach. The stone at this depth has a different quality — it rings differently when she taps it with a knuckle, a clear bright note rather than the dull thud of the upper tiers, as if it was quarried from a different source, or as if the water has leached something out of it and left it hollow in some fundamental way."
+
+    if ($met_the_warden == true) {
+        WARDEN(sorrowful, Center): "You found the letters in the second tier. I watched you read them. You understand, now, why the index was changed. But you do not yet understand why the Codex itself could not simply be destroyed, as many of them wanted. Why it had to be preserved even at this cost."
+    }
+
+    SEREN(focused, Left): "Why couldn't it be destroyed? If someone was hunting for it — if keeping it meant flooding an entire archive, trapping a Warden here for four hundred years — why not simply burn it?"
+
+    WARDEN(ancient, Center): "Because the Codex does not only contain names. It contains the mechanism by which names can be returned. Every god that has gone silent in the last two thousand years — every presence that humanity has stopped being able to hear — their names are in that book, and beside each name is the unfinished sentence of a prayer that was spoken but never completed. To destroy the Codex would be to permanently sever those prayers. The silence would become permanent. Not absence. Erasure."
+
+    "She stands in the dark water of the third tier and thinks about that for a long time — about the difference between silence and erasure, about the weight of unfinished things, about what it means to preserve something that the world has stopped believing in, at the cost of everything, on the chance that belief might one day return."
+
+    SEREN(resolute, Left): "Where is it? The real location — four from the top, according to the letter. Which shelf? Which vault?"
+
+    WARDEN(curious, Center): "That is the question the other forty-two also asked. Most of them did not ask what they intended to do with it afterward."
+
+    @choice {
+        "Tell the Warden: I intend to return it to the world" -> intention_return
+        "Tell the Warden: I intend to keep it safe, somewhere dry" -> intention_preserve
+        "Tell the Warden: I haven't decided yet. Show me the book first." -> intention_uncertain
+    }
+}
+
+// ============================================================================
+// RESOLUTION A — RETURN TO THE WORLD
+// ============================================================================
+
+* intention_return {
+
+    #PREP
+    $found_codex     = true
+    $courage         = $courage + 20
+    $knowledge       = $knowledge + 0.40
+    @bg "codex_revealed.png"
+    @bgm "revelation_theme.ogg"
+    @sfx "ancient_pages.wav"
+
+    $pages_found = $pages_found + 200
+
+    #STORY
+    "The Warden is still for a very long moment. Then it unfolds itself from the cross-legged position it has occupied for four centuries — slowly, carefully, the way something moves when it has been still for so long that it is no longer certain of the geometry of motion — and rises to its full height, which is slightly more than seems natural, and turns toward the far wall of the chamber."
+
+    "It leads her to a vault she would not have found on her own, because the entrance is concealed behind a stone panel that swings inward on a counterweight rather than outward on hinges, the mechanism so old that she would have taken the wall for solid stone and never thought to push. Beyond the panel: a single shelf, standing alone in a small dry room — dry, she realizes, because the ceiling here is sealed with pitch and the floor is elevated six inches above the vault threshold, and whoever built this room was thinking specifically about preservation against the day when the water came."
+
+    "On the shelf: one book. Bound in material she does not recognize — not leather, not fabric, something that has the quality of both and the weight of neither. The cover is plain except for a single symbol pressed into it, a circle with a gap at the top, which she recognizes from her study of the Antevar glyphs as the sign for a held breath — something between inhale and exhale, waiting."
+
+    WARDEN(sorrowful, Center): "It waited for someone who would give it a reason to be carried back into the light. You are the first, in four hundred years, to give me that reason. Take it. Complete the work. That is all I was ever waiting to hear someone say."
+
+    SEREN(awed, Left): "What will happen to you? When I leave with the Codex — what happens to the commission?"
+
+    WARDEN(ancient, Center): "The commission ends. The work is passed on. I suspect I will find out what comes after being a Warden. I have been curious about that for a very long time."
+
+    "She takes the Codex from the shelf. It is lighter than she expected — not the weight of four centuries, not the weight of two thousand years of unfinished prayers. Just the weight of a book. Just the weight of something that was written down because someone needed it to exist, and was preserved because someone else believed it should keep existing, and is now in her hands because she came down into the dark and asked the right question."
+
+    "${pages_found} total pages recovered. Codex secured. Depth: ${depth_reached} tiers. Lantern oil remaining: ${lantern_oil}."
+
+    @jump the_ascent
+}
+
+// ============================================================================
+// RESOLUTION B — PRESERVE IT SAFELY
+// ============================================================================
+
+* intention_preserve {
+
+    #PREP
+    $found_codex = true
+    $took_the_key = true
+    @bg "codex_revealed.png"
+    @bgm "bittersweet_underscore.ogg"
+    @sfx "ancient_pages.wav"
+
+    #STORY
+    "The Warden looks at her for a long time with an expression she cannot fully read — not disapproval, exactly, but not the absence of reservation either. Something between those two things, the expression of someone who has seen this moment forty-two times and understands that safety is not the same as aliveness, and that a book kept perfectly safe in a perfectly dry place is still a book that no one is reading, still a silence even if it is a preserved one. But it does not refuse her. It leads her to the hidden vault and stands aside while she takes the Codex, and when she holds it in her hands it says only this:"
+
+    WARDEN(sorrowful, Center): "Forty-two came before you. Most wanted safety too. Safety is a good impulse. I only ask that you consider, while you carry it to wherever you believe is safest — whether safe and hidden are two different words that you are treating as one."
+
+    SEREN(exhausted, Left): "I hear you. I don't know yet where the safe place is. But I know I'm not leaving it here."
+
+    "She wraps the Codex in the wax-cloth she brought for exactly this purpose — a precaution she had planned for without quite knowing what she was planning for — and tucks it under her arm, and begins the long walk back toward the stairwell."
+
+    @jump the_ascent
+}
+
+// ============================================================================
+// RESOLUTION C — UNCERTAIN
+// ============================================================================
+
+* intention_uncertain {
+
+    #PREP
+    $found_codex     = true;
+    $sacrifice_needed as boolean = true;
+    @bg "codex_revealed.png"
+    @bgm "reflective_theme.ogg"
+    @sfx "water_slow_drip.wav"
+
+    #STORY
+    "The Warden makes a sound that might, in a human voice, be the beginning of a laugh — not unkind, but appreciative in the way that only someone who has been waiting for a very long time can be appreciative of an honest answer after forty-two dishonest ones."
+
+    WARDEN(curious, Center): "Honesty. I had forgotten what that sounded like. Come, then. Look at it first. Decide after. That seems correct to me — it was always strange to me that the others decided before they had seen what they were deciding about."
+
+    "The Codex, when she holds it, does something she did not expect: it opens on its own, not to the first page, but to a page roughly in the middle, and the page it opens to is not text. It is a single name, written in a script she does not recognize, in ink that is somehow still dark despite four centuries of proximity to water. The name means nothing to her — she cannot pronounce it, cannot parse its structure — but looking at it creates a sensation she does not have a word for, a resonance, as if something very large and very distant heard the act of looking and turned, slowly, toward the source of the attention."
+
+    "She closes the book. The sensation fades. She stands in the dark water for a long moment, breathing."
+
+    SEREN(resolute, Left): "I'll take it. I don't know where I'm going with it yet. But I know it shouldn't be alone in the dark anymore."
+
+    WARDEN(ancient, Center): "That is enough. That has always been enough. The rest is the work you do after you leave."
+
+    @jump the_ascent
+}
+
+// ============================================================================
+// SCENE — THE ASCENT
+// ============================================================================
+
+* the_ascent {
+
+    #PREP
+    $escaped = true
+    @bg "flooded_stairwell.png"
+    @bgm "ascent_theme.ogg"
+    @sfx "water_splash_climb.wav"
+
+    if ($lantern_oil <= 0) {
+        $flood_triggered = true
+    }
+
+    #STORY
+    "The ascent takes longer than the descent, because going up through waist-deep water with a book tucked under one arm and a lantern held high requires a particular kind of slow, deliberate movement — the kind that conserves energy and preserves balance and does not at any point involve hurrying, even though some part of her mind has been calculating the lantern oil burn rate since the third tier and has arrived at conclusions she finds motivating."
+
+    if ($flood_triggered == true) {
+        "The lantern gutters on the forty-first step of the ascent, the oil finally exhausted, and the dark comes down around her all at once — not gradually, the way dark comes at dusk, but immediately and completely, the way dark comes when a flame goes out. She has done the counting. She knows she is forty-one steps below the surface entrance. She knows the steps are even and the railing, where it exists, is on the left side. She puts her hand on the left wall and begins to count, and does not stop counting, and does not stop moving, and arrives at the top on the fifty-eighth step gasping with cold and relief and something that is almost laughter."
+    } else {
+        "The lantern holds. At the thirty-first step above the water's surface, the quality of the air changes — it carries something from above, a faint trace of wind, the distant smell of grass and open sky — and she understands that she is close, and allows herself, for the first time since she entered the stairwell, to think about what comes next rather than what is immediately in front of her."
+    }
+
+    "She emerges from the archive entrance into a gray late-afternoon sky, water streaming from her clothes, the Codex pressed to her chest beneath the wax-cloth wrapping. The ruins of the Velthari city extend around her in every direction — low broken walls, the ghostly outlines of streets, the occasional standing column that has outlasted the building it supported by three hundred years and now stands alone for no reason except that it is made of very good stone. It is entirely quiet. No one followed her here. No one knows she found it."
+
+    SEREN(exhausted, Left): "Depth reached: ${depth_reached} tiers. Pages recovered: ${pages_found}. Lantern oil remaining: ${lantern_oil}. One Codex of Unwritten Names, secured. One Archive Warden, released from a four-century commission. One archivist, alive, cold, and uncertain what to do next. Assessment: successful."
+
+    "She sits down on a broken wall and holds the Codex in her lap and watches the gray sky for a long time. Somewhere far below her, in the dark water of the third tier, she imagines — probably incorrectly, probably just wishfully — that there is no longer anyone seated cross-legged on a carved stone platform, no longer a figure breathing the slow breath of something that has been waiting. That the alcove is simply empty now. That the commission has passed."
+
+    "She stands up. She begins to walk."
+
+    @end
+}

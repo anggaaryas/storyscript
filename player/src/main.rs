@@ -536,6 +536,9 @@ fn render_file_chooser(frame: &mut Frame, chooser: &FileChooser) {
             .alignment(Alignment::Center);
         frame.render_widget(empty, chunks[1]);
     } else {
+        let body_chunks = Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)])
+            .split(chunks[1]);
+
         let items: Vec<ListItem> = chooser
             .files
             .iter()
@@ -554,7 +557,27 @@ fn render_file_chooser(frame: &mut Frame, chooser: &FileChooser) {
 
         let mut state = ListState::default();
         state.select(Some(chooser.selected));
-        frame.render_stateful_widget(list, chunks[1], &mut state);
+        frame.render_stateful_widget(list, body_chunks[0], &mut state);
+
+        let side_title = if chooser.message.is_some() {
+            " Compile Errors "
+        } else {
+            " Details "
+        };
+        let side_text = chooser.message.clone().unwrap_or_else(|| {
+            "Press Enter to load selected file.\n\nIf the selected file has compile errors, full diagnostics will appear here."
+                .to_string()
+        });
+        let side_style = if chooser.message.is_some() {
+            Style::default().fg(Color::Red)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+        let side_panel = Paragraph::new(side_text)
+            .style(side_style)
+            .wrap(Wrap { trim: false })
+            .block(Block::bordered().title(side_title));
+        frame.render_widget(side_panel, body_chunks[1]);
     }
 
     let selected_text = chooser
@@ -564,6 +587,7 @@ fn render_file_chooser(frame: &mut Frame, chooser: &FileChooser) {
     let message_text = chooser
         .message
         .clone()
+        .map(|_| "[Enter] Retry  [↑↓] Select  [Q] Quit".to_string())
         .unwrap_or_else(|| "[Enter] Play  [↑↓] Select  [Q] Quit".to_string());
 
     let footer = Paragraph::new(Text::from(vec![
@@ -679,11 +703,10 @@ fn format_diagnostics(title: &str, diags: &[String]) -> String {
     }
     let details = diags
         .iter()
-        .take(2)
-        .map(String::as_str)
+        .map(|diag| format!("- {}", diag))
         .collect::<Vec<_>>()
-        .join(" | ");
-    format!("{}: {}", title, details)
+        .join("\n");
+    format!("{}\n{}", title, details)
 }
 
 fn actor_color(actor_id: &str) -> Color {
