@@ -42,6 +42,7 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
             &var.value,
             var.line,
             var.column,
+            Some(var.var_type),
             &declared_vars,
             "INIT",
             &mut diags,
@@ -211,6 +212,7 @@ fn validate_prep_statements(
                     &assign.value,
                     assign.line,
                     assign.column,
+                    declared_type,
                     declared_vars,
                     scene,
                     diags,
@@ -306,6 +308,7 @@ fn validate_prep_statements(
                     &if_else.condition,
                     if_else.line,
                     if_else.column,
+                    None,
                     declared_vars,
                     scene,
                     diags,
@@ -467,6 +470,7 @@ fn validate_story_statements(
                             cond_expr,
                             opt.line,
                             opt.column,
+                            None,
                             declared_vars,
                             scene,
                             diags,
@@ -524,6 +528,7 @@ fn validate_story_statements(
                     &if_else.condition,
                     if_else.line,
                     if_else.column,
+                    None,
                     declared_vars,
                     scene,
                     diags,
@@ -588,6 +593,7 @@ fn infer_expr_type(
     expr: &Expr,
     fallback_line: usize,
     fallback_column: usize,
+    assignment_target: Option<VarType>,
     declared_vars: &VarTypes,
     scene: &str,
     diags: &mut Vec<Diagnostic>,
@@ -621,11 +627,38 @@ fn infer_expr_type(
                 None
             }
         },
+        Expr::Call {
+            name,
+            args,
+            line,
+            column,
+        } => infer_call_type(
+            name,
+            args,
+            *line,
+            *column,
+            assignment_target,
+            declared_vars,
+            scene,
+            diags,
+        ),
+        Expr::ListLit { .. } => {
+            diags.push(Diagnostic::new(
+                DiagnosticCode::EExpressionTypeInvalid,
+                "List literals are only valid as arguments to pick([ ... ])",
+                Phase::Validation,
+                scene,
+                fallback_line,
+                fallback_column,
+            ));
+            None
+        }
         Expr::BinOp { left, op, right } => {
             let left_type = infer_expr_type(
                 left,
                 fallback_line,
                 fallback_column,
+                assignment_target,
                 declared_vars,
                 scene,
                 diags,
@@ -634,6 +667,7 @@ fn infer_expr_type(
                 right,
                 fallback_line,
                 fallback_column,
+                assignment_target,
                 declared_vars,
                 scene,
                 diags,
@@ -645,7 +679,7 @@ fn infer_expr_type(
             };
 
             match op {
-                BinOperator::Add | BinOperator::Sub => {
+                BinOperator::Add | BinOperator::Sub | BinOperator::Mul | BinOperator::Div => {
                     if left_type == VarType::Integer && right_type == VarType::Integer {
                         Some(VarType::Integer)
                     } else if is_numeric_type(left_type) && is_numeric_type(right_type) {
@@ -655,16 +689,26 @@ fn infer_expr_type(
                             DiagnosticCode::EExpressionTypeInvalid,
                             format!(
                                 "Operator '{}' requires numeric operands, found {} and {}",
-                                match op {
-                                    BinOperator::Add => "+",
-                                    BinOperator::Sub => "-",
-                                    BinOperator::EqEq => "==",
-                                    BinOperator::NotEq => "!=",
-                                    BinOperator::Lt => "<",
-                                    BinOperator::LtEq => "<=",
-                                    BinOperator::Gt => ">",
-                                    BinOperator::GtEq => ">=",
-                                },
+                                operator_symbol(op),
+                                type_name(left_type),
+                                type_name(right_type)
+                            ),
+                            Phase::Validation,
+                            scene,
+                            fallback_line,
+                            fallback_column,
+                        ));
+                        None
+                    }
+                }
+                BinOperator::Mod => {
+                    if left_type == VarType::Integer && right_type == VarType::Integer {
+                        Some(VarType::Integer)
+                    } else {
+                        diags.push(Diagnostic::new(
+                            DiagnosticCode::EExpressionTypeInvalid,
+                            format!(
+                                "Operator '%' requires integer operands, found {} and {}",
                                 type_name(left_type),
                                 type_name(right_type)
                             ),
@@ -686,16 +730,7 @@ fn infer_expr_type(
                             DiagnosticCode::EExpressionTypeInvalid,
                             format!(
                                 "Operator '{}' cannot compare {} with {}",
-                                match op {
-                                    BinOperator::EqEq => "==",
-                                    BinOperator::NotEq => "!=",
-                                    BinOperator::Add => "+",
-                                    BinOperator::Sub => "-",
-                                    BinOperator::Lt => "<",
-                                    BinOperator::LtEq => "<=",
-                                    BinOperator::Gt => ">",
-                                    BinOperator::GtEq => ">=",
-                                },
+                                operator_symbol(op),
                                 type_name(left_type),
                                 type_name(right_type)
                             ),
@@ -715,16 +750,7 @@ fn infer_expr_type(
                             DiagnosticCode::EExpressionTypeInvalid,
                             format!(
                                 "Operator '{}' requires numeric operands, found {} and {}",
-                                match op {
-                                    BinOperator::Lt => "<",
-                                    BinOperator::LtEq => "<=",
-                                    BinOperator::Gt => ">",
-                                    BinOperator::GtEq => ">=",
-                                    BinOperator::Add => "+",
-                                    BinOperator::Sub => "-",
-                                    BinOperator::EqEq => "==",
-                                    BinOperator::NotEq => "!=",
-                                },
+                                operator_symbol(op),
                                 type_name(left_type),
                                 type_name(right_type)
                             ),
@@ -738,6 +764,342 @@ fn infer_expr_type(
                 }
             }
         }
+    }
+}
+
+fn infer_call_type(
+    name: &str,
+    args: &[Expr],
+    line: usize,
+    column: usize,
+    assignment_target: Option<VarType>,
+    declared_vars: &VarTypes,
+    scene: &str,
+    diags: &mut Vec<Diagnostic>,
+) -> Option<VarType> {
+    match name {
+        "abs" => {
+            if args.len() != 1 {
+                diags.push(Diagnostic::new(
+                    DiagnosticCode::EExpressionTypeInvalid,
+                    format!("abs() expects exactly 1 argument, found {}", args.len()),
+                    Phase::Validation,
+                    scene,
+                    line,
+                    column,
+                ));
+                return None;
+            }
+
+            let arg_type = infer_expr_type(
+                &args[0],
+                line,
+                column,
+                assignment_target,
+                declared_vars,
+                scene,
+                diags,
+            )?;
+
+            if is_numeric_type(arg_type) {
+                Some(arg_type)
+            } else {
+                diags.push(Diagnostic::new(
+                    DiagnosticCode::EExpressionTypeInvalid,
+                    format!("abs() requires numeric argument, found {}", type_name(arg_type)),
+                    Phase::Validation,
+                    scene,
+                    line,
+                    column,
+                ));
+                None
+            }
+        }
+        "rand" => {
+            let target = match assignment_target {
+                Some(VarType::Integer) => VarType::Integer,
+                Some(VarType::Decimal) => VarType::Decimal,
+                Some(other) => {
+                    diags.push(Diagnostic::new(
+                        DiagnosticCode::EExpressionTypeInvalid,
+                        format!(
+                            "rand() requires integer or decimal assignment target, found {}",
+                            type_name(other)
+                        ),
+                        Phase::Validation,
+                        scene,
+                        line,
+                        column,
+                    ));
+                    return None;
+                }
+                None => {
+                    diags.push(Diagnostic::new(
+                        DiagnosticCode::EExpressionTypeInvalid,
+                        "rand() requires typed assignment context",
+                        Phase::Validation,
+                        scene,
+                        line,
+                        column,
+                    ));
+                    return None;
+                }
+            };
+
+            match args.len() {
+                0 => Some(target),
+                2 => {
+                    let min_ty = infer_expr_type(
+                        &args[0],
+                        line,
+                        column,
+                        assignment_target,
+                        declared_vars,
+                        scene,
+                        diags,
+                    )?;
+                    let max_ty = infer_expr_type(
+                        &args[1],
+                        line,
+                        column,
+                        assignment_target,
+                        declared_vars,
+                        scene,
+                        diags,
+                    )?;
+
+                    if !is_numeric_type(min_ty) || !is_numeric_type(max_ty) {
+                        diags.push(Diagnostic::new(
+                            DiagnosticCode::EExpressionTypeInvalid,
+                            format!(
+                                "rand(min, max) requires numeric bounds, found {} and {}",
+                                type_name(min_ty),
+                                type_name(max_ty)
+                            ),
+                            Phase::Validation,
+                            scene,
+                            line,
+                            column,
+                        ));
+                        return None;
+                    }
+
+                    match target {
+                        VarType::Integer => {
+                            if min_ty != VarType::Integer || max_ty != VarType::Integer {
+                                diags.push(Diagnostic::new(
+                                    DiagnosticCode::EExpressionTypeInvalid,
+                                    "Integer rand(min, max) requires integer bounds",
+                                    Phase::Validation,
+                                    scene,
+                                    line,
+                                    column,
+                                ));
+                                return None;
+                            }
+                        }
+                        VarType::Decimal => {
+                            // Decimal assignment accepts integer and decimal bounds.
+                        }
+                        _ => unreachable!(),
+                    }
+
+                    if let Some(false) = try_const_check_rand_bounds(&args[0], &args[1], target) {
+                        diags.push(Diagnostic::new(
+                            DiagnosticCode::EExpressionTypeInvalid,
+                            "rand(min, max) requires min <= max",
+                            Phase::Validation,
+                            scene,
+                            line,
+                            column,
+                        ));
+                        return None;
+                    }
+
+                    Some(target)
+                }
+                _ => {
+                    diags.push(Diagnostic::new(
+                        DiagnosticCode::EExpressionTypeInvalid,
+                        format!(
+                            "rand() expects 0 or 2 arguments, found {}",
+                            args.len()
+                        ),
+                        Phase::Validation,
+                        scene,
+                        line,
+                        column,
+                    ));
+                    None
+                }
+            }
+        }
+        "pick" => {
+            if args.len() != 1 {
+                diags.push(Diagnostic::new(
+                    DiagnosticCode::EExpressionTypeInvalid,
+                    format!("pick() expects exactly 1 argument, found {}", args.len()),
+                    Phase::Validation,
+                    scene,
+                    line,
+                    column,
+                ));
+                return None;
+            }
+
+            let values = match &args[0] {
+                Expr::ListLit { items, .. } => items,
+                _ => {
+                    diags.push(Diagnostic::new(
+                        DiagnosticCode::EExpressionTypeInvalid,
+                        "pick() expects a list literal argument: pick([a, b, ...])",
+                        Phase::Validation,
+                        scene,
+                        line,
+                        column,
+                    ));
+                    return None;
+                }
+            };
+
+            if values.is_empty() {
+                diags.push(Diagnostic::new(
+                    DiagnosticCode::EExpressionTypeInvalid,
+                    "pick() requires a non-empty candidate list",
+                    Phase::Validation,
+                    scene,
+                    line,
+                    column,
+                ));
+                return None;
+            }
+
+            if let Some(target) = assignment_target {
+                match target {
+                    VarType::Decimal => {
+                        for value in values {
+                            let ty = infer_expr_type(
+                                value,
+                                line,
+                                column,
+                                assignment_target,
+                                declared_vars,
+                                scene,
+                                diags,
+                            )?;
+                            if !is_numeric_type(ty) {
+                                diags.push(Diagnostic::new(
+                                    DiagnosticCode::EExpressionTypeInvalid,
+                                    format!(
+                                        "pick() for decimal assignment accepts only integer/decimal candidates, found {}",
+                                        type_name(ty)
+                                    ),
+                                    Phase::Validation,
+                                    scene,
+                                    line,
+                                    column,
+                                ));
+                                return None;
+                            }
+                        }
+                        return Some(VarType::Decimal);
+                    }
+                    _ => {
+                        for value in values {
+                            let ty = infer_expr_type(
+                                value,
+                                line,
+                                column,
+                                assignment_target,
+                                declared_vars,
+                                scene,
+                                diags,
+                            )?;
+                            if !is_assignable(target, ty) {
+                                diags.push(Diagnostic::new(
+                                    DiagnosticCode::EExpressionTypeInvalid,
+                                    format!(
+                                        "pick() candidate type {} is incompatible with assignment target {}",
+                                        type_name(ty),
+                                        type_name(target)
+                                    ),
+                                    Phase::Validation,
+                                    scene,
+                                    line,
+                                    column,
+                                ));
+                                return None;
+                            }
+                        }
+                        return Some(target);
+                    }
+                }
+            }
+
+            let first_type = infer_expr_type(
+                &values[0],
+                line,
+                column,
+                None,
+                declared_vars,
+                scene,
+                diags,
+            )?;
+            for value in values.iter().skip(1) {
+                let ty = infer_expr_type(
+                    value,
+                    line,
+                    column,
+                    None,
+                    declared_vars,
+                    scene,
+                    diags,
+                )?;
+                if ty != first_type {
+                    diags.push(Diagnostic::new(
+                        DiagnosticCode::EExpressionTypeInvalid,
+                        format!(
+                            "pick() candidates must share one type outside assignment context, found {} and {}",
+                            type_name(first_type),
+                            type_name(ty)
+                        ),
+                        Phase::Validation,
+                        scene,
+                        line,
+                        column,
+                    ));
+                    return None;
+                }
+            }
+            Some(first_type)
+        }
+        _ => {
+            diags.push(Diagnostic::new(
+                DiagnosticCode::EExpressionTypeInvalid,
+                format!("Unknown function '{}'", name),
+                Phase::Validation,
+                scene,
+                line,
+                column,
+            ));
+            None
+        }
+    }
+}
+
+fn operator_symbol(op: &BinOperator) -> &'static str {
+    match op {
+        BinOperator::Add => "+",
+        BinOperator::Sub => "-",
+        BinOperator::Mul => "*",
+        BinOperator::Div => "/",
+        BinOperator::Mod => "%",
+        BinOperator::EqEq => "==",
+        BinOperator::NotEq => "!=",
+        BinOperator::Lt => "<",
+        BinOperator::LtEq => "<=",
+        BinOperator::Gt => ">",
+        BinOperator::GtEq => ">=",
     }
 }
 
@@ -884,8 +1246,27 @@ fn try_const_eval_int(expr: &Expr) -> Option<i64> {
             match op {
                 BinOperator::Add => Some(l + r),
                 BinOperator::Sub => Some(l - r),
+                BinOperator::Mul => Some(l * r),
+                BinOperator::Div => {
+                    if r == 0 {
+                        None
+                    } else {
+                        Some(l / r)
+                    }
+                }
+                BinOperator::Mod => {
+                    if r == 0 {
+                        None
+                    } else {
+                        Some(l % r)
+                    }
+                }
                 _ => None,
             }
+        }
+        Expr::Call { name, args, .. } if name == "abs" && args.len() == 1 => {
+            let value = try_const_eval_int(&args[0])?;
+            value.checked_abs()
         }
         _ => None,
     }
@@ -901,8 +1282,36 @@ fn try_const_eval_decimal(expr: &Expr) -> Option<Decimal> {
             match op {
                 BinOperator::Add => Some(l + r),
                 BinOperator::Sub => Some(l - r),
+                BinOperator::Mul => Some(l * r),
+                BinOperator::Div => {
+                    if r == Decimal::ZERO {
+                        None
+                    } else {
+                        Some(l / r)
+                    }
+                }
                 _ => None,
             }
+        }
+        Expr::Call { name, args, .. } if name == "abs" && args.len() == 1 => {
+            let value = try_const_eval_decimal(&args[0])?;
+            Some(value.abs())
+        }
+        _ => None,
+    }
+}
+
+fn try_const_check_rand_bounds(min_expr: &Expr, max_expr: &Expr, target: VarType) -> Option<bool> {
+    match target {
+        VarType::Integer => {
+            let min = try_const_eval_int(min_expr)?;
+            let max = try_const_eval_int(max_expr)?;
+            Some(min <= max)
+        }
+        VarType::Decimal => {
+            let min = try_const_eval_decimal(min_expr)?;
+            let max = try_const_eval_decimal(max_expr)?;
+            Some(min <= max)
         }
         _ => None,
     }
@@ -1051,5 +1460,100 @@ mod tests {
                 .iter()
                 .any(|d| d.code == DiagnosticCode::EVariableTypeMismatch)
         );
+    }
+
+    #[test]
+    fn test_arithmetic_and_functions_valid() {
+        let src = r#"
+* INIT {
+    $i as integer = 10
+    $d as decimal = 1.5
+    @actor A "Alice"
+    @start main
+}
+* main {
+    #PREP
+    $i = ($i * 3) / 2 % 5
+    $i = abs($i - 10)
+    $d = rand(1, 2.5)
+    $d = pick([1, 1.5, 2])
+
+    #STORY
+    @end
+}
+"#;
+        let diags = parse_and_validate(src);
+        let errors: Vec<_> = diags.iter().filter(|d| d.is_error()).collect();
+        assert!(errors.is_empty(), "Expected no errors, got: {:?}", errors);
+    }
+
+    #[test]
+    fn test_rand_requires_assignment_context() {
+        let src = r#"
+* INIT {
+    $x as integer = 1
+    @actor A "Alice"
+    @start main
+}
+* main {
+    #PREP
+    if (rand() > 0) {
+        $x = 2
+    }
+
+    #STORY
+    @end
+}
+"#;
+        let diags = parse_and_validate(src);
+        assert!(diags.iter().any(|d| {
+            d.code == DiagnosticCode::EExpressionTypeInvalid
+                && d.message.contains("requires typed assignment context")
+        }));
+    }
+
+    #[test]
+    fn test_pick_empty_list_rejected() {
+        let src = r#"
+* INIT {
+    $x as integer = 1
+    @actor A "Alice"
+    @start main
+}
+* main {
+    #PREP
+    $x = pick([])
+
+    #STORY
+    @end
+}
+"#;
+        let diags = parse_and_validate(src);
+        assert!(diags.iter().any(|d| {
+            d.code == DiagnosticCode::EExpressionTypeInvalid
+                && d.message.contains("non-empty candidate list")
+        }));
+    }
+
+    #[test]
+    fn test_modulo_decimal_rejected() {
+        let src = r#"
+* INIT {
+    $d as decimal = 5.5
+    @actor A "Alice"
+    @start main
+}
+* main {
+    #PREP
+    $d = $d % 2
+
+    #STORY
+    @end
+}
+"#;
+        let diags = parse_and_validate(src);
+        assert!(diags.iter().any(|d| {
+            d.code == DiagnosticCode::EExpressionTypeInvalid && d.message.contains("Operator '%'")
+        }));
     }
 }

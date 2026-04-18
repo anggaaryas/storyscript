@@ -66,9 +66,20 @@ StoryScript uses:
 - `* INIT` for global state, actors, and `@start`
 - `#PREP` for state mutation and engine directives (`@bg`, `@bgm`, `@sfx`)
 - `#STORY` for narration, dialogue, branching, transitions, and standalone variable output (`$var`)
+- Numeric expressions with `+`, `-`, `*`, `/`, `%` (modulo is integer-only)
+- Built-ins: `abs(x)`, `rand()`, `rand(min, max)`, `pick([a, b, ...])`
 - `${var}` inline interpolation in string literals across all phases (`\$` for literal dollar)
 - Typed declarations in `* INIT` using `as integer|string|boolean|decimal`
 - Variable type is immutable after declaration
+
+Built-in notes:
+
+- `rand()` and `rand(min, max)` are assignment-target driven:
+	- integer target -> integer random
+	- decimal target -> decimal random
+- `rand(min, max)` is inclusive.
+- decimal assignment allows integer/decimal bounds for `rand(min, max)`.
+- decimal assignment allows integer/decimal candidates for `pick([ ... ])`.
 
 Minimal example:
 

@@ -10,6 +10,8 @@ pub enum Token {
     RBrace,    // }
     LParen,    // (
     RParen,    // )
+    LBracket,  // [
+    RBracket,  // ]
     Semicolon, // ;
     Colon,     // :
     Arrow,     // ->
@@ -58,6 +60,8 @@ pub enum Token {
     GtEq,    // >=
     Plus,    // +
     Minus,   // -
+    Slash,   // /
+    Percent, // %
     PlusEq,  // +=
     MinusEq, // -=
 
@@ -73,6 +77,8 @@ impl Token {
             Token::RBrace => "'}'",
             Token::LParen => "'('",
             Token::RParen => "')'",
+            Token::LBracket => "'['",
+            Token::RBracket => "']'",
             Token::Semicolon => "';'",
             Token::Colon => "':'",
             Token::Arrow => "'->'",
@@ -111,6 +117,8 @@ impl Token {
             Token::GtEq => "'>='",
             Token::Plus => "'+'",
             Token::Minus => "'-'",
+            Token::Slash => "'/'",
+            Token::Percent => "'%'",
             Token::PlusEq => "'+='",
             Token::MinusEq => "'-='",
             Token::Eof => "EOF",

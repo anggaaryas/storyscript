@@ -83,6 +83,32 @@ Standard C-style conditionals are supported in both `#PREP` and `#STORY` blocks.
 * In `#STORY`: variable reads are allowed, but writes are forbidden.
 * Assignment in `#PREP` must preserve declared variable type (`decimal` may accept integer assignment).
 
+**Arithmetic Operators:**
+* Supported numeric operators: `+`, `-`, `*`, `/`, `%`.
+* `*` and `/` follow normal precedence above `+` and `-`.
+* Integer with integer arithmetic returns integer.
+* Mixed integer/decimal arithmetic returns decimal.
+* `%` (modulo) is valid only for integer operands.
+
+**Built-in Functions:**
+* `abs(x)`:
+    * Requires exactly one numeric argument.
+    * Returns integer for integer input, decimal for decimal input.
+* `rand()`:
+    * Valid only in typed assignment context.
+    * Uses assignment target type:
+        * integer target -> full integer range
+        * decimal target -> decimal value in `0.0..1.0`
+* `rand(min, max)`:
+    * Valid only in typed assignment context.
+    * Inclusive bounds (`[min, max]`).
+    * Integer target requires integer bounds.
+    * Decimal target accepts integer or decimal bounds (integer bounds widen to decimal).
+* `pick([candidate_1, candidate_2, ...])`:
+    * Requires non-empty list literal argument.
+    * In decimal assignment context, integer and decimal candidates are allowed (integer widens to decimal).
+    * In other contexts, candidates must be type-compatible with usage context.
+
 ```plaintext
 if ($system_stability <= 30) {
     $critical_warning = true;
@@ -202,6 +228,11 @@ The compiler must fail the script when any of the following is true:
 * Any variable assignment violates declared type.
 * Any compound assignment (`+=`, `-=`) targets non-numeric variable types.
 * Any expression uses incompatible operand types for its operator.
+* Any modulo expression (`%`) uses non-integer operands.
+* Any `abs()` call uses non-numeric argument or wrong arity.
+* Any `rand()`/`rand(min,max)` call is used without typed assignment context.
+* Any `rand(min,max)` call has incompatible bound types for assignment target type.
+* Any `pick()` call has wrong arity, non-list argument, or empty list.
 * Any condition expression (`if`, `@choice if`) is not boolean.
 * Any interpolation placeholder is malformed (for example: `${`, `${}`, `${1bad}`, `${name`).
 * Any constant-folded `@choice` block is provably empty at compile time.

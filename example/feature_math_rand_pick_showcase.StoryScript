@@ -1,0 +1,95 @@
+// ============================================================================
+// FEATURE SHOWCASE: arithmetic + random + selection built-ins
+// Demonstrates: *, /, %, rand(), rand(min,max), abs(), pick([ ... ])
+// ============================================================================
+
+* INIT {
+    $pilot_name as string = "Rin"
+    $base_power as integer = 12
+    $volatility as decimal = 0.75
+
+    $abs_result as integer = 0
+    $segment as integer = 0
+    $dice_roll as integer = 0
+
+    $noise as decimal = 0.0
+    $route_bias as decimal = 0.0
+
+    $gate_open as boolean = false
+
+    @actor SYS "System"
+    @actor ENG "Engineer ${pilot_name}"
+
+    @start feature_demo
+}
+
+* feature_demo {
+
+    #PREP
+    @bg "control_room.png"
+    @bgm "systems_loop.ogg"
+
+    // integer abs()
+    $abs_result = abs($base_power - 20)
+
+    // integer arithmetic with precedence and modulo
+    $segment = ($base_power * 3) / 4 % 5
+
+    // rand() follows assignment target type
+    $noise = rand()
+
+    // integer rand(min,max), inclusive bounds
+    $dice_roll = rand(1, 6)
+
+    // decimal rand(min,max) accepts integer + decimal bounds
+    $route_bias = rand(1, 2.5)
+
+    // decimal abs()
+    $volatility = abs($volatility - 1.20)
+
+    // decimal pick accepts integer + decimal candidates
+    $route_bias = pick([1, 1.25, 1.5, 2])
+
+    // integer pick
+    $segment = pick([0, 1, 2, 3])
+
+    if ($abs_result > 5) {
+        $gate_open = true
+    } else {
+        $gate_open = false
+    }
+
+    #STORY
+    ENG: "Math result abs(base_power-20) = ${abs_result}."
+    ENG: "Segment index after */% chain and pick = ${segment}."
+    ENG: "Dice roll from rand(1,6) = ${dice_roll}."
+    ENG: "Noise from rand() decimal target = ${noise}."
+    ENG: "Route bias from rand/pick decimal flow = ${route_bias}."
+    ENG: "Volatility after decimal abs() = ${volatility}."
+
+    if ($gate_open == true) {
+        SYS: "Vault gate status: OPEN."
+    } else {
+        SYS: "Vault gate status: CLOSED."
+    }
+
+    @choice {
+        if ($route_bias >= 1.5) {
+            "Take high-gain corridor" -> corridor_high_gain
+        }
+
+        "Take stable corridor" -> corridor_stable
+    }
+}
+
+* corridor_high_gain {
+    #STORY
+    ENG: "High-gain corridor selected. Throughput boosted."
+    @end
+}
+
+* corridor_stable {
+    #STORY
+    ENG: "Stable corridor selected. Systems remain conservative."
+    @end
+}

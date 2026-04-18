@@ -16,6 +16,9 @@ Provides syntax highlighting and language support for `.StoryScript` files.
   - Standalone STORY variable output (`$variable_name` line)
   - Inline interpolation placeholders (`${variable_name}`) in strings
   - Control flow (`if`, `else`)
+  - Arithmetic operators (`+`, `-`, `*`, `/`, `%`)
+  - Function-style expressions (`abs(...)`, `rand(...)`, `pick([ ... ])`)
+  - List literals (`[a, b, c]`)
   - Choice arrows (`"Label" -> target_scene`)
   - String literals, numbers, booleans
   - Comments (`// ...`)

@@ -35,6 +35,13 @@ impl Parser {
             .unwrap_or((0, 0))
     }
 
+    fn peek_n(&self, offset: usize) -> &Token {
+        self.tokens
+            .get(self.pos + offset)
+            .map(|s| &s.token)
+            .unwrap_or(&Token::Eof)
+    }
+
     fn advance(&mut self) -> &Spanned {
         let s = &self.tokens[self.pos];
         if self.pos + 1 < self.tokens.len() {
@@ -835,6 +842,9 @@ impl Parser {
             self.peek(),
             Token::Plus
                 | Token::Minus
+                | Token::Star
+                | Token::Slash
+                | Token::Percent
                 | Token::EqEq
                 | Token::NotEq
                 | Token::Lt
@@ -842,6 +852,7 @@ impl Parser {
                 | Token::Gt
                 | Token::GtEq
                 | Token::LParen
+                | Token::LBracket
                 | Token::Arrow
         ) {
             self.diagnostics.push(Diagnostic::new(
@@ -1212,12 +1223,34 @@ impl Parser {
     }
 
     fn parse_additive(&mut self) -> Option<Expr> {
-        let mut left = self.parse_primary()?;
+        let mut left = self.parse_multiplicative()?;
 
         loop {
             let op = match self.peek() {
                 Token::Plus => BinOperator::Add,
                 Token::Minus => BinOperator::Sub,
+                _ => break,
+            };
+            self.advance();
+            let right = self.parse_multiplicative()?;
+            left = Expr::BinOp {
+                left: Box::new(left),
+                op,
+                right: Box::new(right),
+            };
+        }
+
+        Some(left)
+    }
+
+    fn parse_multiplicative(&mut self) -> Option<Expr> {
+        let mut left = self.parse_primary()?;
+
+        loop {
+            let op = match self.peek() {
+                Token::Star => BinOperator::Mul,
+                Token::Slash => BinOperator::Div,
+                Token::Percent => BinOperator::Mod,
                 _ => break,
             };
             self.advance();
@@ -1250,6 +1283,7 @@ impl Parser {
                 self.advance();
                 Some(Expr::StringLit(s))
             }
+            Token::Ident(name) => self.parse_call_expr(name),
             Token::Dollar => {
                 let (line, column) = self.current_span();
                 self.advance(); // $
@@ -1275,6 +1309,7 @@ impl Parser {
                 self.expect(&Token::RParen);
                 Some(expr)
             }
+            Token::LBracket => self.parse_list_literal(),
             _ => {
                 let (l, c) = self.current_span();
                 self.diagnostics.push(Diagnostic::new(
@@ -1288,5 +1323,82 @@ impl Parser {
                 None
             }
         }
+    }
+
+    fn parse_call_expr(&mut self, name: String) -> Option<Expr> {
+        let (line, column) = self.current_span();
+
+        if self.peek_n(1) != &Token::LParen {
+            self.diagnostics.push(Diagnostic::new(
+                DiagnosticCode::ESyntax,
+                format!(
+                    "Unexpected identifier '{}' in expression; did you mean '${}' or a function call?",
+                    name, name
+                ),
+                Phase::Parse,
+                "GLOBAL",
+                line,
+                column,
+            ));
+            self.advance();
+            return None;
+        }
+
+        self.advance(); // function name
+        self.advance(); // '('
+
+        let mut args = Vec::new();
+        if self.peek() != &Token::RParen {
+            loop {
+                let arg = self.parse_expression()?;
+                args.push(arg);
+
+                if self.peek() == &Token::Comma {
+                    self.advance();
+                    continue;
+                }
+                break;
+            }
+        }
+
+        if !self.expect(&Token::RParen) {
+            return None;
+        }
+
+        Some(Expr::Call {
+            name,
+            args,
+            line,
+            column,
+        })
+    }
+
+    fn parse_list_literal(&mut self) -> Option<Expr> {
+        let (line, column) = self.current_span();
+        self.advance(); // '['
+
+        let mut items = Vec::new();
+        if self.peek() != &Token::RBracket {
+            loop {
+                let value = self.parse_expression()?;
+                items.push(value);
+
+                if self.peek() == &Token::Comma {
+                    self.advance();
+                    continue;
+                }
+                break;
+            }
+        }
+
+        if !self.expect(&Token::RBracket) {
+            return None;
+        }
+
+        Some(Expr::ListLit {
+            items,
+            line,
+            column,
+        })
     }
 }

@@ -254,12 +254,26 @@ pub enum Expr {
         op: BinOperator,
         right: Box<Expr>,
     },
+    Call {
+        name: String,
+        args: Vec<Expr>,
+        line: usize,
+        column: usize,
+    },
+    ListLit {
+        items: Vec<Expr>,
+        line: usize,
+        column: usize,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinOperator {
     Add,
     Sub,
+    Mul,
+    Div,
+    Mod,
     EqEq,
     NotEq,
     Lt,

@@ -1,5 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 
+use rand::Rng;
+use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 use storycript_parser::ast::*;
 use storycript_parser::interpolation::{ESCAPED_DOLLAR_MARKER, render_interpolated};
@@ -102,7 +104,7 @@ impl Engine {
         for var in &script.init.variables {
             var_types.insert(var.name.clone(), var.var_type);
 
-            let value = eval_init_expr(&var.value, &variables)
+            let value = eval_init_expr(&var.value, &variables, Some(var.var_type))
                 .and_then(|v| coerce_value_for_type(v, var.var_type))
                 .unwrap_or_else(|| default_value_for_type(var.var_type));
             variables.insert(var.name.clone(), value);
@@ -216,7 +218,7 @@ impl Engine {
                         }
                     };
 
-                    let rhs = match self.eval_expr(&assign.value) {
+                    let rhs = match self.eval_expr(&assign.value, Some(declared_type)) {
                         Some(value) => value,
                         None => return false,
                     };
@@ -557,7 +559,7 @@ impl Engine {
     // Expression evaluation
     // -----------------------------------------------------------------------
 
-    fn eval_expr(&mut self, expr: &Expr) -> Option<Value> {
+    fn eval_expr(&mut self, expr: &Expr, assignment_target: Option<VarType>) -> Option<Value> {
         match expr {
             Expr::IntLit(n) => Some(Value::Int(*n)),
             Expr::DecimalLit(n) => Some(Value::Decimal(*n)),
@@ -576,12 +578,28 @@ impl Engine {
                     None
                 }
             }
+            Expr::Call {
+                name,
+                args,
+                line,
+                column,
+            } => self.eval_call(name, args, *line, *column, assignment_target),
+            Expr::ListLit { .. } => {
+                self.raise_runtime_error(
+                    "RUNTIME",
+                    "List literals are only valid as pick([ ... ]) arguments".to_string(),
+                );
+                None
+            }
             Expr::BinOp { left, op, right } => {
-                let l = self.eval_expr(left)?;
-                let r = self.eval_expr(right)?;
+                let l = self.eval_expr(left, assignment_target)?;
+                let r = self.eval_expr(right, assignment_target)?;
                 match op {
-                    BinOperator::Add => self.eval_numeric_binop("+", l, r, |a, b| a + b),
-                    BinOperator::Sub => self.eval_numeric_binop("-", l, r, |a, b| a - b),
+                    BinOperator::Add => self.eval_numeric_binop("+", l, r),
+                    BinOperator::Sub => self.eval_numeric_binop("-", l, r),
+                    BinOperator::Mul => self.eval_numeric_binop("*", l, r),
+                    BinOperator::Div => self.eval_numeric_binop("/", l, r),
+                    BinOperator::Mod => self.eval_numeric_binop("%", l, r),
                     BinOperator::EqEq => self.eval_equality_binop("==", l, r, true),
                     BinOperator::NotEq => self.eval_equality_binop("!=", l, r, false),
                     BinOperator::Lt => self.eval_relational_binop("<", l, r, |a, b| a < b),
@@ -594,7 +612,7 @@ impl Engine {
     }
 
     fn eval_bool(&mut self, expr: &Expr) -> Option<bool> {
-        match self.eval_expr(expr)? {
+        match self.eval_expr(expr, None)? {
             Value::Bool(b) => Some(b),
             other => {
                 self.raise_runtime_error(
@@ -609,16 +627,46 @@ impl Engine {
         }
     }
 
-    fn eval_numeric_binop<F>(&mut self, op: &str, left: Value, right: Value, f: F) -> Option<Value>
-    where
-        F: FnOnce(Decimal, Decimal) -> Decimal,
-    {
+    fn eval_numeric_binop(&mut self, op: &str, left: Value, right: Value) -> Option<Value> {
         if let (Value::Int(a), Value::Int(b)) = (&left, &right) {
             return Some(match op {
                 "+" => Value::Int(a + b),
                 "-" => Value::Int(a - b),
+                "*" => Value::Int(a * b),
+                "/" => {
+                    if *b == 0 {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            "Division by zero is not allowed".to_string(),
+                        );
+                        return None;
+                    }
+                    Value::Int(a / b)
+                }
+                "%" => {
+                    if *b == 0 {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            "Modulo by zero is not allowed".to_string(),
+                        );
+                        return None;
+                    }
+                    Value::Int(a % b)
+                }
                 _ => Value::Int(*a),
             });
+        }
+
+        if op == "%" {
+            self.raise_runtime_error(
+                "RUNTIME",
+                format!(
+                    "Operator '%' requires integer operands, got {} and {}",
+                    type_name(value_type(&left)),
+                    type_name(value_type(&right))
+                ),
+            );
+            return None;
         }
 
         let l = match as_decimal(&left) {
@@ -652,7 +700,26 @@ impl Engine {
             }
         };
 
-        Some(Value::Decimal(f(l, r)))
+        if op == "/" && r == Decimal::ZERO {
+            self.raise_runtime_error("RUNTIME", "Division by zero is not allowed".to_string());
+            return None;
+        }
+
+        let result = match op {
+            "+" => l + r,
+            "-" => l - r,
+            "*" => l * r,
+            "/" => l / r,
+            _ => {
+                self.raise_runtime_error(
+                    "RUNTIME",
+                    format!("Unknown numeric operator '{}'", op),
+                );
+                return None;
+            }
+        };
+
+        Some(Value::Decimal(result))
     }
 
     fn eval_equality_binop(
@@ -728,6 +795,273 @@ impl Engine {
         Some(Value::Bool(f(l, r)))
     }
 
+    fn eval_call(
+        &mut self,
+        name: &str,
+        args: &[Expr],
+        _line: usize,
+        _column: usize,
+        assignment_target: Option<VarType>,
+    ) -> Option<Value> {
+        match name {
+            "abs" => {
+                if args.len() != 1 {
+                    self.raise_runtime_error(
+                        "RUNTIME",
+                        format!("abs() expects exactly 1 argument, found {}", args.len()),
+                    );
+                    return None;
+                }
+
+                let value = self.eval_expr(&args[0], assignment_target)?;
+                match value {
+                    Value::Int(n) => {
+                        if let Some(abs) = n.checked_abs() {
+                            Some(Value::Int(abs))
+                        } else {
+                            self.raise_runtime_error(
+                                "RUNTIME",
+                                "abs() overflow for integer minimum value".to_string(),
+                            );
+                            None
+                        }
+                    }
+                    Value::Decimal(n) => Some(Value::Decimal(n.abs())),
+                    other => {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            format!(
+                                "abs() requires numeric argument, got {}",
+                                type_name(value_type(&other))
+                            ),
+                        );
+                        None
+                    }
+                }
+            }
+            "rand" => {
+                let target = match assignment_target {
+                    Some(VarType::Integer) => VarType::Integer,
+                    Some(VarType::Decimal) => VarType::Decimal,
+                    Some(other) => {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            format!(
+                                "rand() requires integer or decimal assignment target, got {}",
+                                type_name(other)
+                            ),
+                        );
+                        return None;
+                    }
+                    None => {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            "rand() requires typed assignment context".to_string(),
+                        );
+                        return None;
+                    }
+                };
+
+                match args.len() {
+                    0 => match target {
+                        VarType::Integer => Some(Value::Int(rand::rng().random::<i64>())),
+                        VarType::Decimal => {
+                            let sample = rand::rng().random_range(0.0f64..=1.0f64);
+                            Decimal::from_f64(sample).map(Value::Decimal).or_else(|| {
+                                self.raise_runtime_error(
+                                    "RUNTIME",
+                                    "Failed to generate decimal random value".to_string(),
+                                );
+                                None
+                            })
+                        }
+                        _ => None,
+                    },
+                    2 => match target {
+                        VarType::Integer => {
+                            let min = self.eval_expr(&args[0], assignment_target)?;
+                            let max = self.eval_expr(&args[1], assignment_target)?;
+                            let (min, max) = match (min, max) {
+                                (Value::Int(min), Value::Int(max)) => (min, max),
+                                (a, b) => {
+                                    self.raise_runtime_error(
+                                        "RUNTIME",
+                                        format!(
+                                            "Integer rand(min, max) requires integer bounds, got {} and {}",
+                                            type_name(value_type(&a)),
+                                            type_name(value_type(&b))
+                                        ),
+                                    );
+                                    return None;
+                                }
+                            };
+
+                            if min > max {
+                                self.raise_runtime_error(
+                                    "RUNTIME",
+                                    "rand(min, max) requires min <= max".to_string(),
+                                );
+                                return None;
+                            }
+
+                            Some(Value::Int(rand::rng().random_range(min..=max)))
+                        }
+                        VarType::Decimal => {
+                            let min = self.eval_expr(&args[0], assignment_target)?;
+                            let max = self.eval_expr(&args[1], assignment_target)?;
+
+                            let min_dec = match as_decimal(&min) {
+                                Some(value) => value,
+                                None => {
+                                    self.raise_runtime_error(
+                                        "RUNTIME",
+                                        format!(
+                                            "Decimal rand(min, max) requires numeric bounds, got {}",
+                                            type_name(value_type(&min))
+                                        ),
+                                    );
+                                    return None;
+                                }
+                            };
+                            let max_dec = match as_decimal(&max) {
+                                Some(value) => value,
+                                None => {
+                                    self.raise_runtime_error(
+                                        "RUNTIME",
+                                        format!(
+                                            "Decimal rand(min, max) requires numeric bounds, got {}",
+                                            type_name(value_type(&max))
+                                        ),
+                                    );
+                                    return None;
+                                }
+                            };
+
+                            if min_dec > max_dec {
+                                self.raise_runtime_error(
+                                    "RUNTIME",
+                                    "rand(min, max) requires min <= max".to_string(),
+                                );
+                                return None;
+                            }
+
+                            let min_f = match min_dec.to_f64() {
+                                Some(v) => v,
+                                None => {
+                                    self.raise_runtime_error(
+                                        "RUNTIME",
+                                        "Decimal rand(min, max) bound conversion failed"
+                                            .to_string(),
+                                    );
+                                    return None;
+                                }
+                            };
+                            let max_f = match max_dec.to_f64() {
+                                Some(v) => v,
+                                None => {
+                                    self.raise_runtime_error(
+                                        "RUNTIME",
+                                        "Decimal rand(min, max) bound conversion failed"
+                                            .to_string(),
+                                    );
+                                    return None;
+                                }
+                            };
+
+                            let sample = rand::rng().random_range(min_f..=max_f);
+                            Decimal::from_f64(sample).map(Value::Decimal).or_else(|| {
+                                self.raise_runtime_error(
+                                    "RUNTIME",
+                                    "Failed to generate decimal random value".to_string(),
+                                );
+                                None
+                            })
+                        }
+                        _ => None,
+                    },
+                    _ => {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            format!("rand() expects 0 or 2 arguments, found {}", args.len()),
+                        );
+                        None
+                    }
+                }
+            }
+            "pick" => {
+                if args.len() != 1 {
+                    self.raise_runtime_error(
+                        "RUNTIME",
+                        format!("pick() expects exactly 1 argument, found {}", args.len()),
+                    );
+                    return None;
+                }
+
+                let items = match &args[0] {
+                    Expr::ListLit { items, .. } => items,
+                    _ => {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            "pick() expects list literal argument: pick([a, b, ...])"
+                                .to_string(),
+                        );
+                        return None;
+                    }
+                };
+
+                if items.is_empty() {
+                    self.raise_runtime_error(
+                        "RUNTIME",
+                        "pick() requires a non-empty candidate list".to_string(),
+                    );
+                    return None;
+                }
+
+                let mut evaluated: Vec<Value> = Vec::with_capacity(items.len());
+                for item in items {
+                    let mut value = self.eval_expr(item, assignment_target)?;
+
+                    if let Some(target) = assignment_target {
+                        value = match coerce_value_for_type(value, target) {
+                            Some(v) => v,
+                            None => {
+                                self.raise_runtime_error(
+                                    "RUNTIME",
+                                    format!(
+                                        "pick() candidate is incompatible with assignment target {}",
+                                        type_name(target)
+                                    ),
+                                );
+                                return None;
+                            }
+                        };
+                    }
+
+                    evaluated.push(value);
+                }
+
+                if assignment_target.is_none() {
+                    let first_type = value_type(&evaluated[0]);
+                    if evaluated.iter().skip(1).any(|v| value_type(v) != first_type) {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            "pick() candidates must share one type outside assignment context"
+                                .to_string(),
+                        );
+                        return None;
+                    }
+                }
+
+                let index = rand::rng().random_range(0..evaluated.len());
+                Some(evaluated[index].clone())
+            }
+            _ => {
+                self.raise_runtime_error("RUNTIME", format!("Unknown function '{}'", name));
+                None
+            }
+        }
+    }
+
     fn resolve_string_or_error(&mut self, template: &str, context: &str) -> Option<String> {
         match self.resolve_string(template) {
             Ok(value) => Some(value),
@@ -770,7 +1104,11 @@ impl Engine {
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn eval_init_expr(expr: &Expr, vars: &HashMap<String, Value>) -> Option<Value> {
+fn eval_init_expr(
+    expr: &Expr,
+    vars: &HashMap<String, Value>,
+    assignment_target: Option<VarType>,
+) -> Option<Value> {
     match expr {
         Expr::IntLit(n) => Some(Value::Int(*n)),
         Expr::DecimalLit(n) => Some(Value::Decimal(*n)),
@@ -781,12 +1119,17 @@ fn eval_init_expr(expr: &Expr, vars: &HashMap<String, Value>) -> Option<Value> {
                 .map(|v| Value::Str(v))
         }
         Expr::VarRef { name, .. } => vars.get(name).cloned(),
+        Expr::Call { name, args, .. } => eval_init_call(name, args, vars, assignment_target),
+        Expr::ListLit { .. } => None,
         Expr::BinOp { left, op, right } => {
-            let l = eval_init_expr(left, vars)?;
-            let r = eval_init_expr(right, vars)?;
+            let l = eval_init_expr(left, vars, assignment_target)?;
+            let r = eval_init_expr(right, vars, assignment_target)?;
             match op {
-                BinOperator::Add => eval_init_numeric_binop("+", l, r, |a, b| a + b),
-                BinOperator::Sub => eval_init_numeric_binop("-", l, r, |a, b| a - b),
+                BinOperator::Add => eval_init_numeric_binop("+", l, r),
+                BinOperator::Sub => eval_init_numeric_binop("-", l, r),
+                BinOperator::Mul => eval_init_numeric_binop("*", l, r),
+                BinOperator::Div => eval_init_numeric_binop("/", l, r),
+                BinOperator::Mod => eval_init_numeric_binop("%", l, r),
                 BinOperator::EqEq => eval_init_equality_binop(l, r, true),
                 BinOperator::NotEq => eval_init_equality_binop(l, r, false),
                 BinOperator::Lt => eval_init_rel_binop(l, r, |a, b| a < b),
@@ -798,21 +1141,150 @@ fn eval_init_expr(expr: &Expr, vars: &HashMap<String, Value>) -> Option<Value> {
     }
 }
 
-fn eval_init_numeric_binop<F>(op: &str, left: Value, right: Value, f: F) -> Option<Value>
-where
-    F: FnOnce(Decimal, Decimal) -> Decimal,
-{
+fn eval_init_numeric_binop(op: &str, left: Value, right: Value) -> Option<Value> {
     if let (Value::Int(a), Value::Int(b)) = (&left, &right) {
         return Some(match op {
             "+" => Value::Int(a + b),
             "-" => Value::Int(a - b),
+            "*" => Value::Int(a * b),
+            "/" => {
+                if *b == 0 {
+                    return None;
+                }
+                Value::Int(a / b)
+            }
+            "%" => {
+                if *b == 0 {
+                    return None;
+                }
+                Value::Int(a % b)
+            }
             _ => Value::Int(*a),
         });
     }
 
+    if op == "%" {
+        return None;
+    }
+
     let l = as_decimal(&left)?;
     let r = as_decimal(&right)?;
-    Some(Value::Decimal(f(l, r)))
+
+    if op == "/" && r == Decimal::ZERO {
+        return None;
+    }
+
+    let result = match op {
+        "+" => l + r,
+        "-" => l - r,
+        "*" => l * r,
+        "/" => l / r,
+        _ => return None,
+    };
+
+    Some(Value::Decimal(result))
+}
+
+fn eval_init_call(
+    name: &str,
+    args: &[Expr],
+    vars: &HashMap<String, Value>,
+    assignment_target: Option<VarType>,
+) -> Option<Value> {
+    match name {
+        "abs" => {
+            if args.len() != 1 {
+                return None;
+            }
+
+            match eval_init_expr(&args[0], vars, assignment_target)? {
+                Value::Int(n) => n.checked_abs().map(Value::Int),
+                Value::Decimal(n) => Some(Value::Decimal(n.abs())),
+                _ => None,
+            }
+        }
+        "rand" => {
+            let target = match assignment_target {
+                Some(VarType::Integer) => VarType::Integer,
+                Some(VarType::Decimal) => VarType::Decimal,
+                _ => return None,
+            };
+
+            match args.len() {
+                0 => match target {
+                    VarType::Integer => Some(Value::Int(rand::rng().random::<i64>())),
+                    VarType::Decimal => Decimal::from_f64(rand::rng().random_range(0.0..=1.0))
+                        .map(Value::Decimal),
+                    _ => None,
+                },
+                2 => match target {
+                    VarType::Integer => {
+                        let min = eval_init_expr(&args[0], vars, assignment_target)?;
+                        let max = eval_init_expr(&args[1], vars, assignment_target)?;
+                        let (min, max) = match (min, max) {
+                            (Value::Int(min), Value::Int(max)) => (min, max),
+                            _ => return None,
+                        };
+                        if min > max {
+                            return None;
+                        }
+                        Some(Value::Int(rand::rng().random_range(min..=max)))
+                    }
+                    VarType::Decimal => {
+                        let min = as_decimal(&eval_init_expr(&args[0], vars, assignment_target)?)?;
+                        let max = as_decimal(&eval_init_expr(&args[1], vars, assignment_target)?)?;
+
+                        if min > max {
+                            return None;
+                        }
+
+                        let min_f = min.to_f64()?;
+                        let max_f = max.to_f64()?;
+                        Decimal::from_f64(rand::rng().random_range(min_f..=max_f))
+                            .map(Value::Decimal)
+                    }
+                    _ => None,
+                },
+                _ => None,
+            }
+        }
+        "pick" => {
+            if args.len() != 1 {
+                return None;
+            }
+
+            let items = match &args[0] {
+                Expr::ListLit { items, .. } => items,
+                _ => return None,
+            };
+
+            if items.is_empty() {
+                return None;
+            }
+
+            let mut values = Vec::with_capacity(items.len());
+            for item in items {
+                let mut value = eval_init_expr(item, vars, assignment_target)?;
+
+                if let Some(target) = assignment_target {
+                    value = coerce_value_for_type(value, target)?;
+                }
+
+                values.push(value);
+            }
+
+            if assignment_target.is_none() {
+                let first = value_type(&values[0]);
+                if values.iter().skip(1).any(|v| value_type(v) != first) {
+                    return None;
+                }
+            }
+
+            let index = rand::rng().random_range(0..values.len());
+            Some(values[index].clone())
+        }
+        _ => None,
+    }
 }
 
 fn eval_init_equality_binop(left: Value, right: Value, equals: bool) -> Option<Value> {

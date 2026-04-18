@@ -278,7 +278,7 @@
           "name": "keyword.operator.assignment.storyscript"
         },
         {
-          "match": "\\+|-",
+          "match": "\\+|-|\\*|/|%",
           "name": "keyword.operator.arithmetic.storyscript"
         }
       ]
@@ -306,6 +306,18 @@
         {
           "match": "\\)",
           "name": "punctuation.definition.paren.end.storyscript"
+        },
+        {
+          "match": "\\[",
+          "name": "punctuation.definition.array.begin.storyscript"
+        },
+        {
+          "match": "\\]",
+          "name": "punctuation.definition.array.end.storyscript"
+        },
+        {
+          "match": ",",
+          "name": "punctuation.separator.comma.storyscript"
         },
         {
           "match": ";",

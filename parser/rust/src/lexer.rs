@@ -258,6 +258,8 @@ impl Lexer {
             '}' => Token::RBrace,
             '(' => Token::LParen,
             ')' => Token::RParen,
+            '[' => Token::LBracket,
+            ']' => Token::RBracket,
             ';' => Token::Semicolon,
             ':' => Token::Colon,
             ',' => Token::Comma,
@@ -285,6 +287,8 @@ impl Lexer {
                     Token::Plus
                 }
             }
+            '/' => Token::Slash,
+            '%' => Token::Percent,
             '=' => {
                 if self.peek() == Some('=') {
                     self.advance();
@@ -383,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_operators() {
-        let mut lexer = Lexer::new("= == != < <= > >= + - += -=");
+        let mut lexer = Lexer::new("= == != < <= > >= + - / % += -= [ ]");
         let tokens = lexer.tokenize();
         assert_eq!(tokens[0].token, Token::Eq);
         assert_eq!(tokens[1].token, Token::EqEq);
@@ -394,8 +398,12 @@ mod tests {
         assert_eq!(tokens[6].token, Token::GtEq);
         assert_eq!(tokens[7].token, Token::Plus);
         assert_eq!(tokens[8].token, Token::Minus);
-        assert_eq!(tokens[9].token, Token::PlusEq);
-        assert_eq!(tokens[10].token, Token::MinusEq);
+        assert_eq!(tokens[9].token, Token::Slash);
+        assert_eq!(tokens[10].token, Token::Percent);
+        assert_eq!(tokens[11].token, Token::PlusEq);
+        assert_eq!(tokens[12].token, Token::MinusEq);
+        assert_eq!(tokens[13].token, Token::LBracket);
+        assert_eq!(tokens[14].token, Token::RBracket);
     }
 
     #[test]

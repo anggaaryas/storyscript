@@ -6,8 +6,12 @@
 * INIT {
     $pilot_name as string = "Lyra";
     $extra_cells as integer = 2;
+    $reserve_cells as integer = 9;
     $fuel_ratio as decimal = 1.50;
     $stability as decimal = 0.80;
+    $random_boost as decimal = 0.0;
+    $lane_pick as decimal = 0.0;
+    $dice_roll as integer = 0;
     $mission_ready as boolean = false;
 
     @actor AI "${pilot_name}-AI";
@@ -23,11 +27,30 @@
     // decimal = decimal + integer (allowed)
     $fuel_ratio = $fuel_ratio + $extra_cells;
 
+    // decimal * decimal, then decimal / integer (allowed)
+    $fuel_ratio = $fuel_ratio * 1.20;
+    $fuel_ratio = $fuel_ratio / 2;
+
     // decimal += integer (allowed)
     $stability += 1;
 
     // decimal -= decimal (allowed)
     $stability -= 0.25;
+
+    // modulo works for integers
+    $reserve_cells = $reserve_cells % 4;
+
+    // abs() with integer expression
+    $extra_cells = abs($extra_cells - 7);
+
+    // rand(min,max): decimal target accepts integer and decimal bounds
+    $random_boost = rand(1, 1.75);
+
+    // pick([...]): decimal target accepts integer + decimal candidates
+    $lane_pick = pick([1, 1.5, 2]);
+
+    // rand() with integer assignment target
+    $dice_roll = rand();
 
     if ($fuel_ratio >= 3.0) {
         $mission_ready = true;
@@ -38,6 +61,10 @@
     #STORY
     AI: "Fuel ratio after mixed math: ${fuel_ratio}.";
     AI: "Stability index now: ${stability}.";
+    AI: "Reserve cells after modulo: ${reserve_cells}.";
+    AI: "Random boost (decimal rand): ${random_boost}.";
+    AI: "Lane pick result: ${lane_pick}.";
+    AI: "Dice roll (integer rand): ${dice_roll}.";
 
     if ($mission_ready == true) {
         "Systems green. Launch corridor unlocked.";
