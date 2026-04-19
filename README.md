@@ -11,6 +11,7 @@ This repository includes:
 - A Rust parser/validator CLI.
 - A Rust terminal-based player (TUI) to run StoryScript scenes.
 - A VS Code extension for `.StoryScript` syntax highlighting.
+- A Flutter plugin integration for the Rust runtime.
 
 ## Repository Layout
 
@@ -20,6 +21,7 @@ This repository includes:
 ├── example/                     # Example StoryScript files
 ├── parser/rust/                 # storycript-parser (lexer/parser/validator)
 ├── player/                      # storycript-player (TUI runtime)
+├── storyscript_player_core/     # Flutter plugin integration and WebAssembly bindings
 └── tool/vscode-storyscript/     # VS Code language extension
 ```
 
@@ -27,6 +29,7 @@ This repository includes:
 
 - Rust toolchain (stable)
 - Node.js + npm (for VS Code extension packaging)
+- Flutter SDK (optional, for Flutter plugin and Web integration)
 
 ## Quick Start
 
@@ -202,9 +205,9 @@ You can also open the extension folder in VS Code and use the Extensions UI to i
 - VS Code extension currently focuses on syntax highlighting (no LSP features yet).
 
 
-## Flutter
+## Flutter plugin integration
 
-This repository includes a Flutter plugin integration for the Rust runtime. The following commands build the web bindings and run the Flutter example with the required WebAssembly shared-memory headers.
+This repository includes a Flutter plugin wrapper around the Rust runtime at `storyscript_player_core`. It supports WebAssembly bindings for Flutter Web as well as native mobile targets.
 
 ### Build the Flutter Web bindings
 
@@ -222,7 +225,22 @@ cd storyscript_player_core
 flutter run --web-header=Cross-Origin-Opener-Policy=same-origin --web-header=Cross-Origin-Embedder-Policy=require-corp
 ```
 
-These headers are necessary for `shared-memory` WebAssembly builds and allow the web app to load the generated Wasm module correctly.
+These headers are necessary for shared-memory WebAssembly builds and allow the web app to load the generated Wasm module correctly.
+
+### Mobile toolchain preparation
+
+For Android and iOS native builds, install the required Rust targets:
+
+```bash
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+```
+
+Then build the Android library with `cargo ndk`:
+
+```bash
+cargo ndk -t armeabi-v7a -t arm64-v8a -t x86 -t x86_64 -o ../android/app/src/main/jniLibs build --release
+```
 
 > Note: Ensure you have Flutter installed and that `wasm-pack` is available in your PATH before running these commands.
 
