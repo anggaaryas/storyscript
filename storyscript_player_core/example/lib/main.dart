@@ -75,6 +75,25 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
   String? _error;
   bool _busy = false;
 
+  static const String _defaultStoryAssetPath =
+      'asset/penjaga_terakhir_kerajaan_aruna.StoryScript';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDefaultStorySource();
+  }
+
+  Future<void> _loadDefaultStorySource() async {
+    try {
+      final source = await rootBundle.loadString(_defaultStoryAssetPath);
+      if (!mounted) return;
+      _sourceController.text = source;
+    } catch (err) {
+      _setError('// Error loading default story: $err');
+    }
+  }
+
   @override
   void dispose() {
     final sessionId = _sessionId;

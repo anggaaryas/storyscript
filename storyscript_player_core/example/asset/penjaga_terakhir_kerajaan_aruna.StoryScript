@@ -1,0 +1,862 @@
+// ============================================================================
+// PENJAGA TERAKHIR — KERAJAAN ARUNA
+// Kisah RPG tentang seorang prajurit muda yang bangkit melawan kutukan kuno
+// dan menyelamatkan kerajaannya dari ancaman kegelapan abadi.
+//
+// Fitur yang didemonstrasikan:
+//   - Variabel: integer, boolean, string, decimal
+//   - @actor dengan dan tanpa portrait
+//   - Interpolasi ${var} di narasi dan dialog
+//   - Operasi aritmetika: =, +=, -=, ekspresi gabungan ($a + $b - $c)
+//   - if tunggal dan if/else di #PREP
+//   - if/else dan if/else tersarang di #STORY
+//   - @choice dengan if-guard pada opsi
+//   - Pola loop via @jump ke hub
+//   - Output variabel mandiri ($var) di #STORY
+//   - @bg, @bgm, @sfx
+//   - @end dengan beberapa jalur akhir cerita
+// ============================================================================
+
+* INIT {
+    // --- Statistik Pahlawan ---
+    $nyawa as integer = 100
+    $kekuatan as integer = 10
+    $sihir as integer = 0
+    $koin as integer = 50
+    $keberanian as integer = 30
+    $rasio_kemenangan as decimal = 0.75
+
+    // --- Identitas ---
+    $nama_pahlawan as string = "Raka"
+
+    // --- Status Dunia ---
+    $kepercayaan_raja as integer = 0
+    $kegelapan as integer = 80
+    $pecahan_terkumpul as integer = 0
+
+    // --- Inventaris & Kemampuan ---
+    $punya_jimat as boolean = false
+    $punya_sihir_api as boolean = false
+    $punya_pedang_leluhur as boolean = false
+    $sudah_terlatih as boolean = false
+
+    // --- Kemajuan Pengumpulan Serpihan ---
+    $shard_hutan as boolean = false
+    $shard_gunung as boolean = false
+    $shard_danau as boolean = false
+
+    // --- Status Akhir ---
+    $selamat as boolean = false
+
+    // --- Pendaftaran Aktor ---
+    @actor RAKA "${nama_pahlawan}" {
+        biasa -> "raka_biasa.png"
+        tegang -> "raka_tegang.png"
+        marah -> "raka_marah.png"
+        sedih -> "raka_sedih.png"
+        berani -> "raka_berani.png"
+        terluka -> "raka_terluka.png"
+    }
+
+    @actor ELARA "Elara" {
+        tenang -> "elara_tenang.png"
+        serius -> "elara_serius.png"
+        khawatir -> "elara_khawatir.png"
+        lega -> "elara_lega.png"
+    }
+
+    @actor RAJA "Raja Aditya" {
+        bijak -> "raja_bijak.png"
+        tegas -> "raja_tegas.png"
+        lemah -> "raja_lemah.png"
+        bersyukur -> "raja_bersyukur.png"
+    }
+
+    @actor BAYANGAN "Tuan Bayangan" {
+        menghina -> "bayangan_menghina.png"
+        marah -> "bayangan_marah.png"
+        tertawa -> "bayangan_tertawa.png"
+        kalah -> "bayangan_kalah.png"
+    }
+
+    @actor NARATOR "Narator"
+
+    // --- Titik Awal ---
+    @start pembukaan
+}
+
+// ============================================================================
+// BABAK 1: PANGGILAN TAKDIR
+// ============================================================================
+
+* pembukaan {
+
+    #PREP
+    @bg "desa_fajar.png"
+    @bgm "tema_pembukaan.ogg"
+    @sfx "kokok_ayam.wav"
+
+    #STORY
+    NARATOR: "Kerajaan Aruna — sebuah negeri yang kaya akan hutan lebat, sungai jernih, dan warisan leluhur yang agung."
+    NARATOR: "Sudah tiga ratus tahun kerajaan ini berdiri dalam kedamaian."
+    NARATOR: "Namun kedamaian itu kini terancam oleh sesuatu yang seharusnya sudah lama musnah."
+    "Di sebuah desa kecil bernama Parung, seorang pemuda bernama ${nama_pahlawan} terbangun sebelum fajar oleh suara kentongan bertubi-tubi."
+    RAKA(biasa, Left): "Kentongan? Di waktu seperti ini?"
+    "Asap hitam mengepul di langit. Cahaya oranye berkedip di balik pagar bambu desa."
+    RAKA(tegang, Left): "Api! Desa terbakar!"
+
+    @jump serangan_desa
+}
+
+* serangan_desa {
+
+    #PREP
+    @bg "desa_terbakar.png"
+    @bgm "darurat_pertempuran.ogg"
+    @sfx "suara_teriakan.wav"
+    $keberanian += 10
+    $kegelapan += 5
+
+    #STORY
+    "Pasukan berkostum jubah hitam menyerbu desa tanpa peringatan."
+    "Warga berlarian. Rumah-rumah ambruk didera api."
+    RAKA(tegang, Left): "Siapa mereka?! Apa yang mereka inginkan?!"
+    "Sebuah sosok bertubuh besar bermata merah berdiri di tengah jalan desa."
+    BAYANGAN(menghina, Center): "Rakyat Aruna... berserahlah. Tuan Bayangan menginginkan mahkota kerajaan ini."
+    RAKA(marah, Left): "Kau tidak akan mendapatkan apa pun dari kami!"
+
+    @choice {
+        "Serang balik dengan keberanian" -> lawan_bayangan
+        "Lindungi warga dan mundur dengan bijak" -> lindungi_warga
+    }
+}
+
+* lawan_bayangan {
+
+    #PREP
+    @sfx "benturan_pedang.wav"
+    $kekuatan += 5
+    $keberanian += 10
+    $nyawa -= 15
+
+    #STORY
+    "${nama_pahlawan} mencabut pedang kayu tua warisan ayahnya dan maju menghadang."
+    "Sosok itu tertawa mengejek, lalu menghilang ke dalam asap hitam."
+    RAKA(terluka, Left): "Hff... Dia terlalu kuat. Tapi aku tidak akan menyerah."
+    "Cahaya biru muncul dari kejauhan — seorang penunggang kuda berbaju sihir."
+    ELARA(tenang, Right): "Kau masih hidup? Bagus. Kau ${nama_pahlawan} dari Parung, bukan?"
+    RAKA(tegang, Left): "K-kau tahu namaku?"
+    ELARA(serius, Right): "Raja Aditya mengutus aku mencarimu. Ikut ke istana, sekarang juga."
+
+    @jump perjalanan_ke_istana
+}
+
+* lindungi_warga {
+
+    #PREP
+    @sfx "langkah_berat.wav"
+    $kepercayaan_raja += 10
+    $keberanian += 5
+
+    #STORY
+    "${nama_pahlawan} menggiring semua warga ke dalam gudang batu di belakang desa."
+    "Pasukan bayangan berlalu tanpa menemukan seorang pun."
+    RAKA(sedih, Left): "Desa kita hancur... tapi semua orang selamat. Itulah yang penting."
+    "Ketika fajar menyingsing, seorang perempuan berjubah biru muncul di pintu gudang."
+    ELARA(tenang, Right): "Kau yang menyelamatkan mereka semua? Luar biasa. Namamu ${nama_pahlawan}, kan?"
+    RAKA(biasa, Left): "Benar. Siapa kamu?"
+    ELARA(serius, Right): "Elara, penyihir kerajaan. Raja Aditya membutuhkanmu. Ikut bersamaku."
+
+    @jump perjalanan_ke_istana
+}
+
+// ============================================================================
+// BABAK 2: ISTANA ARUNA
+// ============================================================================
+
+* perjalanan_ke_istana {
+
+    #PREP
+    @bg "jalan_kerajaan.png"
+    @bgm "perjalanan_epik.ogg"
+
+    #STORY
+    "Di sepanjang perjalanan, Elara menjelaskan ancaman yang sedang dihadapi kerajaan."
+    ELARA(serius, Right): "Tuan Bayangan adalah jiwa kuno yang pernah dikalahkan tiga abad lalu oleh leluhurmu."
+    RAKA(tegang, Left): "Leluhurku? Aku hanya anak petani biasa."
+    ELARA(serius, Right): "Darahmu membawa kunci kekuatan kuno. Ini bukan pilihan — ini takdirmu."
+    RAKA(biasa, Left): "Takdir yang tidak pernah aku minta..."
+    "Gerbang istana yang megah dari batu hitam dan emas terbuka menyambut kedatangan mereka."
+
+    @jump menghadap_raja
+}
+
+* menghadap_raja {
+
+    #PREP
+    @bg "aula_kerajaan.png"
+    @bgm "tema_kerajaan.ogg"
+    @sfx "terompet_kerajaan.wav"
+    if ($kepercayaan_raja >= 10) {
+        $koin += 30
+        $keberanian += 10
+    }
+
+    #STORY
+    "Aula utama istana penuh dengan pejabat, prajurit, dan warga yang cemas."
+    "Raja Aditya duduk di singgasananya. Wajahnya lelah, namun matanya masih menyimpan bara tekad."
+    RAJA(lemah, Center): "Anak muda... akhirnya kau datang."
+    RAKA(biasa, Left): "Yang Mulia, saya tidak mengerti — kenapa saya yang dipilih?"
+    RAJA(bijak, Center): "Kutukan Tuan Bayangan hanya bisa dipatahkan oleh Mata Cahaya — artefak suci leluhurmu."
+    RAJA(bijak, Center): "Artefak itu terpecah menjadi tiga serpihan yang tersebar di penjuru kerajaan."
+    RAJA(tegas, Center): "Kau harus mengumpulkan ketiganya sebelum bulan purnama tiga hari lagi."
+    RAKA(berani, Left): "Aku akan lakukan, Yang Mulia. Aku bersumpah."
+    if ($kepercayaan_raja >= 10) {
+        RAJA(bersyukur, Center): "Kabarmu tentang warga Parung sampai ke telingaku. Kau melindungi mereka semua."
+        RAJA(bijak, Center): "Terimalah bekal ini sebagai tanda syukur kerajaan."
+        "Koin tambahan diterima. Total koin saat ini: ${koin}."
+    } else {
+        RAJA(tegas, Center): "Buktikan dirimu layak, Penjaga. Seluruh kerajaan bergantung padamu."
+    }
+    ELARA(serius, Right): "Mari ke ruang persiapan dulu, Raka."
+
+    @jump persiapan
+}
+
+// ============================================================================
+// BABAK 3: PERSIAPAN (LOOP HUB)
+// ============================================================================
+
+* persiapan {
+
+    #PREP
+    @bg "ruang_persiapan.png"
+    @bgm "musik_persiapan.ogg"
+
+    #STORY
+    ELARA(tenang, Left): "Sebelum berangkat, ada beberapa hal yang bisa kamu lakukan di sini."
+    "Status saat ini:"
+    "Nyawa: ${nyawa}  |  Kekuatan: ${kekuatan}  |  Sihir: ${sihir}  |  Koin: ${koin}"
+    if ($sudah_terlatih == false) {
+        ELARA(serius, Left): "Kamu belum berlatih pedang. Sangat disarankan sebelum pergi."
+    } else {
+        ELARA(lega, Left): "Kamu sudah siap tempur."
+    }
+
+    @choice {
+        if ($sudah_terlatih == false) {
+            "Latihan pedang bersama Elara" -> latihan_pedang
+        }
+        if ($punya_jimat == false) {
+            "Cari jimat pelindung di kuil istana" -> cari_jimat
+        }
+        if ($punya_sihir_api == false) {
+            "Pelajari sihir api dari Elara" -> belajar_sihir
+        }
+        "Berangkat mencari serpihan Mata Cahaya" -> peta_dunia
+    }
+}
+
+* latihan_pedang {
+
+    #PREP
+    @bg "lapangan_latihan.png"
+    @bgm "tema_latihan.ogg"
+    @sfx "benturan_pedang.wav"
+    $sudah_terlatih = true
+    $kekuatan += 15
+    $keberanian += 10
+
+    #STORY
+    "Elara memasang boneka jerami sebagai sasaran latihan di lapangan belakang istana."
+    ELARA(serius, Right): "Pedang bukan sekadar besi. Ia adalah ekstensi dari kehendakmu."
+    ELARA(serius, Right): "Fokus... bergerak... serang!"
+    "${nama_pahlawan} berlatih berjam-jam hingga gerakan mengalir seperti air."
+    RAKA(berani, Left): "Aku merasakan perbedaannya! Kekuatanku kini ${kekuatan}!"
+    ELARA(lega, Right): "Bagus. Kamu siap."
+
+    @jump persiapan
+}
+
+* cari_jimat {
+
+    #PREP
+    @bg "kuil_kuno.png"
+    @bgm "tema_mistis.ogg"
+    @sfx "gemerincing_jimat.wav"
+    $punya_jimat = true
+    $koin -= 20
+    $keberanian += 5
+
+    #STORY
+    "Di kuil kuno di sudut istana, pendeta tua menyerahkan jimat berbentuk matahari berukir emas."
+    RAKA(biasa, Left): "Jimat ini... terasa hangat. Seperti ada sesuatu di dalamnya."
+    "Koin berkurang untuk persembahan. Sisa koin: ${koin}."
+
+    @jump persiapan
+}
+
+* belajar_sihir {
+
+    #PREP
+    @bg "ruang_sihir.png"
+    @bgm "tema_sihir.ogg"
+    @sfx "percikan_api.wav"
+    $punya_sihir_api = true
+    $sihir += 20
+    $keberanian += 5
+
+    #STORY
+    ELARA(serius, Right): "Kau punya bakat tersembunyi. Konsentrasikan pikiranmu — rasakan api di dalam dadamu."
+    "${nama_pahlawan} mengulurkan tangan. Bola api kecil bermunculan, berpijar merah-oranye."
+    RAKA(berani, Left): "Aku bisa merasakannya! Ini... luar biasa!"
+    ELARA(lega, Right): "Kekuatan sihirmu kini ${sihir}. Gunakan dengan bijak, Raka."
+
+    @jump persiapan
+}
+
+// ============================================================================
+// BABAK 4: MENCARI SERPIHAN (LOOP KOLEKSI)
+// ============================================================================
+
+* peta_dunia {
+
+    #PREP
+    @bg "peta_kerajaan.png"
+    @bgm "tema_petualangan.ogg"
+
+    #STORY
+    ELARA(tenang, Right): "Tiga serpihan Mata Cahaya tersebar di tiga lokasi berbahaya di seluruh kerajaan."
+    if ($pecahan_terkumpul >= 3) {
+        RAKA(berani, Left): "Tiga serpihan telah terkumpul! Saatnya menghadapi Tuan Bayangan!"
+        ELARA(serius, Right): "Benteng Kegelapan menunggu. Ayo kita akhiri ini."
+        @jump menuju_benteng
+    } else {
+        RAKA(tegang, Left): "Serpihan terkumpul: ${pecahan_terkumpul} dari 3. Masih butuh lebih banyak."
+        @choice {
+            if ($shard_hutan == false) {
+                "Masuki Hutan Kelam" -> hutan_kelam
+            }
+            if ($shard_gunung == false) {
+                "Daki Gunung Bara" -> gunung_bara
+            }
+            if ($shard_danau == false) {
+                "Seberangi Danau Keabadian" -> danau_keabadian
+            }
+            "Periksa kondisi diri" -> cek_kondisi
+        }
+    }
+}
+
+* cek_kondisi {
+
+    #PREP
+    @bg "peta_kerajaan.png"
+
+    #STORY
+    "Kamu berhenti sejenak untuk memeriksa kondisi."
+    "=== STATUS PAHLAWAN ==="
+    "Nama        : ${nama_pahlawan}"
+    "Nyawa       : ${nyawa}"
+    "Kekuatan    : ${kekuatan}"
+    "Sihir       : ${sihir}"
+    "Koin        : ${koin}"
+    "Keberanian  : ${keberanian}"
+    "Serpihan    : ${pecahan_terkumpul} / 3"
+    $pecahan_terkumpul
+    ELARA(tenang, Right): "Terus maju, ${nama_pahlawan}. Waktu terus berjalan."
+
+    @jump peta_dunia
+}
+
+* hutan_kelam {
+
+    #PREP
+    @bg "hutan_kelam.png"
+    @bgm "hutan_misterius.ogg"
+    @sfx "desau_angin_hutan.wav"
+    $shard_hutan = true
+    $pecahan_terkumpul += 1
+    $nyawa -= 10
+    $kegelapan -= 10
+    if ($punya_sihir_api == true) {
+        $nyawa += 5
+    }
+
+    #STORY
+    "Hutan Kelam hidup dengan bayangan yang bergerak sendiri."
+    "Pohon-pohon meranggas seperti tangan raksasa mencakar langit yang redup."
+    RAKA(tegang, Left): "Tempat ini... mencekam sekali."
+    if ($punya_sihir_api == true) {
+        RAKA(berani, Left): "Tapi aku punya api. Kegelapan tidak bisa menyentuhku!"
+        "Bola api ${nama_pahlawan} menerangi jalan, mengusir bayangan-bayangan yang mengintai."
+        ELARA(lega, Right): "Sihirmu sangat efektif di sini, Raka."
+    } else {
+        RAKA(tegang, Left): "Sangat gelap... aku harus terus bergerak."
+        "Tanpa cahaya sihir, ${nama_pahlawan} berkali-kali nyaris tersesat di antara pohon-pohon."
+    }
+    "Di pusat hutan, sebuah pohon tua menyimpan serpihan cahaya di rongga akarnya yang berlumut."
+    RAKA(berani, Left): "Serpihan pertama! ${pecahan_terkumpul} dari 3 sudah di tangan."
+
+    @jump peta_dunia
+}
+
+* gunung_bara {
+
+    #PREP
+    @bg "gunung_bara.png"
+    @bgm "pendakian_epik.ogg"
+    @sfx "angin_gunung.wav"
+    $shard_gunung = true
+    $pecahan_terkumpul += 1
+    $nyawa -= 15
+    $kekuatan += 5
+    $kegelapan -= 10
+    if ($sudah_terlatih == true) {
+        $nyawa += 5
+    }
+    if ($punya_jimat == true) {
+        $nyawa += 5
+    }
+
+    #STORY
+    "Gunung Bara adalah puncak vulkanik yang terus memuntahkan asap sulfur oranye."
+    "Jalur pendakiannya sempit, berbatu, dan berbahaya."
+    RAKA(tegang, Left): "Satu langkah salah... dan aku jatuh ke jurang."
+    if ($sudah_terlatih == true) {
+        "Berkat latihan keras, ${nama_pahlawan} bergerak dengan gesit dan penuh kepercayaan diri."
+        RAKA(berani, Left): "Latihan Elara benar-benar terbayar di sini!"
+    }
+    if ($punya_jimat == true) {
+        "Jimat matahari bersinar lembut, melindungi ${nama_pahlawan} dari semburan bara yang menyengat."
+    }
+    "Di puncak gunung, tersegel dalam batu vulkanik hitam, serpihan kedua menanti."
+    "${nama_pahlawan} menghantam batu itu dengan seluruh kekuatannya."
+    RAKA(berani, Left): "Serpihan kedua berhasil diambil! ${pecahan_terkumpul} dari 3 terkumpul."
+
+    @jump peta_dunia
+}
+
+* danau_keabadian {
+
+    #PREP
+    @bg "danau_keabadian.png"
+    @bgm "tema_air_tenang.ogg"
+    @sfx "riak_air.wav"
+
+    #STORY
+    "Danau Keabadian tampak tenang di permukaan, namun menyimpan makhluk kuno di kedalamannya."
+    "Air danau berkilau seperti bintang yang jatuh ke bumi."
+    RAKA(biasa, Left): "Indah sekali... tapi aku merasakan sesuatu yang mengamatiku dari dalam."
+    "Tiba-tiba — monster naga air raksasa melonjak ke permukaan, memercikkan air ke mana-mana!"
+    ELARA(khawatir, Right): "Naga Danau Keabadian! Raka, hati-hati!"
+
+    @choice {
+        "Serang dengan sihir api" -> lawan_naga_api
+        "Gunakan jimat untuk mengusirnya" -> usir_naga_jimat
+        "Hindari dan selam langsung ke dasar" -> selam_cepat
+    }
+}
+
+* lawan_naga_api {
+
+    #PREP
+    @sfx "ledakan_api.wav"
+    $shard_danau = true
+    $pecahan_terkumpul += 1
+    $kegelapan -= 10
+    $nyawa -= 20
+    if ($punya_sihir_api == true) {
+        $koin += 20
+        $sihir += 10
+    } else {
+        $nyawa -= 20
+    }
+
+    #STORY
+    if ($punya_sihir_api == true) {
+        "${nama_pahlawan} memusatkan energi dan melempar bola api besar ke arah naga!"
+        RAKA(berani, Left): "TERIMALAH INI!"
+        "Naga mengaum kesakitan dan mundur ke dalam danau yang berkilau."
+        "Jalan ke serpihan terbuka."
+        ELARA(lega, Right): "Luar biasa! Bonus koin untukmu: ${koin}. Kekuatan sihirmu kini ${sihir}."
+    } else {
+        "${nama_pahlawan} mencoba memanggil api, namun tidak berhasil."
+        RAKA(terluka, Left): "Sihirku... belum cukup kuat untuk ini!"
+        "Naga menyerang balik. ${nama_pahlawan} terhempas jauh dan terluka cukup parah."
+        ELARA(khawatir, Right): "Raka! Cepat ambil serpihan dan kembali!"
+    }
+
+    @jump ambil_serpihan_danau
+}
+
+* usir_naga_jimat {
+
+    #PREP
+    @sfx "gemerincing_jimat.wav"
+    $shard_danau = true
+    $pecahan_terkumpul += 1
+    $kegelapan -= 10
+    $nyawa -= 5
+    if ($punya_jimat == false) {
+        $nyawa -= 25
+    }
+
+    #STORY
+    if ($punya_jimat == true) {
+        "${nama_pahlawan} mengangkat jimat matahari tinggi-tinggi di atas kepalanya."
+        "Cahaya hangat keemasan memancar dari jimat, menyilaukan naga sepenuhnya."
+        RAKA(berani, Left): "Pergi! Kau tidak dibutuhkan di sini!"
+        "Naga menghilang ke kedalaman danau tanpa suara."
+        ELARA(lega, Right): "Jimat itu sungguh ajaib. Jalan ke serpihan sudah terbuka."
+    } else {
+        RAKA(tegang, Left): "Aku tidak punya jimat... harus cari cara lain!"
+        "Tanpa jimat, ${nama_pahlawan} terpaksa menghindari serangan naga dengan tangan kosong."
+        "Beberapa kali nyaris terkena cakaran yang bisa membelah batu."
+        ELARA(khawatir, Right): "Raka, lari ke tepi dan cari celah untuk menerobos!"
+    }
+
+    @jump ambil_serpihan_danau
+}
+
+* selam_cepat {
+
+    #PREP
+    @sfx "percikan_air.wav"
+    $shard_danau = true
+    $pecahan_terkumpul += 1
+    $kegelapan -= 10
+    $nyawa -= 15
+    $sihir += 5
+
+    #STORY
+    "${nama_pahlawan} mengambil napas dalam-dalam dan terjun ke dalam danau tanpa ragu."
+    "Naga mengejar dari belakang — namun manusia lebih gesit di celah-celah batu karang."
+    RAKA(tegang, Left): "Cepat... cepat... serpihan ada di bawah sana!"
+    "Dengan kecepatan penuh, ${nama_pahlawan} menerobos air berkilau dan mencapai dasar lebih dulu."
+    "Kontak dengan air mistis danau ini memperkuat sihir laten dalam diri ${nama_pahlawan}."
+    ELARA(tenang, Right): "Kau berhasil! Sihirmu bertambah kuat karena air danau ini."
+
+    @jump ambil_serpihan_danau
+}
+
+* ambil_serpihan_danau {
+
+    #PREP
+    @sfx "kilau_cahaya.wav"
+    @sfx "lonceng_menang.wav"
+
+    #STORY
+    "Di dasar danau yang bening, serpihan ketiga bersinar seperti bintang kecil yang terperangkap."
+    RAKA(berani, Left): "Serpihan terakhir! Semua sudah terkumpul — ${pecahan_terkumpul} dari 3!"
+    "Mata Cahaya kini lengkap di tangan ${nama_pahlawan}."
+    "Tiga serpihan saling mendekat dan bersatu menjadi satu kristal cahaya yang hangat berdenyut."
+    ELARA(lega, Right): "Sekarang kita bisa mengakhiri semua ini."
+
+    @jump peta_dunia
+}
+
+// ============================================================================
+// BABAK 5: BENTENG KEGELAPAN
+// ============================================================================
+
+* menuju_benteng {
+
+    #PREP
+    @bg "jalan_benteng.png"
+    @bgm "tema_konfrontasi.ogg"
+    @sfx "petir_jauh.wav"
+    $kegelapan -= 5
+    $kekuatan = $kekuatan + $keberanian - 20
+    if ($kepercayaan_raja >= 10) {
+        $keberanian += 15
+    }
+
+    #STORY
+    "Dengan Mata Cahaya yang lengkap, ${nama_pahlawan} dan Elara bergerak menuju Benteng Kegelapan."
+    "Langit di atas benteng selalu berawan hitam. Kilat tanpa hujan terus menyambar."
+    ELARA(khawatir, Right): "Kekuatan Tuan Bayangan semakin menguat. Kita harus bergegas."
+    RAKA(berani, Left): "Berapa kekuatan totalku sekarang?"
+    "Kekuatan: ${kekuatan}  |  Sihir: ${sihir}  |  Keberanian: ${keberanian}"
+    if ($kepercayaan_raja >= 10) {
+        ELARA(tenang, Right): "Raja Aditya mengirim pasukan cadangan. Kita tidak sepenuhnya sendirian."
+    } else {
+        ELARA(khawatir, Right): "Kita tidak punya dukungan militer. Hanya bergantung pada kemampuan kita sendiri."
+    }
+
+    @jump gerbang_benteng
+}
+
+* gerbang_benteng {
+
+    #PREP
+    @bg "gerbang_benteng.png"
+    @bgm "ketegangan_gerbang.ogg"
+    @sfx "derit_pintu_besi.wav"
+    if ($sudah_terlatih == true) {
+        if ($punya_pedang_leluhur == false) {
+            $nyawa -= 10
+        }
+    } else {
+        if ($punya_jimat == true) {
+            $nyawa -= 20
+        } else {
+            $nyawa -= 35
+        }
+    }
+
+    #STORY
+    "Gerbang benteng dijaga oleh dua kapten bayangan berlapis baju besi hitam."
+    BAYANGAN(menghina, Right): "Hah. Seorang anak desa datang membawa batu kecil. Lucu sekali."
+    RAKA(berani, Left): "Aku datang atas nama Kerajaan Aruna — dan semua yang telah kau sakiti!"
+    if ($sudah_terlatih == true) {
+        if ($punya_pedang_leluhur == true) {
+            "Dengan teknik sempurna dan pedang leluhur, ${nama_pahlawan} mengalahkan kedua kapten dalam hitungan detik."
+            ELARA(lega, Right): "Sempurna. Mari masuk."
+            @jump aula_bayangan
+        } else {
+            "Berkat latihan keras, ${nama_pahlawan} berhasil mengalahkan para kapten meski bukan tanpa kesulitan."
+            RAKA(terluka, Left): "Hff... tapi aku masih bisa berdiri."
+            @jump aula_bayangan
+        }
+    } else {
+        if ($punya_jimat == true) {
+            "Jimat matahari memancarkan cahaya menyilaukan, membekukan para kapten sesaat."
+            "${nama_pahlawan} memanfaatkan celah itu untuk menerobos masuk."
+            @jump aula_bayangan
+        } else {
+            "Tanpa latihan maupun jimat, pertarungan ini sangat berat."
+            "${nama_pahlawan} terluka cukup parah namun tetap melangkah maju dengan keras kepala."
+            @jump aula_bayangan
+        }
+    }
+}
+
+* aula_bayangan {
+
+    #PREP
+    @bg "aula_gelap.png"
+    @bgm "aula_kejahatan.ogg"
+    @sfx "langkah_bergema.wav"
+
+    #STORY
+    "Aula utama benteng dipenuhi kegelapan yang terasa seperti makhluk hidup."
+    "Di atas singgasana obsidian yang tinggi, Tuan Bayangan menunggu dengan tenang."
+    BAYANGAN(tertawa, Center): "Kau berhasil sampai sejauh ini. Jarang ada yang bisa melakukan itu."
+    RAKA(berani, Left): "Dan aku akan terus melangkah sampai kutukanmu berakhir untuk selamanya."
+    BAYANGAN(menghina, Center): "Dengan tiga serpihan kecil itu? Menggemaskan sekali."
+    ELARA(serius, Right): "Raka — gabungkan ketiga serpihan sekarang! Bentuk Mata Cahaya!"
+    "Tiga serpihan melayang dari kantung ${nama_pahlawan} dan bersatu menjadi satu kristal putih bercahaya."
+    "Cahaya itu memenuhi seluruh aula dan menyentuh setiap sudut yang gelap."
+    BAYANGAN(marah, Center): "TIDAK! Artefak terkutuk itu... kau tidak boleh memilikinya!"
+
+    @jump pertarungan_akhir
+}
+
+// ============================================================================
+// BABAK 6: PERTARUNGAN AKHIR
+// ============================================================================
+
+* pertarungan_akhir {
+
+    #PREP
+    @bg "arena_pertarungan.png"
+    @bgm "musik_boss_akhir.ogg"
+    @sfx "ledakan_aura.wav"
+
+    #STORY
+    "Pertarungan terakhir dimulai."
+    "Tuan Bayangan melepaskan gelombang kegelapan yang menghancurkan dinding-dinding benteng."
+    BAYANGAN(marah, Center): "Aku akan mengurung jiwamu dalam kegelapan abadi!"
+    RAKA(berani, Left): "Kau sudah menyakiti terlalu banyak orang. Ini berakhir hari ini!"
+    if ($nyawa >= 60) {
+        "Meski kelelahan setelah perjalanan panjang, ${nama_pahlawan} masih berdiri tegak."
+        @choice {
+            if ($punya_sihir_api == true) {
+                "Padukan Mata Cahaya dengan sihir api" -> serangan_gabungan
+            }
+            "Arahkan Mata Cahaya langsung ke Tuan Bayangan" -> serangan_langsung
+            "Kerahkan seluruh keberanian untuk serangan final" -> serangan_berani
+        }
+    } else {
+        "Tubuh ${nama_pahlawan} sudah sangat lemah. Luka-luka terbuka kembali."
+        RAKA(terluka, Left): "Tidak... aku tidak boleh menyerah. Tidak setelah semua ini."
+        if ($punya_jimat == true) {
+            "Jimat matahari tiba-tiba bersinar sangat terang di tangan ${nama_pahlawan}."
+            "Kehangatan menyebar ke seluruh tubuh, memulihkan semangat yang hampir padam."
+            RAKA(berani, Left): "Jimat ini... memberiku kekuatan terakhir!"
+            @jump serangan_langsung
+        } else {
+            RAKA(terluka, Left): "Aku... aku tidak bisa..."
+            ELARA(khawatir, Right): "RAKA!"
+            @jump kekalahan
+        }
+    }
+}
+
+* serangan_gabungan {
+
+    #PREP
+    @sfx "ledakan_besar.wav"
+    @bgm "klimaks_musik.ogg"
+    $sihir += $kekuatan
+    $kegelapan -= 50
+    $selamat = true
+
+    #STORY
+    "${nama_pahlawan} memusatkan seluruh sihir api ke dalam kristal Mata Cahaya."
+    "Kristal mulai bersinar dengan cahaya emas-merah yang membakar seisi ruangan."
+    RAKA(berani, Left): "UNTUK ARUNA — DAN UNTUK SEMUA YANG KAU SAKITI!"
+    "Ledakan cahaya dan api meliputi seluruh aula. Tuan Bayangan mengaum kesakitan."
+    BAYANGAN(kalah, Center): "T-tidak mungkin... Aku yang abadi... Aku yang..."
+    "Suara Tuan Bayangan memudar. Kegelapan perlahan-lahan pergi."
+    "Sihir terakhir: ${sihir}. Kegelapan yang tersisa: ${kegelapan}."
+
+    @jump kemenangan_besar
+}
+
+* serangan_langsung {
+
+    #PREP
+    @sfx "kilau_kristal.wav"
+    $kegelapan -= 40
+    $selamat = true
+
+    #STORY
+    "${nama_pahlawan} mengangkat Mata Cahaya dan mengarahkannya tepat ke jantung kegelapan Tuan Bayangan."
+    ELARA(serius, Right): "Sekarang, Raka! Jangan berhenti!"
+    RAKA(berani, Left): "Cahaya leluhur... dengarkan seruanku!"
+    "Sinar putih memancar dari kristal, menembus lapisan kegelapan satu per satu."
+    "Tuan Bayangan terhuyung, mengaum panjang, lalu terjatuh dari singgasananya."
+    BAYANGAN(kalah, Center): "Ini... belum... berakhir..."
+    RAKA(biasa, Left): "Sudah berakhir."
+
+    @jump kemenangan_besar
+}
+
+* serangan_berani {
+
+    #PREP
+    @sfx "teriakan_pertempuran.wav"
+    $keberanian += 20
+    $kegelapan -= 35
+    $selamat = true
+
+    #STORY
+    "${nama_pahlawan} berlari ke arah Tuan Bayangan tanpa ragu, Mata Cahaya terangkat tinggi."
+    BAYANGAN(marah, Center): "Apa yang kau lakukan?! Kau gila!"
+    RAKA(berani, Left): "Mungkin! Tapi keberanian orang yang tidak punya apa-apa untuk ditakutkan adalah kekuatan paling berbahaya!"
+    "Benturan antara cahaya dan kegelapan menghasilkan ledakan yang meruntuhkan separuh benteng."
+    "Ketika debu mengendap — Tuan Bayangan tidak lagi berdiri."
+    ELARA(lega, Right): "Kau menang, Raka. Kau benar-benar menang."
+
+    @jump kemenangan_besar
+}
+
+* kekalahan {
+
+    #PREP
+    @bg "arena_gelap.png"
+    @bgm "musik_sedih.ogg"
+    if ($punya_jimat == true) {
+        $nyawa = 10
+        $selamat = true
+    }
+
+    #STORY
+    "${nama_pahlawan} jatuh berlutut. Kekuatan sudah habis sepenuhnya."
+    "Tuan Bayangan melangkah perlahan mendekati, jubahnya berkibar bagai sayap kematian."
+    BAYANGAN(menghina, Center): "Itukah semua yang dimiliki keturunan penjaga? Sungguh mengecewakan."
+    RAKA(terluka, Left): "Aku... tidak bisa..."
+    if ($punya_jimat == true) {
+        "Tiba-tiba, cahaya keemasan memancar dari jimat yang jatuh di lantai."
+        "Kehangatan jimat melindungi ${nama_pahlawan} dari serangan terakhir Tuan Bayangan."
+        ELARA(serius, Right): "Raka! Bangun! Ini kesempatan terakhirmu!"
+        RAKA(berani, Left): "Tidak... aku tidak akan menyia-nyiakannya."
+        @jump akhir_pengorbanan
+    } else {
+        "Tanpa jimat, tanpa kekuatan tersisa, ${nama_pahlawan} tidak bisa bangkit."
+        ELARA(khawatir, Right): "Raka... bertahan! Jangan menyerah!"
+        RAKA(sedih, Left): "Elara... jaga kerajaan ini untukku..."
+        @jump akhir_gelap
+    }
+}
+
+// ============================================================================
+// BABAK 7: EPILOG
+// ============================================================================
+
+* kemenangan_besar {
+
+    #PREP
+    @bg "benteng_runtuh.png"
+    @bgm "tema_kemenangan.ogg"
+    @sfx "sorak_sorai.wav"
+
+    #STORY
+    NARATOR: "Benteng Kegelapan runtuh perlahan tanpa kehadiran tuannya."
+    "Awan hitam tersapu, digantikan sinar matahari hangat yang memeluk seluruh kerajaan."
+    ELARA(lega, Right): "Kita berhasil! Kutukan itu telah benar-benar patah!"
+    RAKA(berani, Left): "Aruna bebas."
+    "Di istana, Raja Aditya berdiri tegak ketika langit menjadi cerah kembali."
+    RAJA(bersyukur, Center): "${nama_pahlawan}... kau telah menyelamatkan semuanya."
+    RAKA(biasa, Left): "Aku tidak sendirian, Yang Mulia. Elara, rakyat Parung, dan semua yang percaya padaku."
+    RAJA(bijak, Center): "Maka mulai hari ini, ${nama_pahlawan} dari Parung dinobatkan sebagai Penjaga Abadi Kerajaan Aruna."
+    "Tepuk tangan dan sorak sorai memenuhi aula istana yang agung."
+    NARATOR: "Dan untuk pertama kalinya dalam waktu yang sangat lama, Kerajaan Aruna benar-benar damai."
+    "=== AKHIR CERITA — KEMENANGAN PENUH ==="
+    "Nyawa Tersisa  : ${nyawa}"
+    "Kekuatan Akhir : ${kekuatan}"
+    "Sihir Akhir    : ${sihir}"
+    "Kegelapan Sisa : ${kegelapan}"
+
+    @end
+}
+
+* akhir_pengorbanan {
+
+    #PREP
+    @bg "cahaya_fajar.png"
+    @bgm "tema_harapan.ogg"
+    @sfx "angin_lembut.wav"
+
+    #STORY
+    NARATOR: "Kristal Mata Cahaya melepaskan seluruh sisa energinya dalam satu ledakan cahaya yang membutakan."
+    "Tuan Bayangan menghilang bersama kegelapannya — untuk selamanya."
+    "Namun harganya besar."
+    ELARA(khawatir, Right): "Raka! Bertahan!"
+    RAKA(sedih, Left): "Elara... apakah... kutukan itu sudah hilang?"
+    ELARA(lega, Right): "Ya. Langit sudah cerah. Kau berhasil."
+    RAKA(biasa, Left): "Bagus... itu sudah lebih dari cukup."
+    "Beberapa hari kemudian, ${nama_pahlawan} pulih perlahan di istana."
+    RAJA(bersyukur, Center): "Pengorbananmu tidak akan pernah dilupakan, Penjaga."
+    RAKA(biasa, Left): "Aku hanya melakukan apa yang harus dilakukan."
+    NARATOR: "Kerajaan Aruna bangkit kembali — bukan karena tidak pernah jatuh, tapi karena selalu ada yang rela berdiri."
+    "=== AKHIR CERITA — JALAN PENGORBANAN ==="
+    "Nyawa Tersisa  : ${nyawa}"
+    "Kekuatan Akhir : ${kekuatan}"
+    "Sihir Akhir    : ${sihir}"
+
+    @end
+}
+
+* akhir_gelap {
+
+    #PREP
+    @bg "kerajaan_gelap.png"
+    @bgm "tema_kegelapan.ogg"
+    @sfx "lonceng_duka.wav"
+
+    #STORY
+    NARATOR: "Tanpa Penjaga, Kerajaan Aruna jatuh ke dalam kegelapan abadi."
+    "Tuan Bayangan meraih mahkota yang selama ini ia inginkan."
+    BAYANGAN(tertawa, Center): "Pada akhirnya, cahaya selalu kalah pada kegelapan yang cukup dalam."
+    ELARA(khawatir, Left): "...Maaf, Raka. Aku gagal melindungimu."
+    "Namun bahkan di bawah kegelapan terdalam, sebuah bintang kecil masih bersinar di langit Aruna."
+    NARATOR: "Kisah ini belum selesai."
+    "=== AKHIR CERITA — JALAN KEGELAPAN ==="
+    "Kegelapan Akhir : ${kegelapan}"
+    "Nyawa Tersisa   : ${nyawa}"
+
+    @end
+}
