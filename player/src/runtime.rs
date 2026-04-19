@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use storycript_parser::ast::Script;
+use storyscript_parser::ast::Script;
 
 use crate::engine::{Engine, StepResult};
 
@@ -25,7 +25,7 @@ impl StoryPlayer {
 
     pub fn from_source(script_name: impl Into<String>, source: &str) -> Result<Self, String> {
         let script_name = script_name.into();
-        let compile = storycript_parser::compiler::compile_source(source);
+        let compile = storyscript_parser::compiler::compile_source(source);
 
         if compile.diagnostics.iter().any(|d| d.is_error()) {
             return Err(format_diagnostics(
@@ -46,7 +46,7 @@ impl StoryPlayer {
     }
 
     pub fn from_file(path: &Path) -> Result<Self, String> {
-        let compile = storycript_parser::compiler::compile_file(path)
+        let compile = storyscript_parser::compiler::compile_file(path)
             .map_err(|e| format!("Failed to compile {}: {}", display_path(path), e))?;
 
         if compile.diagnostics.iter().any(|d| d.is_error()) {

@@ -1,5 +1,5 @@
 [package]
-name = "storycript-player"
+name = "storyscript-player"
 version = "0.1.0"
 edition = "2024"
 
@@ -8,7 +8,7 @@ default = ["tui"]
 tui = ["dep:ratatui", "dep:crossterm"]
 
 [dependencies]
-storycript-parser = { path = "../parser/rust" }
+storyscript-parser = { path = "../parser/rust" }
 ratatui = { version = "0.28", optional = true }
 crossterm = { version = "0.28", optional = true }
 rust_decimal = "1.41.0"
@@ -18,6 +18,6 @@ rand = "0.10.1"
 getrandom = { version = "0.4.2", features = ["wasm_js"] }
 
 [[bin]]
-name = "storycript-player"
+name = "storyscript-player"
 path = "src/main.rs"
 required-features = ["tui"]

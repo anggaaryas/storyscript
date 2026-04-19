@@ -2,12 +2,12 @@ use std::env;
 use std::path::Path;
 use std::process;
 
-use storycript_parser::{compiler, diagnostic};
+use storyscript_parser::{compiler, diagnostic};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
-        eprintln!("Usage: storycript-parser <file.story> [--json]");
+        eprintln!("Usage: storyscript-parser <file.story> [--json]");
         process::exit(1);
     }
 

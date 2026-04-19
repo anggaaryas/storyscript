@@ -3,8 +3,8 @@ use std::collections::{HashMap, VecDeque};
 use rand::RngExt;
 use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
-use storycript_parser::ast::*;
-use storycript_parser::interpolation::{ESCAPED_DOLLAR_MARKER, render_interpolated};
+use storyscript_parser::ast::*;
+use storyscript_parser::interpolation::{ESCAPED_DOLLAR_MARKER, render_interpolated};
 
 // ---------------------------------------------------------------------------
 // Runtime value

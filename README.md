@@ -1,4 +1,4 @@
-![storycript logo](image/ascii-logo.png)
+![storyscript logo](image/ascii-logo.png)
 
 ![Screenshot](image/ss.png)
 
@@ -19,8 +19,8 @@ This repository includes:
 .
 ├── PLAN.md                      # Language spec and validation rules
 ├── example/                     # Example StoryScript files
-├── parser/rust/                 # storycript-parser (lexer/parser/validator)
-├── player/                      # storycript-player (TUI runtime)
+├── parser/rust/                 # storyscript-parser (lexer/parser/validator)
+├── player/                      # storyscript-player (TUI runtime)
 ├── storyscript_player_core/     # Flutter plugin integration and WebAssembly bindings
 └── tool/vscode-storyscript/     # VS Code language extension
 ```

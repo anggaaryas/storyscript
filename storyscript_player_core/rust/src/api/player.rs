@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
-use storycript_player::{StepResult, StoryPlayer, Value};
+use storyscript_player::{StepResult, StoryPlayer, Value};
 
 static SESSION_ID: AtomicU64 = AtomicU64::new(1);
 static SESSIONS: OnceLock<Mutex<HashMap<u64, StoryPlayer>>> = OnceLock::new();

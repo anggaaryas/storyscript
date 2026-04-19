@@ -8,7 +8,7 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 flutter_rust_bridge = "=2.12.0"
-storycript-player = { path = "../../player", default-features = false }
+storyscript-player = { path = "../../player", default-features = false }
 
 
 [lints.rust]

@@ -11,7 +11,7 @@ use crossterm::{
 };
 use ratatui::{prelude::*, widgets::*};
 
-use storycript_player::{StepResult, StoryPlayer, Value};
+use storyscript_player::{StepResult, StoryPlayer, Value};
 
 // ===========================================================================
 // Player state
