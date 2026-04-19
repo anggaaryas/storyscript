@@ -2,8 +2,8 @@
 
 ![Screenshot](image/ss.png)
 
-# StoryScript
-StoryScript is a game-development scripting language and toolchain for prototyping story-driven games, especially visual novels.
+# StoryScript (Name not final)
+StoryScript (Name not final) is a game-development scripting language and toolchain for prototyping story-driven games, especially visual novels.
 
 This repository includes:
 
