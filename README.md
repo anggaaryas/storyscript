@@ -10,7 +10,7 @@ This repository includes:
 - A language specification and working examples.
 - A Rust parser/validator CLI.
 - A Rust terminal-based player (TUI) to run StoryScript scenes.
-- A VS Code extension for `.StoryScript` syntax highlighting.
+- A VS Code extension for `.StoryScript` syntax highlighting and language intelligence.
 - A Flutter plugin integration for the Rust runtime.
 
 ## Repository Layout
@@ -177,7 +177,7 @@ Minimal modular include example:
 
 Path: `tool/vscode-storyscript`
 
-The extension provides syntax highlighting and language configuration for `.StoryScript` files.
+The extension provides syntax highlighting, language configuration, and an LSP server for `.StoryScript` files.
 
 ### Build `.vsix`
 
@@ -186,6 +186,7 @@ From the extension folder:
 ```bash
 cd tool/vscode-storyscript
 npm install
+npm run compile
 npx vsce package
 ```
 
@@ -194,7 +195,7 @@ That creates a `.vsix` file in the same folder.
 ### Install Locally
 
 ```bash
-code --install-extension storyscript-syntax-0.1.0.vsix
+code --install-extension storyscript-syntax-0.2.0.vsix
 ```
 
 You can also open the extension folder in VS Code and use the Extensions UI to install from VSIX.
@@ -202,7 +203,7 @@ You can also open the extension folder in VS Code and use the Extensions UI to i
 ## Current Status
 
 - Parser and player crates compile successfully with `cargo check`.
-- VS Code extension currently focuses on syntax highlighting (no LSP features yet).
+- VS Code extension now includes syntax highlighting plus LSP-based diagnostics, completion, hover, document symbols, definition, and references for `.StoryScript` files.
 
 
 ## Flutter plugin integration
