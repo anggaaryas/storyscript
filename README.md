@@ -13,6 +13,8 @@ This repository includes:
 - A VS Code extension for `.StoryScript` syntax highlighting and language intelligence.
 - A Flutter plugin integration for the Rust runtime.
 
+Live demo: [web](https://labs.angarsa.com/storyscript/index.html)
+
 ## Repository Layout
 
 ```text
