@@ -16,7 +16,7 @@ class StoryScriptCodeHighlighterTheme {
       color: Color(0xFF6A9955),
       fontStyle: FontStyle.italic,
     ),
-    // Keywords — purple/magenta (if, else, for, repeat, as, …).
+    // Keywords — purple/magenta (logic, return, if, else, for, repeat, as, …).
     this.keywordStyle = const TextStyle(color: Color(0xFFC586C0)),
     // Directives — accent blue for @bg, @actor, @start, ….
     this.directiveStyle = const TextStyle(color: Color(0xFF569CD6)),
@@ -44,7 +44,7 @@ class StoryScriptCodeHighlighterTheme {
     this.numberStyle = const TextStyle(color: Color(0xFFB5CEA8)),
     // Booleans (true/false) — same blue as keywords.
     this.booleanStyle = const TextStyle(color: Color(0xFF569CD6)),
-    // Type names (integer, string, boolean, decimal) — teal.
+    // Type names (integer, string, boolean, decimal, array) — teal.
     this.typeStyle = const TextStyle(color: Color(0xFF4EC9B0)),
     // Operators — plain foreground.
     this.operatorStyle = const TextStyle(color: Color(0xFFD4D4D4)),

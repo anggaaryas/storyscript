@@ -1,0 +1,54 @@
+// Feature: User-defined logic blocks
+// Coverage:
+// 1) Happy path: void updater + typed return call in #PREP
+// 2) Boundary path: non-void logic with full return coverage in if/else chain
+// 3) Failure notes tied to diagnostics at end of file
+
+* INIT {
+    $system_stability as integer = 45;
+    $manual_override as boolean = false;
+
+    @actor TEO "Teona" {
+        focus -> "teo_focus.png"
+        calm -> "teo_calm.png"
+    }
+
+    @start server_core_hub;
+}
+
+logic apply_damage($amount as integer) {
+    $system_stability = $system_stability - $amount;
+}
+
+logic get_variance($modifier as integer) -> integer {
+    $total as integer = $system_stability + $modifier;
+    return $total;
+}
+
+logic choose_message($is_critical as boolean) -> string {
+    if ($is_critical == true) {
+        return "Critical variance";
+    } else {
+        return "Variance stable";
+    }
+}
+
+* server_core_hub {
+    #PREP
+    apply_damage(10);
+    $current_variance as integer = get_variance(15);
+    $status_line as string = choose_message($manual_override);
+
+    #STORY
+    TEO(focus, Left): "Variance is rising to ${current_variance}.";
+    TEO(calm, Left): "${status_line}";
+    @end;
+}
+
+// Failure notes (non-executable examples):
+// - Duplicate logic declaration name -> E_FUNCTION_DUPLICATE
+// - Duplicate parameter in one logic declaration -> E_FUNCTION_PARAM_DUPLICATE
+// - Calling logic from INIT initializer -> E_FUNCTION_CONTEXT_INVALID
+// - Non-void logic missing return on a reachable path -> E_FUNCTION_RETURN_MISSING
+// - return outside logic body (for example in #PREP) -> E_PHASE_TOKEN_FORBIDDEN / E_RETURN_CONTEXT_INVALID
+// - Recursive logic call cycle (direct or indirect) -> E_FUNCTION_RECURSION_FORBIDDEN

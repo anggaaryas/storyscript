@@ -63,11 +63,11 @@ class StoryScriptSyntaxEngine {
   );
 
   static final RegExp _controlFlow = RegExp(
-    r'\b(?:if|else|for|repeat|break|continue|in|snapshot)\b',
+    r'\b(?:logic|return|if|else|for|repeat|break|continue|in|snapshot)\b',
   );
   static final RegExp _asKeyword = RegExp(r'\bas\b');
   static final RegExp _typeName = RegExp(
-    r'\b(?:integer|string|boolean|decimal)\b',
+    r'\b(?:integer|string|boolean|decimal|array)\b',
   );
   static final RegExp _variable = RegExp(r'\$[a-zA-Z_][a-zA-Z0-9_]*');
   static final RegExp _boolean = RegExp(r'\b(?:true|false)\b');

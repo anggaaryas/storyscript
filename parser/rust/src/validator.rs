@@ -6,6 +6,20 @@ use crate::interpolation::scan_placeholders;
 use rust_decimal::Decimal;
 
 type VarTypes = HashMap<String, VarType>;
+type LogicSignatures = HashMap<String, LogicSignature>;
+
+#[derive(Debug, Clone)]
+struct LogicSignature {
+    params: Vec<LogicParam>,
+    return_type: Option<VarType>,
+}
+
+#[derive(Debug, Clone)]
+struct LogicCallEdge {
+    target: String,
+    line: usize,
+    column: usize,
+}
 
 /// Performs semantic validation on a parsed StoryScript AST.
 /// Returns a list of diagnostics (errors and warnings).
@@ -15,6 +29,7 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
     let mut declared_vars: VarTypes = HashMap::new();
     let mut actor_map: HashMap<String, &ActorDecl> = HashMap::new();
     let mut scene_labels: HashSet<String> = HashSet::new();
+    let logic_signatures = collect_logic_signatures(script, &mut diags);
 
     // -----------------------------------------------------------------------
     // INIT validation
@@ -44,6 +59,8 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
             var.column,
             Some(var.var_type),
             true,
+            false,
+            &logic_signatures,
             &declared_vars,
             "INIT",
             &mut diags,
@@ -148,6 +165,70 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
     }
 
     // -----------------------------------------------------------------------
+    // Logic block validation
+    // -----------------------------------------------------------------------
+
+    for logic in &script.logic_blocks {
+        let Some(signature) = logic_signatures.get(&logic.name) else {
+            continue;
+        };
+
+        let mut scoped_vars = declared_vars.clone();
+        let mut local_vars: HashSet<String> = HashSet::new();
+        let mut readonly_vars: HashSet<String> = HashSet::new();
+
+        for param in &signature.params {
+            if declared_vars.contains_key(&param.name) {
+                diags.push(Diagnostic::new(
+                    DiagnosticCode::EVariableScopeConflict,
+                    format!(
+                        "Logic parameter '${}' conflicts with global variable of the same name",
+                        param.name
+                    ),
+                    Phase::Validation,
+                    &logic.name,
+                    param.line,
+                    param.column,
+                ));
+                continue;
+            }
+
+            local_vars.insert(param.name.clone());
+            scoped_vars.insert(param.name.clone(), param.var_type);
+        }
+
+        validate_prep_statements(
+            &logic.body,
+            &declared_vars,
+            &logic_signatures,
+            &mut scoped_vars,
+            &mut local_vars,
+            &logic.name,
+            0,
+            &mut readonly_vars,
+            &mut diags,
+            true,
+            signature.return_type,
+        );
+
+        if signature.return_type.is_some() && !logic_returns(&logic.body) {
+            diags.push(Diagnostic::new(
+                DiagnosticCode::EFunctionReturnMissing,
+                format!(
+                    "Logic function '{}' declares a return type and must return on all reachable paths",
+                    logic.name
+                ),
+                Phase::Validation,
+                &logic.name,
+                logic.line,
+                logic.column,
+            ));
+        }
+    }
+
+    validate_logic_recursion(script, &logic_signatures, &mut diags);
+
+    // -----------------------------------------------------------------------
     // Per-scene validation
     // -----------------------------------------------------------------------
 
@@ -161,18 +242,22 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
             validate_prep_statements(
                 &prep.statements,
                 &declared_vars,
+                &logic_signatures,
                 &mut scoped_vars,
                 &mut local_vars,
                 &scene.label,
                 0,
                 &mut readonly_vars,
                 &mut diags,
+                false,
+                None,
             );
         }
 
         // Validate #STORY
         validate_story_statements(
             &scene.story.statements,
+            &logic_signatures,
             &scoped_vars,
             &actor_map,
             &scene_labels,
@@ -196,6 +281,305 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
 
     diags.sort();
     diags
+}
+
+fn collect_logic_signatures(script: &Script, diags: &mut Vec<Diagnostic>) -> LogicSignatures {
+    let mut signatures: LogicSignatures = HashMap::new();
+
+    for logic in &script.logic_blocks {
+        if is_builtin_function_name(&logic.name) {
+            diags.push(Diagnostic::new(
+                DiagnosticCode::EFunctionDuplicate,
+                format!(
+                    "Logic function '{}' conflicts with reserved built-in function name",
+                    logic.name
+                ),
+                Phase::Validation,
+                &logic.name,
+                logic.line,
+                logic.column,
+            ));
+            continue;
+        }
+
+        if signatures.contains_key(&logic.name) {
+            diags.push(Diagnostic::new(
+                DiagnosticCode::EFunctionDuplicate,
+                format!("Duplicate logic function '{}'", logic.name),
+                Phase::Validation,
+                &logic.name,
+                logic.line,
+                logic.column,
+            ));
+            continue;
+        }
+
+        let mut seen_params: HashSet<&str> = HashSet::new();
+        for param in &logic.params {
+            if !seen_params.insert(param.name.as_str()) {
+                diags.push(Diagnostic::new(
+                    DiagnosticCode::EFunctionParamDuplicate,
+                    format!(
+                        "Duplicate logic parameter '${}' in function '{}'",
+                        param.name, logic.name
+                    ),
+                    Phase::Validation,
+                    &logic.name,
+                    param.line,
+                    param.column,
+                ));
+            }
+        }
+
+        signatures.insert(
+            logic.name.clone(),
+            LogicSignature {
+                params: logic.params.clone(),
+                return_type: logic.return_type,
+            },
+        );
+    }
+
+    signatures
+}
+
+fn validate_logic_recursion(
+    script: &Script,
+    signatures: &LogicSignatures,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let mut graph: HashMap<String, Vec<LogicCallEdge>> = HashMap::new();
+
+    for logic in &script.logic_blocks {
+        if !signatures.contains_key(&logic.name) {
+            continue;
+        }
+        let mut edges = Vec::new();
+        collect_logic_calls_from_stmts(&logic.body, signatures, &mut edges);
+        graph.insert(logic.name.clone(), edges);
+    }
+
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum VisitState {
+        Visiting,
+        Done,
+    }
+
+    fn dfs(
+        node: &str,
+        graph: &HashMap<String, Vec<LogicCallEdge>>,
+        states: &mut HashMap<String, VisitState>,
+        stack: &mut Vec<String>,
+        flagged_edges: &mut HashSet<(String, usize, usize)>,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        states.insert(node.to_string(), VisitState::Visiting);
+        stack.push(node.to_string());
+
+        if let Some(edges) = graph.get(node) {
+            for edge in edges {
+                let target_state = states.get(&edge.target).copied();
+                if target_state == Some(VisitState::Done) {
+                    continue;
+                }
+
+                if target_state == Some(VisitState::Visiting)
+                    || stack.iter().any(|entry| entry == &edge.target)
+                {
+                    let edge_key = (edge.target.clone(), edge.line, edge.column);
+                    if flagged_edges.insert(edge_key) {
+                        diags.push(Diagnostic::new(
+                            DiagnosticCode::EFunctionRecursionForbidden,
+                            format!(
+                                "Recursive logic call detected from '{}' to '{}'",
+                                node, edge.target
+                            ),
+                            Phase::Validation,
+                            node,
+                            edge.line,
+                            edge.column,
+                        ));
+                    }
+                    continue;
+                }
+
+                dfs(
+                    &edge.target,
+                    graph,
+                    states,
+                    stack,
+                    flagged_edges,
+                    diags,
+                );
+            }
+        }
+
+        stack.pop();
+        states.insert(node.to_string(), VisitState::Done);
+    }
+
+    let mut states: HashMap<String, VisitState> = HashMap::new();
+    let mut flagged_edges: HashSet<(String, usize, usize)> = HashSet::new();
+    for node in graph.keys() {
+        if states.get(node).copied() == Some(VisitState::Done) {
+            continue;
+        }
+        let mut stack = Vec::new();
+        dfs(
+            node,
+            &graph,
+            &mut states,
+            &mut stack,
+            &mut flagged_edges,
+            diags,
+        );
+    }
+}
+
+fn collect_logic_calls_from_stmts(
+    stmts: &[PrepStatement],
+    signatures: &LogicSignatures,
+    out: &mut Vec<LogicCallEdge>,
+) {
+    for stmt in stmts {
+        match stmt {
+            PrepStatement::VarDecl(decl) => {
+                collect_logic_calls_from_expr(&decl.value, signatures, out);
+            }
+            PrepStatement::VarAssign(assign) => {
+                collect_logic_calls_from_expr(&assign.value, signatures, out);
+            }
+            PrepStatement::Call {
+                name,
+                args,
+                line,
+                column,
+            } => {
+                if signatures.contains_key(name) {
+                    out.push(LogicCallEdge {
+                        target: name.clone(),
+                        line: *line,
+                        column: *column,
+                    });
+                }
+                for arg in args {
+                    collect_logic_calls_from_expr(arg, signatures, out);
+                }
+            }
+            PrepStatement::IfElse(if_else) => {
+                collect_logic_calls_from_expr(&if_else.condition, signatures, out);
+                collect_logic_calls_from_stmts(&if_else.then_branch, signatures, out);
+                if let Some(else_branch) = &if_else.else_branch {
+                    collect_logic_calls_from_stmts(else_branch, signatures, out);
+                }
+            }
+            PrepStatement::ForSnapshot(loop_stmt) => {
+                collect_logic_calls_from_stmts(&loop_stmt.body, signatures, out);
+            }
+            PrepStatement::Repeat(repeat_stmt) => {
+                collect_logic_calls_from_stmts(&repeat_stmt.body, signatures, out);
+            }
+            PrepStatement::Return { value, .. } => {
+                if let Some(expr) = value {
+                    collect_logic_calls_from_expr(expr, signatures, out);
+                }
+            }
+            PrepStatement::BgDirective { .. }
+            | PrepStatement::BgmDirective { .. }
+            | PrepStatement::SfxDirective { .. }
+            | PrepStatement::Break { .. }
+            | PrepStatement::Continue { .. } => {}
+        }
+    }
+}
+
+fn collect_logic_calls_from_expr(
+    expr: &Expr,
+    signatures: &LogicSignatures,
+    out: &mut Vec<LogicCallEdge>,
+) {
+    match expr {
+        Expr::Call {
+            name,
+            args,
+            line,
+            column,
+        } => {
+            if signatures.contains_key(name) {
+                out.push(LogicCallEdge {
+                    target: name.clone(),
+                    line: *line,
+                    column: *column,
+                });
+            }
+
+            for arg in args {
+                collect_logic_calls_from_expr(arg, signatures, out);
+            }
+        }
+        Expr::BinOp { left, right, .. } => {
+            collect_logic_calls_from_expr(left, signatures, out);
+            collect_logic_calls_from_expr(right, signatures, out);
+        }
+        Expr::ListLit { items, .. } => {
+            for item in items {
+                collect_logic_calls_from_expr(item, signatures, out);
+            }
+        }
+        Expr::IntLit(_)
+        | Expr::DecimalLit(_)
+        | Expr::BoolLit(_)
+        | Expr::StringLit(_)
+        | Expr::VarRef { .. } => {}
+    }
+}
+
+fn logic_returns(stmts: &[PrepStatement]) -> bool {
+    if stmts.is_empty() {
+        return false;
+    }
+
+    match stmts.last().unwrap() {
+        PrepStatement::Return { .. } => true,
+        PrepStatement::IfElse(if_else) => {
+            let then_returns = logic_returns(&if_else.then_branch);
+            let else_returns = if_else
+                .else_branch
+                .as_ref()
+                .map(|branch| logic_returns(branch))
+                .unwrap_or(false);
+            then_returns && else_returns
+        }
+        PrepStatement::BgDirective { .. }
+        | PrepStatement::BgmDirective { .. }
+        | PrepStatement::SfxDirective { .. }
+        | PrepStatement::VarDecl(_)
+        | PrepStatement::VarAssign(_)
+        | PrepStatement::Call { .. }
+        | PrepStatement::ForSnapshot(_)
+        | PrepStatement::Repeat(_)
+        | PrepStatement::Break { .. }
+        | PrepStatement::Continue { .. } => false,
+    }
+}
+
+fn is_builtin_function_name(name: &str) -> bool {
+    matches!(
+        name,
+        "abs"
+            | "rand"
+            | "pick"
+            | "array_push"
+            | "array_pop"
+            | "array_strip"
+            | "array_clear"
+            | "array_contains"
+            | "array_size"
+            | "array_join"
+            | "array_get"
+            | "array_insert"
+            | "array_remove"
+    )
 }
 
 pub fn validate_requirements(init: &InitBlock, modules: &[ChildModule]) -> Vec<Diagnostic> {
@@ -332,12 +716,15 @@ pub fn validate_requirements(init: &InitBlock, modules: &[ChildModule]) -> Vec<D
 fn validate_prep_statements(
     stmts: &[PrepStatement],
     global_vars: &VarTypes,
+    logic_signatures: &LogicSignatures,
     scoped_vars: &mut VarTypes,
     local_vars: &mut HashSet<String>,
     scene: &str,
     loop_depth: usize,
     readonly_vars: &mut HashSet<String>,
     diags: &mut Vec<Diagnostic>,
+    in_logic_body: bool,
+    logic_return_type: Option<VarType>,
 ) {
     for stmt in stmts {
         match stmt {
@@ -378,6 +765,8 @@ fn validate_prep_statements(
                     decl.column,
                     Some(decl.var_type),
                     true,
+                    true,
+                    logic_signatures,
                     scoped_vars,
                     scene,
                     diags,
@@ -436,6 +825,8 @@ fn validate_prep_statements(
                     assign.column,
                     declared_type,
                     true,
+                    true,
+                    logic_signatures,
                     scoped_vars,
                     scene,
                     diags,
@@ -538,6 +929,8 @@ fn validate_prep_statements(
                     if_else.column,
                     None,
                     true,
+                    true,
+                    logic_signatures,
                     scoped_vars,
                     scene,
                     diags,
@@ -558,23 +951,29 @@ fn validate_prep_statements(
                 validate_prep_statements(
                     &if_else.then_branch,
                     global_vars,
+                    logic_signatures,
                     scoped_vars,
                     local_vars,
                     scene,
                     loop_depth,
                     readonly_vars,
                     diags,
+                    in_logic_body,
+                    logic_return_type,
                 );
                 if let Some(else_branch) = &if_else.else_branch {
                     validate_prep_statements(
                         else_branch,
                         global_vars,
+                        logic_signatures,
                         scoped_vars,
                         local_vars,
                         scene,
                         loop_depth,
                         readonly_vars,
                         diags,
+                        in_logic_body,
+                        logic_return_type,
                     );
                 }
             }
@@ -656,12 +1055,15 @@ fn validate_prep_statements(
                 validate_prep_statements(
                     &loop_stmt.body,
                     global_vars,
+                    logic_signatures,
                     scoped_vars,
                     local_vars,
                     scene,
                     loop_depth + 1,
                     readonly_vars,
                     diags,
+                    in_logic_body,
+                    logic_return_type,
                 );
 
                 if inserted_iterator {
@@ -675,12 +1077,15 @@ fn validate_prep_statements(
                 validate_prep_statements(
                     &repeat_stmt.body,
                     global_vars,
+                    logic_signatures,
                     scoped_vars,
                     local_vars,
                     scene,
                     loop_depth + 1,
                     readonly_vars,
                     diags,
+                    in_logic_body,
+                    logic_return_type,
                 );
             }
             PrepStatement::Break { line, column } | PrepStatement::Continue { line, column } => {
@@ -709,6 +1114,8 @@ fn validate_prep_statements(
                     None,
                     true,
                     true,
+                    logic_signatures,
+                    true,
                     scoped_vars,
                     scene,
                     diags,
@@ -729,6 +1136,72 @@ fn validate_prep_statements(
             PrepStatement::SfxDirective { path, line, column } => {
                 validate_interpolated_string(path, *line, *column, scoped_vars, scene, diags);
             }
+            PrepStatement::Return { value, line, column } => {
+                if !in_logic_body {
+                    diags.push(Diagnostic::new(
+                        DiagnosticCode::EReturnContextInvalid,
+                        "return is only valid inside logic blocks",
+                        Phase::Validation,
+                        scene,
+                        *line,
+                        *column,
+                    ));
+                    continue;
+                }
+
+                match (logic_return_type, value) {
+                    (None, None) => {}
+                    (None, Some(_)) => {
+                        diags.push(Diagnostic::new(
+                            DiagnosticCode::EReturnTypeMismatch,
+                            "Void logic function cannot return a value",
+                            Phase::Validation,
+                            scene,
+                            *line,
+                            *column,
+                        ));
+                    }
+                    (Some(_), None) => {
+                        diags.push(Diagnostic::new(
+                            DiagnosticCode::EReturnTypeMismatch,
+                            "Typed logic function must return a value",
+                            Phase::Validation,
+                            scene,
+                            *line,
+                            *column,
+                        ));
+                    }
+                    (Some(expected), Some(expr)) => {
+                        if let Some(actual) = infer_expr_type(
+                            expr,
+                            *line,
+                            *column,
+                            Some(expected),
+                            true,
+                            true,
+                            logic_signatures,
+                            scoped_vars,
+                            scene,
+                            diags,
+                        ) {
+                            if !is_assignable(expected, actual) {
+                                diags.push(Diagnostic::new(
+                                    DiagnosticCode::EReturnTypeMismatch,
+                                    format!(
+                                        "return expression type {} is incompatible with declared return type {}",
+                                        type_name(actual),
+                                        type_name(expected)
+                                    ),
+                                    Phase::Validation,
+                                    scene,
+                                    *line,
+                                    *column,
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -739,6 +1212,7 @@ fn validate_prep_statements(
 
 fn validate_story_statements(
     stmts: &[StoryStatement],
+    logic_signatures: &LogicSignatures,
     declared_vars: &VarTypes,
     actor_map: &HashMap<String, &ActorDecl>,
     scene_labels: &HashSet<String>,
@@ -820,6 +1294,7 @@ fn validate_story_statements(
             StoryStatement::Choice(choice) => {
                 let availability = validate_choice_entries(
                     &choice.entries,
+                    logic_signatures,
                     declared_vars,
                     scene_labels,
                     scene,
@@ -853,6 +1328,8 @@ fn validate_story_statements(
                     if_else.column,
                     None,
                     false,
+                    false,
+                    logic_signatures,
                     declared_vars,
                     scene,
                     diags,
@@ -872,6 +1349,7 @@ fn validate_story_statements(
 
                 validate_story_statements(
                     &if_else.then_branch,
+                    logic_signatures,
                     declared_vars,
                     actor_map,
                     scene_labels,
@@ -882,6 +1360,7 @@ fn validate_story_statements(
                 if let Some(else_branch) = &if_else.else_branch {
                     validate_story_statements(
                         else_branch,
+                        logic_signatures,
                         declared_vars,
                         actor_map,
                         scene_labels,
@@ -947,6 +1426,7 @@ fn validate_story_statements(
 
                 validate_story_statements(
                     &loop_stmt.body,
+                    logic_signatures,
                     &loop_scope,
                     actor_map,
                     scene_labels,
@@ -959,6 +1439,7 @@ fn validate_story_statements(
                 validate_repeat_count(&repeat_stmt.count, declared_vars, scene, diags);
                 validate_story_statements(
                     &repeat_stmt.body,
+                    logic_signatures,
                     declared_vars,
                     actor_map,
                     scene_labels,
@@ -1017,6 +1498,7 @@ impl ChoiceAvailability {
 
 fn validate_choice_entries(
     entries: &[ChoiceEntry],
+    logic_signatures: &LogicSignatures,
     declared_vars: &VarTypes,
     scene_labels: &HashSet<String>,
     scene: &str,
@@ -1025,7 +1507,14 @@ fn validate_choice_entries(
     let mut aggregate = ChoiceAvailability::empty();
 
     for entry in entries {
-        let availability = validate_choice_entry(entry, declared_vars, scene_labels, scene, diags);
+        let availability = validate_choice_entry(
+            entry,
+            logic_signatures,
+            declared_vars,
+            scene_labels,
+            scene,
+            diags,
+        );
         aggregate.can_produce |= availability.can_produce;
         aggregate.guaranteed_non_empty |= availability.guaranteed_non_empty;
     }
@@ -1035,6 +1524,7 @@ fn validate_choice_entries(
 
 fn validate_choice_entry(
     entry: &ChoiceEntry,
+    logic_signatures: &LogicSignatures,
     declared_vars: &VarTypes,
     scene_labels: &HashSet<String>,
     scene: &str,
@@ -1074,6 +1564,8 @@ fn validate_choice_entry(
                 if_entry.column,
                 None,
                 false,
+                false,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1091,7 +1583,14 @@ fn validate_choice_entry(
                 }
             }
 
-            let body = validate_choice_entries(&if_entry.body, declared_vars, scene_labels, scene, diags);
+            let body = validate_choice_entries(
+                &if_entry.body,
+                logic_signatures,
+                declared_vars,
+                scene_labels,
+                scene,
+                diags,
+            );
             match try_const_eval_bool(&if_entry.condition) {
                 Some(false) => ChoiceAvailability::empty(),
                 Some(true) => body,
@@ -1105,6 +1604,7 @@ fn validate_choice_entry(
             validate_repeat_count(&repeat_entry.count, declared_vars, scene, diags);
             let body = validate_choice_entries(
                 &repeat_entry.body,
+                logic_signatures,
                 declared_vars,
                 scene_labels,
                 scene,
@@ -1182,6 +1682,7 @@ fn validate_choice_entry(
 
             let body = validate_choice_entries(
                 &loop_entry.body,
+                logic_signatures,
                 &loop_scope,
                 scene_labels,
                 scene,
@@ -1258,6 +1759,8 @@ fn infer_expr_type(
     fallback_column: usize,
     assignment_target: Option<VarType>,
     allow_mutating_calls: bool,
+    allow_user_logic_calls: bool,
+    logic_signatures: &LogicSignatures,
     declared_vars: &VarTypes,
     scene: &str,
     diags: &mut Vec<Diagnostic>,
@@ -1303,6 +1806,8 @@ fn infer_expr_type(
             *column,
             assignment_target,
             allow_mutating_calls,
+            allow_user_logic_calls,
+            logic_signatures,
             false,
             declared_vars,
             scene,
@@ -1314,6 +1819,8 @@ fn infer_expr_type(
             fallback_column,
             assignment_target,
             allow_mutating_calls,
+            allow_user_logic_calls,
+            logic_signatures,
             declared_vars,
             scene,
             diags,
@@ -1325,6 +1832,8 @@ fn infer_expr_type(
                 fallback_column,
                 assignment_target,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1335,6 +1844,8 @@ fn infer_expr_type(
                 fallback_column,
                 assignment_target,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1441,11 +1952,100 @@ fn infer_call_type(
     column: usize,
     assignment_target: Option<VarType>,
     allow_mutating_calls: bool,
+    allow_user_logic_calls: bool,
+    logic_signatures: &LogicSignatures,
     allow_void_return: bool,
     declared_vars: &VarTypes,
     scene: &str,
     diags: &mut Vec<Diagnostic>,
 ) -> Option<VarType> {
+    if let Some(signature) = logic_signatures.get(name) {
+        if !allow_user_logic_calls {
+            diags.push(Diagnostic::new(
+                DiagnosticCode::EFunctionContextInvalid,
+                format!("Logic call '{}' is not allowed in this phase", name),
+                Phase::Validation,
+                scene,
+                line,
+                column,
+            ));
+            return None;
+        }
+
+        if args.len() != signature.params.len() {
+            diags.push(Diagnostic::new(
+                DiagnosticCode::EFunctionArityInvalid,
+                format!(
+                    "{}() expects exactly {} arguments, found {}",
+                    name,
+                    signature.params.len(),
+                    args.len()
+                ),
+                Phase::Validation,
+                scene,
+                line,
+                column,
+            ));
+            return None;
+        }
+
+        for (arg, param) in args.iter().zip(signature.params.iter()) {
+            let Some(arg_type) = infer_expr_type(
+                arg,
+                line,
+                column,
+                Some(param.var_type),
+                allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
+                declared_vars,
+                scene,
+                diags,
+            ) else {
+                continue;
+            };
+
+            if !is_assignable(param.var_type, arg_type) {
+                diags.push(Diagnostic::new(
+                    DiagnosticCode::EFunctionArgumentInvalid,
+                    format!(
+                        "{}() argument '${}' expects {}, found {}",
+                        name,
+                        param.name,
+                        type_name(param.var_type),
+                        type_name(arg_type)
+                    ),
+                    Phase::Validation,
+                    scene,
+                    line,
+                    column,
+                ));
+            }
+        }
+
+        return match signature.return_type {
+            Some(return_type) => Some(return_type),
+            None => {
+                if allow_void_return {
+                    None
+                } else {
+                    diags.push(Diagnostic::new(
+                        DiagnosticCode::EFunctionContextInvalid,
+                        format!(
+                            "{}() returns void and cannot be used as an expression",
+                            name
+                        ),
+                        Phase::Validation,
+                        scene,
+                        line,
+                        column,
+                    ));
+                    None
+                }
+            }
+        };
+    }
+
     match name {
         "abs" => {
             if args.len() != 1 {
@@ -1466,6 +2066,8 @@ fn infer_call_type(
                 column,
                 assignment_target,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1525,6 +2127,8 @@ fn infer_call_type(
                         column,
                         assignment_target,
                         allow_mutating_calls,
+                        allow_user_logic_calls,
+                        logic_signatures,
                         declared_vars,
                         scene,
                         diags,
@@ -1535,6 +2139,8 @@ fn infer_call_type(
                         column,
                         assignment_target,
                         allow_mutating_calls,
+                        allow_user_logic_calls,
+                        logic_signatures,
                         declared_vars,
                         scene,
                         diags,
@@ -1638,6 +2244,8 @@ fn infer_call_type(
                 column,
                 None,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1662,6 +2270,8 @@ fn infer_call_type(
                 column,
                 Some(element_ty),
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1728,6 +2338,8 @@ fn infer_call_type(
                 column,
                 None,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1766,6 +2378,8 @@ fn infer_call_type(
                 column,
                 None,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1790,6 +2404,8 @@ fn infer_call_type(
                 column,
                 Some(element_ty),
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1862,6 +2478,8 @@ fn infer_call_type(
                 column,
                 None,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1904,6 +2522,8 @@ fn infer_call_type(
                 column,
                 None,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1928,6 +2548,8 @@ fn infer_call_type(
                 column,
                 Some(element_ty),
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -1976,6 +2598,8 @@ fn infer_call_type(
                 column,
                 None,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2003,6 +2627,8 @@ fn infer_call_type(
                 column,
                 None,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2026,6 +2652,8 @@ fn infer_call_type(
                 column,
                 Some(VarType::String),
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2067,6 +2695,8 @@ fn infer_call_type(
                 column,
                 None,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2090,6 +2720,8 @@ fn infer_call_type(
                 column,
                 Some(VarType::Integer),
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2146,6 +2778,8 @@ fn infer_call_type(
                 column,
                 None,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2169,6 +2803,8 @@ fn infer_call_type(
                 column,
                 Some(VarType::Integer),
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2205,6 +2841,8 @@ fn infer_call_type(
                 column,
                 Some(element_ty),
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2274,6 +2912,8 @@ fn infer_call_type(
                 column,
                 None,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2296,6 +2936,8 @@ fn infer_call_type(
                 column,
                 Some(VarType::Integer),
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2355,6 +2997,8 @@ fn infer_call_type(
                     column,
                     None,
                     allow_mutating_calls,
+                    allow_user_logic_calls,
+                    logic_signatures,
                     declared_vars,
                     scene,
                     diags,
@@ -2379,6 +3023,8 @@ fn infer_call_type(
                 column,
                 Some(VarType::Integer),
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2406,6 +3052,8 @@ fn infer_call_type(
                 column,
                 array_target_hint,
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2432,6 +3080,8 @@ fn infer_list_literal_type(
     column: usize,
     assignment_target: Option<VarType>,
     allow_mutating_calls: bool,
+    allow_user_logic_calls: bool,
+    logic_signatures: &LogicSignatures,
     declared_vars: &VarTypes,
     scene: &str,
     diags: &mut Vec<Diagnostic>,
@@ -2462,6 +3112,8 @@ fn infer_list_literal_type(
                 column,
                 Some(expected),
                 allow_mutating_calls,
+                allow_user_logic_calls,
+                logic_signatures,
                 declared_vars,
                 scene,
                 diags,
@@ -2507,6 +3159,8 @@ fn infer_list_literal_type(
             column,
             None,
             allow_mutating_calls,
+            allow_user_logic_calls,
+            logic_signatures,
             declared_vars,
             scene,
             diags,
@@ -2558,6 +3212,8 @@ fn infer_array_argument_type(
     column: usize,
     assignment_target_hint: Option<VarType>,
     allow_mutating_calls: bool,
+    allow_user_logic_calls: bool,
+    logic_signatures: &LogicSignatures,
     declared_vars: &VarTypes,
     scene: &str,
     diags: &mut Vec<Diagnostic>,
@@ -2583,6 +3239,8 @@ fn infer_array_argument_type(
         column,
         assignment_target_hint,
         allow_mutating_calls,
+        allow_user_logic_calls,
+        logic_signatures,
         declared_vars,
         scene,
         diags,
@@ -3701,5 +4359,148 @@ mod tests {
         assert!(diags
             .iter()
             .any(|d| d.code == DiagnosticCode::EVariableScopeConflict));
+    }
+
+    #[test]
+    fn test_logic_happy_path_void_and_typed_return() {
+        let src = r#"
+* INIT {
+    $system_stability as integer = 45
+    @actor TEO "Teona"
+    @start main
+}
+
+logic apply_damage($amount as integer) {
+    $system_stability = $system_stability - $amount
+}
+
+logic get_variance($modifier as integer) -> integer {
+    $total as integer = $system_stability + $modifier
+    return $total
+}
+
+* main {
+    #PREP
+    apply_damage(10)
+    $v as integer = get_variance(15)
+
+    #STORY
+    TEO: "V=${v}"
+    @end
+}
+"#;
+
+        let diags = parse_and_validate(src);
+        let errors: Vec<_> = diags.iter().filter(|d| d.is_error()).collect();
+        assert!(errors.is_empty(), "Expected no errors, got: {:?}", errors);
+    }
+
+    #[test]
+    fn test_logic_call_forbidden_in_init() {
+        let src = r#"
+* INIT {
+    $seed as integer = compute_seed(2)
+    @actor A "Alice"
+    @start main
+}
+
+logic compute_seed($value as integer) -> integer {
+    return $value + 1
+}
+
+* main {
+    #STORY
+    @end
+}
+"#;
+
+        let diags = parse_and_validate(src);
+        assert!(diags.iter().any(|d| {
+            d.code == DiagnosticCode::EFunctionContextInvalid
+                && d.message.contains("not allowed in this phase")
+        }));
+    }
+
+    #[test]
+    fn test_logic_missing_return_rejected() {
+        let src = r#"
+* INIT {
+    $x as integer = 1
+    @actor A "Alice"
+    @start main
+}
+
+logic bump($v as integer) -> integer {
+    $x = $x + $v
+}
+
+* main {
+    #PREP
+    $k as integer = bump(3)
+
+    #STORY
+    @end
+}
+"#;
+
+        let diags = parse_and_validate(src);
+        assert!(diags
+            .iter()
+            .any(|d| d.code == DiagnosticCode::EFunctionReturnMissing));
+    }
+
+    #[test]
+    fn test_logic_recursion_rejected() {
+        let src = r#"
+* INIT {
+    $x as integer = 1
+    @actor A "Alice"
+    @start main
+}
+
+logic a($n as integer) -> integer {
+    return b($n)
+}
+
+logic b($n as integer) -> integer {
+    return a($n)
+}
+
+* main {
+    #PREP
+    $k as integer = a(1)
+
+    #STORY
+    @end
+}
+"#;
+
+        let diags = parse_and_validate(src);
+        assert!(diags
+            .iter()
+            .any(|d| d.code == DiagnosticCode::EFunctionRecursionForbidden));
+    }
+
+    #[test]
+    fn test_return_forbidden_in_prep() {
+        let src = r#"
+* INIT {
+    @actor A "Alice"
+    @start main
+}
+
+* main {
+    #PREP
+    return 1
+
+    #STORY
+    @end
+}
+"#;
+
+        let diags = parse_and_validate(src);
+        assert!(diags
+            .iter()
+            .any(|d| d.code == DiagnosticCode::EPhaseTokenForbidden));
     }
 }

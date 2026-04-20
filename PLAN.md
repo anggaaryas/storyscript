@@ -115,6 +115,35 @@ Each scene must follow these structural rules:
 ### Variables & Logic
 Standard C-style conditionals are supported in both `#PREP` and `#STORY` blocks. Variables must be prefixed with `$`.
 
+### Logic Functions
+StoryScript supports top-level user-defined logic blocks for reusable PREP-side computation.
+
+Syntax:
+
+```plaintext
+logic apply_damage($amount as integer) {
+    $system_stability = $system_stability - $amount;
+}
+
+logic get_variance($modifier as integer) -> integer {
+    $total as integer = $system_stability + $modifier;
+    return $total;
+}
+```
+
+Rules:
+* Logic declarations are allowed only at top-level (same level as `* INIT` and scenes).
+* Parameter syntax is mandatory typed form: `$name as <type>`.
+* Optional return annotation uses `-> <type>`.
+* Logic calls are valid only in `#PREP` and inside logic bodies.
+* Logic calls are forbidden in `* INIT` expressions and in `#STORY` expressions.
+* `return` is valid only inside logic bodies.
+* Void logic (no `-> <type>`) must not return a value.
+* Typed logic (`-> <type>`) must return a compatible value on all reachable paths.
+* Recursion is forbidden in v1 (direct or indirect call cycles fail compile-time).
+* Multiple `@bg` / `@bgm` / `@sfx` directives inside logic or PREP are valid and execute in source order.
+* For `@bg` and `@bgm`, later directives override earlier state (`@bgm STOP` clears BGM).
+
 
 ### Branching Syntax
 Use C-style branch chains in both `#PREP` and `#STORY`:
@@ -393,6 +422,17 @@ The compiler must fail the script when any of the following is true:
 * Any expression uses incompatible operand types for its operator.
 * Any modulo expression (`%`) uses non-integer operands.
 * Any expression calls an unknown function name.
+* Any duplicate logic declaration name exists.
+* Any logic declaration reuses a built-in function name.
+* Any logic declaration contains duplicate parameter names.
+* Any logic call appears in `* INIT` expression context.
+* Any logic call appears in `#STORY` expression context.
+* Any logic call has arity mismatch or incompatible argument types.
+* Any `return` appears outside a logic body.
+* Any typed logic function has a reachable path without `return`.
+* Any logic `return` value is incompatible with declared return type.
+* Any void logic function returns a value.
+* Any direct or indirect recursive logic call cycle exists.
 * Any `abs()` call uses non-numeric argument or wrong arity.
 * Any `rand()`/`rand(min,max)` call is used without typed assignment context.
 * Any `rand(min,max)` call has incompatible bound types for assignment target type.
@@ -464,9 +504,15 @@ Diagnostic code naming:
 | `E_VARIABLE_COMPOUND_ASSIGN_INVALID` | Compound assignment (`+=`, `-=`) is used on non-numeric variable type. |
 | `E_EXPRESSION_TYPE_INVALID` | Expression operator is used with incompatible operand types. |
 | `E_FUNCTION_UNKNOWN` | Function name is not recognized. |
+| `E_FUNCTION_DUPLICATE` | Duplicate logic function name exists, or a logic name conflicts with a reserved built-in function name. |
+| `E_FUNCTION_PARAM_DUPLICATE` | Logic declaration contains duplicate parameter names. |
 | `E_FUNCTION_ARITY_INVALID` | Function call has invalid argument count. |
 | `E_FUNCTION_CONTEXT_INVALID` | Function call is used in an invalid context (for example: `rand()` outside typed assignment context). |
 | `E_FUNCTION_ARGUMENT_INVALID` | Function argument type or shape is invalid. |
+| `E_FUNCTION_RETURN_MISSING` | Typed logic function does not return on all reachable paths. |
+| `E_RETURN_CONTEXT_INVALID` | `return` is used outside a logic body. |
+| `E_RETURN_TYPE_MISMATCH` | Logic return expression is incompatible with declared return type, or void/typed return form is invalid. |
+| `E_FUNCTION_RECURSION_FORBIDDEN` | Direct or indirect recursive logic call cycle is detected. |
 | `E_RANGE_INVALID` | Function range input is invalid (for example: `rand(min,max)` where `min > max`). |
 | `E_LIST_EMPTY` | Function requires non-empty list argument but received empty list. |
 | `E_CONDITION_TYPE_INVALID` | Condition expression does not evaluate to boolean. |
@@ -533,6 +579,19 @@ Diagnostic code naming:
 | `ARR010` | Runtime `pick(count, array)` receives count greater than array size (or negative). | `R_ARRAY_SAMPLE_COUNT_INVALID` | Sampling cardinality cannot exceed available members. |
 | `ARR011` | Runtime array index operation is outside valid bounds. | `R_ARRAY_INDEX_OUT_OF_RANGE` | Ensures deterministic failure for invalid index access. |
 | `ARR012` | Runtime pop/get/remove operation requires element but array is empty. | `R_ARRAY_EMPTY` | Empty-collection element access/removal is invalid. |
+
+#### Logic Function Diagnostic Mapping
+| Rule ID | Validation Condition | Diagnostic Code | Rationale |
+| :--- | :--- | :--- | :--- |
+| `LOGIC001` | Duplicate logic declaration name, or logic name collides with built-in function name. | `E_FUNCTION_DUPLICATE` | Ensures deterministic call resolution and protects reserved built-ins. |
+| `LOGIC002` | A logic declaration repeats a parameter name. | `E_FUNCTION_PARAM_DUPLICATE` | Prevents ambiguous parameter binding. |
+| `LOGIC003` | Logic call appears outside PREP/logic body (for example in INIT or STORY expression). | `E_FUNCTION_CONTEXT_INVALID` | Enforces phase-bounded side-effect model. |
+| `LOGIC004` | Logic call argument count does not match declaration arity. | `E_FUNCTION_ARITY_INVALID` | Reuses standard function arity contract. |
+| `LOGIC005` | Logic call argument type is incompatible with parameter type. | `E_FUNCTION_ARGUMENT_INVALID` | Reuses standard function argument type contract. |
+| `LOGIC006` | `return` appears outside logic body. | `E_RETURN_CONTEXT_INVALID` | Keeps return semantics scoped to logic bodies only. |
+| `LOGIC007` | Typed logic has a reachable path without `return`. | `E_FUNCTION_RETURN_MISSING` | Enforces complete return contract for typed logic. |
+| `LOGIC008` | Return expression/type form mismatches declared return contract. | `E_RETURN_TYPE_MISMATCH` | Separates return-contract typing from generic expression typing. |
+| `LOGIC009` | Direct or indirect recursive logic cycle is present. | `E_FUNCTION_RECURSION_FORBIDDEN` | v1 recursion is intentionally compile-time forbidden. |
 
 #### Compile-Time Warnings
 | Code | Trigger |

@@ -76,6 +76,7 @@ StoryScript uses:
 - Nested `@choice` entry groups using `if`, `repeat`, and `for ($item in snapshot $array)` (runtime-expanded choice cap: 9 options)
 - Numeric expressions with `+`, `-`, `*`, `/`, `%` (modulo is integer-only)
 - Built-ins: `abs(x)`, `rand()`, `rand(min, max)`, `pick(array)`, `pick(count, array)`, `array_push`, `array_pop`, `array_strip`, `array_clear`, `array_contains`, `array_size`, `array_join`, `array_get`, `array_insert`, `array_remove`
+- Top-level user logic declarations: `logic name($param as type, ...) { ... }` with optional typed return `-> type`
 - `${var}` inline interpolation in string literals across all phases (`\$` for literal dollar)
 - Typed declarations in `* INIT` using `as integer|string|boolean|decimal|array<...>`
 - Typed local declarations in `#PREP` using the same shape: `$name as <type> = <expr>`

@@ -97,11 +97,12 @@ enum CallMode {
     Statement,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 enum PrepFlow {
     Next,
     BreakLoop,
     ContinueLoop,
+    Return(Option<Value>),
     Error,
 }
 
@@ -122,6 +123,7 @@ const CHOICE_OPTION_CAP: usize = 9;
 
 pub struct Engine {
     scenes: HashMap<String, Scene>,
+    logic_blocks: HashMap<String, LogicBlock>,
     actors: HashMap<String, ActorInfo>,
     pub variables: HashMap<String, Value>,
     var_types: HashMap<String, VarType>,
@@ -165,10 +167,16 @@ impl Engine {
             scenes.insert(scene.label.clone(), scene.clone());
         }
 
+        let mut logic_blocks = HashMap::new();
+        for logic in &script.logic_blocks {
+            logic_blocks.insert(logic.name.clone(), logic.clone());
+        }
+
         let start = script.init.start.target.clone();
 
         let mut engine = Engine {
             scenes,
+            logic_blocks,
             actors,
             variables,
             var_types,
@@ -224,10 +232,16 @@ impl Engine {
     // -----------------------------------------------------------------------
 
     fn execute_prep(&mut self, stmts: &[PrepStatement]) -> bool {
-        matches!(self.execute_prep_block(stmts, false), PrepFlow::Next)
+        matches!(self.execute_prep_block(stmts, false, false, None), PrepFlow::Next)
     }
 
-    fn execute_prep_block(&mut self, stmts: &[PrepStatement], in_loop: bool) -> PrepFlow {
+    fn execute_prep_block(
+        &mut self,
+        stmts: &[PrepStatement],
+        in_loop: bool,
+        in_logic: bool,
+        logic_return_type: Option<VarType>,
+    ) -> PrepFlow {
         for stmt in stmts {
             match stmt {
                 PrepStatement::BgDirective { path, .. } => {
@@ -457,9 +471,19 @@ impl Engine {
                     };
 
                     let branch_flow = if condition {
-                        self.execute_prep_block(&if_else.then_branch, in_loop)
+                        self.execute_prep_block(
+                            &if_else.then_branch,
+                            in_loop,
+                            in_logic,
+                            logic_return_type,
+                        )
                     } else if let Some(else_branch) = &if_else.else_branch {
-                        self.execute_prep_block(else_branch, in_loop)
+                        self.execute_prep_block(
+                            else_branch,
+                            in_loop,
+                            in_logic,
+                            logic_return_type,
+                        )
                     } else {
                         PrepFlow::Next
                     };
@@ -482,10 +506,23 @@ impl Engine {
                     for item in snapshot_items {
                         self.local_variables.insert(loop_stmt.item_name.clone(), item);
 
-                        match self.execute_prep_block(&loop_stmt.body, true) {
+                        match self.execute_prep_block(
+                            &loop_stmt.body,
+                            true,
+                            in_logic,
+                            logic_return_type,
+                        ) {
                             PrepFlow::Next => {}
                             PrepFlow::ContinueLoop => continue,
                             PrepFlow::BreakLoop => break,
+                            PrepFlow::Return(value) => {
+                                self.restore_loop_binding(
+                                    &loop_stmt.item_name,
+                                    previous_type,
+                                    previous_value,
+                                );
+                                return PrepFlow::Return(value);
+                            }
                             PrepFlow::Error => {
                                 self.restore_loop_binding(
                                     &loop_stmt.item_name,
@@ -506,10 +543,16 @@ impl Engine {
                     };
 
                     for _ in 0..count {
-                        match self.execute_prep_block(&repeat_stmt.body, true) {
+                        match self.execute_prep_block(
+                            &repeat_stmt.body,
+                            true,
+                            in_logic,
+                            logic_return_type,
+                        ) {
                             PrepFlow::Next => {}
                             PrepFlow::ContinueLoop => continue,
                             PrepFlow::BreakLoop => break,
+                            PrepFlow::Return(value) => return PrepFlow::Return(value),
                             PrepFlow::Error => return PrepFlow::Error,
                         }
                     }
@@ -533,6 +576,55 @@ impl Engine {
                         "continue is only valid inside loop bodies".to_string(),
                     );
                     return PrepFlow::Error;
+                }
+                PrepStatement::Return { value, .. } => {
+                    if !in_logic {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            "return is only valid inside logic blocks".to_string(),
+                        );
+                        return PrepFlow::Error;
+                    }
+
+                    let returned = match (logic_return_type, value) {
+                        (None, None) => None,
+                        (None, Some(_)) => {
+                            self.raise_runtime_error(
+                                "RUNTIME",
+                                "Void logic function cannot return a value".to_string(),
+                            );
+                            return PrepFlow::Error;
+                        }
+                        (Some(_), None) => {
+                            self.raise_runtime_error(
+                                "RUNTIME",
+                                "Typed logic function must return a value".to_string(),
+                            );
+                            return PrepFlow::Error;
+                        }
+                        (Some(expected), Some(expr)) => {
+                            let raw = match self.eval_expr(expr, Some(expected)) {
+                                Some(v) => v,
+                                None => return PrepFlow::Error,
+                            };
+                            match coerce_value_for_type(raw.clone(), expected) {
+                                Some(v) => Some(v),
+                                None => {
+                                    self.raise_runtime_error(
+                                        "RUNTIME",
+                                        format!(
+                                            "return expression type {} is incompatible with {}",
+                                            type_name(value_type(&raw)),
+                                            type_name(expected)
+                                        ),
+                                    );
+                                    return PrepFlow::Error;
+                                }
+                            }
+                        }
+                    };
+
+                    return PrepFlow::Return(returned);
                 }
             }
         }
@@ -1432,11 +1524,15 @@ impl Engine {
         &mut self,
         name: &str,
         args: &[Expr],
-        _line: usize,
-        _column: usize,
+        line: usize,
+        column: usize,
         assignment_target: Option<VarType>,
         mode: CallMode,
     ) -> Option<Value> {
+        if self.logic_blocks.contains_key(name) {
+            return self.eval_logic_call(name, args, line, column, assignment_target, mode);
+        }
+
         match name {
             "abs" => {
                 if args.len() != 1 {
@@ -2097,6 +2193,183 @@ impl Engine {
                 None
             }
         }
+    }
+
+    fn eval_logic_call(
+        &mut self,
+        name: &str,
+        args: &[Expr],
+        _line: usize,
+        _column: usize,
+        _assignment_target: Option<VarType>,
+        mode: CallMode,
+    ) -> Option<Value> {
+        let logic = match self.logic_blocks.get(name).cloned() {
+            Some(block) => block,
+            None => {
+                self.raise_runtime_error("RUNTIME", format!("Unknown function '{}'", name));
+                return None;
+            }
+        };
+
+        if args.len() != logic.params.len() {
+            self.raise_runtime_error(
+                "RUNTIME",
+                format!(
+                    "{}() expects exactly {} arguments, found {}",
+                    name,
+                    logic.params.len(),
+                    args.len()
+                ),
+            );
+            return None;
+        }
+
+        let baseline_local_types = self.local_var_types.clone();
+        let baseline_local_values = self.local_variables.clone();
+        let baseline_local_names: Vec<String> = baseline_local_types.keys().cloned().collect();
+
+        for (arg_expr, param) in args.iter().zip(logic.params.iter()) {
+            if self.local_var_types.contains_key(&param.name) {
+                self.raise_runtime_error(
+                    "RUNTIME",
+                    format!(
+                        "Logic parameter '${}' conflicts with existing local variable",
+                        param.name
+                    ),
+                );
+                self.restore_logic_scope(
+                    baseline_local_types.clone(),
+                    baseline_local_values.clone(),
+                    baseline_local_names.clone(),
+                );
+                return None;
+            }
+
+            let raw = match self.eval_expr(arg_expr, Some(param.var_type)) {
+                Some(value) => value,
+                None => {
+                    self.restore_logic_scope(
+                        baseline_local_types.clone(),
+                        baseline_local_values.clone(),
+                        baseline_local_names.clone(),
+                    );
+                    return None;
+                }
+            };
+
+            let coerced = match coerce_value_for_type(raw.clone(), param.var_type) {
+                Some(value) => value,
+                None => {
+                    self.raise_runtime_error(
+                        "RUNTIME",
+                        format!(
+                            "Argument for '${}' is incompatible with {}",
+                            param.name,
+                            type_name(param.var_type)
+                        ),
+                    );
+                    self.restore_logic_scope(
+                        baseline_local_types.clone(),
+                        baseline_local_values.clone(),
+                        baseline_local_names.clone(),
+                    );
+                    return None;
+                }
+            };
+
+            self.local_var_types.insert(param.name.clone(), param.var_type);
+            self.local_variables.insert(param.name.clone(), coerced);
+        }
+
+        let flow = self.execute_prep_block(&logic.body, false, true, logic.return_type);
+        let result = match (logic.return_type, flow) {
+            (_, PrepFlow::Error) => None,
+            (_, PrepFlow::BreakLoop | PrepFlow::ContinueLoop) => {
+                self.raise_runtime_error(
+                    "RUNTIME",
+                    format!("Logic function '{}' terminated with invalid loop control", name),
+                );
+                None
+            }
+            (None, PrepFlow::Next) => {
+                if mode == CallMode::Expression {
+                    self.raise_runtime_error(
+                        "RUNTIME",
+                        format!("{}() returns void and cannot be used as an expression", name),
+                    );
+                    None
+                } else {
+                    Some(Value::Bool(true))
+                }
+            }
+            (None, PrepFlow::Return(Some(_))) => {
+                self.raise_runtime_error(
+                    "RUNTIME",
+                    format!("Void logic function '{}' cannot return a value", name),
+                );
+                None
+            }
+            (None, PrepFlow::Return(None)) => Some(Value::Bool(true)),
+            (Some(return_type), PrepFlow::Next) => {
+                self.raise_runtime_error(
+                    "RUNTIME",
+                    format!(
+                        "Logic function '{}' must return a value of type {}",
+                        name,
+                        type_name(return_type)
+                    ),
+                );
+                None
+            }
+            (Some(_), PrepFlow::Return(None)) => {
+                self.raise_runtime_error(
+                    "RUNTIME",
+                    format!("Logic function '{}' returned without a value", name),
+                );
+                None
+            }
+            (Some(return_type), PrepFlow::Return(Some(value))) => {
+                match coerce_value_for_type(value, return_type) {
+                    Some(v) => Some(v),
+                    None => {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            format!(
+                                "Logic function '{}' returned incompatible value for {}",
+                                name,
+                                type_name(return_type)
+                            ),
+                        );
+                        None
+                    }
+                }
+            }
+        };
+
+        self.restore_logic_scope(
+            baseline_local_types,
+            baseline_local_values,
+            baseline_local_names,
+        );
+
+        result
+    }
+
+    fn restore_logic_scope(
+        &mut self,
+        baseline_types: HashMap<String, VarType>,
+        mut baseline_values: HashMap<String, Value>,
+        baseline_local_names: Vec<String>,
+    ) {
+        for name in baseline_local_names {
+            if let Some(value) = self.local_variables.get(&name).cloned() {
+                baseline_values.insert(name, value);
+            }
+        }
+
+        self.local_var_types = baseline_types;
+        self.local_variables = baseline_values;
     }
 
     fn resolve_string_or_error(&mut self, template: &str, context: &str) -> Option<String> {

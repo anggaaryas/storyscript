@@ -5,6 +5,7 @@ use rust_decimal::Decimal;
 #[derive(Debug, Clone)]
 pub struct Script {
     pub init: InitBlock,
+    pub logic_blocks: Vec<LogicBlock>,
     pub scenes: Vec<Scene>,
 }
 
@@ -32,7 +33,26 @@ pub struct IncludeDirective {
 #[derive(Debug, Clone)]
 pub struct ChildModule {
     pub require: RequireBlock,
+    pub logic_blocks: Vec<LogicBlock>,
     pub scenes: Vec<Scene>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LogicBlock {
+    pub name: String,
+    pub params: Vec<LogicParam>,
+    pub return_type: Option<VarType>,
+    pub body: Vec<PrepStatement>,
+    pub line: usize,
+    pub column: usize,
+}
+
+#[derive(Debug, Clone)]
+pub struct LogicParam {
+    pub name: String,
+    pub var_type: VarType,
+    pub line: usize,
+    pub column: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -164,6 +184,11 @@ pub enum PrepStatement {
         column: usize,
     },
     Continue {
+        line: usize,
+        column: usize,
+    },
+    Return {
+        value: Option<Expr>,
         line: usize,
         column: usize,
     },

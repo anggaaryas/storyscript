@@ -219,7 +219,7 @@
     },
 
     "control-flow": {
-      "match": "\\b(if|else|for|repeat|break|continue|in|snapshot)\\b",
+      "match": "\\b(logic|return|if|else|for|repeat|break|continue|in|snapshot)\\b",
       "name": "keyword.control.flow.storyscript"
     },
 
@@ -230,7 +230,7 @@
           "name": "keyword.control.type.as.storyscript"
         },
         {
-          "match": "\\b(integer|string|boolean|decimal)\\b",
+          "match": "\\b(integer|string|boolean|decimal|array)\\b",
           "name": "storage.type.storyscript"
         }
       ]

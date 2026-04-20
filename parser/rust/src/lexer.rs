@@ -170,6 +170,8 @@ impl Lexer {
             "REQUIRE" => Token::Require,
             "if" => Token::If,
             "else" => Token::Else,
+            "logic" => Token::Logic,
+            "return" => Token::Return,
             "for" => Token::For,
             "repeat" => Token::Repeat,
             "in" => Token::In,

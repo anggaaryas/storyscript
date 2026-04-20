@@ -13,6 +13,7 @@ Produce a complete feature specification update where every feature change inclu
 - A zero-ambiguity scope contract.
 - Compile-time validation rules.
 - Standard diagnostic code mapping.
+- Explicit synchronization across all implementation artifacts: `PLAN.md`, parser, player, VS Code tooling, and Flutter integration.
 - At least one executable example .StoryScript file.
 
 ## Use When
@@ -25,13 +26,20 @@ Produce a complete feature specification update where every feature change inclu
 - Feature name.
 - Feature intent (what user problem it solves).
 - Current files to update (at minimum: PLAN.md and one example file path).
+- List of impacted implementation artifacts, including parser, player, VS Code tooling, and Flutter integration when applicable.
 
 If any required input is missing, stop and ask for it before drafting changes.
 
 ## Procedure
 1. Define scope contract first.
 2. Draft language semantics and syntax.
-3. Add compile-time validation rules.
+3. For every feature, identify the affected artifacts and explicitly document how the change is synchronized across:
+   - `PLAN.md` semantics and validation rules
+   - `parser/rust` diagnostics and parser shape
+   - `player` or `storyscript_player_core` runtime behavior
+   - `tool/vscode-storyscript` editor/language tooling support
+   - `storyscript_player_core` Flutter bindings or Flutter runtime interfaces
+4. Add compile-time validation rules.
 4. Map each rule to standard diagnostic codes.
 5. Add or update a representative example .StoryScript file.
 6. Run completion checks and publish the feature bundle.
@@ -100,6 +108,10 @@ A feature update is complete only if all checks pass:
 - Compile-time validation rules exist for all new constraints.
 - Diagnostic mapping table exists and all codes resolve to standard naming.
 - Example .StoryScript file exists in [example](../../../example/) and matches semantics.
+- Parser implementation is updated for syntax, diagnostics, or validation behavior.
+- Player/runtime implementation is updated for semantics and any runtime behavior changes.
+- VS Code tooling support is updated for syntax highlighting, validation, or completion if the feature changes editor-visible syntax.
+- Flutter integration or bindings are updated when the feature affects the Flutter runtime or API surface.
 - If new code added: both PLAN and [parser/rust/src/diagnostic.rs](../../../parser/rust/src/diagnostic.rs) are updated consistently.
 
 ## Branching Logic

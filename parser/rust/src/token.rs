@@ -30,6 +30,8 @@ pub enum Token {
     Require,   // REQUIRE
     HashPrep,  // #PREP
     HashStory, // #STORY
+    Logic,
+    Return,
 
     // Directives
     AtActor,  // @actor
@@ -102,6 +104,8 @@ impl Token {
             Token::Require => "'REQUIRE'",
             Token::HashPrep => "'#PREP'",
             Token::HashStory => "'#STORY'",
+            Token::Logic => "'logic'",
+            Token::Return => "'return'",
             Token::AtActor => "'@actor'",
             Token::AtBg => "'@bg'",
             Token::AtBgm => "'@bgm'",

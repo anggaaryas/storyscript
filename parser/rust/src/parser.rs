@@ -80,20 +80,49 @@ impl Parser {
 
     pub fn parse(&mut self) -> Option<Script> {
         let init = self.parse_init_block()?;
+        let mut logic_blocks = Vec::new();
         let mut scenes = Vec::new();
         while self.peek() != &Token::Eof {
-            if let Some(scene) = self.parse_scene() {
-                scenes.push(scene);
-            } else {
-                // Recovery: skip to next '*'
-                self.advance();
+            match self.peek() {
+                Token::Logic => {
+                    if let Some(logic_block) = self.parse_logic_block("GLOBAL") {
+                        logic_blocks.push(logic_block);
+                    } else {
+                        self.advance();
+                    }
+                }
+                Token::Star => {
+                    if let Some(scene) = self.parse_scene() {
+                        scenes.push(scene);
+                    } else {
+                        // Recovery: skip to next '*'
+                        self.advance();
+                    }
+                }
+                _ => {
+                    let (l, c) = self.current_span();
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticCode::ESyntax,
+                        format!("Unexpected token {} at top-level", self.peek().name()),
+                        Phase::Parse,
+                        "GLOBAL",
+                        l,
+                        c,
+                    ));
+                    self.advance();
+                }
             }
         }
-        Some(Script { init, scenes })
+        Some(Script {
+            init,
+            logic_blocks,
+            scenes,
+        })
     }
 
     pub fn parse_child_module(&mut self) -> Option<ChildModule> {
         let mut require: Option<RequireBlock> = None;
+        let mut logic_blocks = Vec::new();
         let mut scenes = Vec::new();
 
         while self.peek() != &Token::Eof {
@@ -150,6 +179,13 @@ impl Parser {
                         self.advance();
                     }
                 },
+                Token::Logic => {
+                    if let Some(logic_block) = self.parse_logic_block("GLOBAL") {
+                        logic_blocks.push(logic_block);
+                    } else {
+                        self.advance();
+                    }
+                }
                 Token::AtInclude => {
                     let (l, c) = self.current_span();
                     self.diagnostics.push(Diagnostic::new(
@@ -213,7 +249,11 @@ impl Parser {
             }
         };
 
-        Some(ChildModule { require, scenes })
+        Some(ChildModule {
+            require,
+            logic_blocks,
+            scenes,
+        })
     }
 
     // -----------------------------------------------------------------------
@@ -754,6 +794,390 @@ impl Parser {
     }
 
     // -----------------------------------------------------------------------
+    // Top-level logic blocks
+    // -----------------------------------------------------------------------
+
+    fn parse_logic_block(&mut self, scene: &str) -> Option<LogicBlock> {
+        let (line, column) = self.current_span();
+        if !self.expect(&Token::Logic) {
+            return None;
+        }
+
+        let name = if let Token::Ident(name) = self.peek().clone() {
+            self.advance();
+            name
+        } else {
+            self.diagnostics.push(Diagnostic::new(
+                DiagnosticCode::ESyntax,
+                "Expected logic function name after 'logic'",
+                Phase::Parse,
+                scene,
+                line,
+                column,
+            ));
+            return None;
+        };
+
+        if !self.expect(&Token::LParen) {
+            return None;
+        }
+        let params = self.parse_logic_param_list(scene)?;
+        if !self.expect(&Token::RParen) {
+            return None;
+        }
+
+        let return_type = if self.peek() == &Token::Arrow {
+            self.advance();
+            Some(self.parse_var_type(scene)?)
+        } else {
+            None
+        };
+
+        if !self.expect(&Token::LBrace) {
+            return None;
+        }
+
+        let mut body = Vec::new();
+        while self.peek() != &Token::RBrace && self.peek() != &Token::Eof {
+            if let Some(stmt) = self.parse_logic_statement(&name) {
+                body.push(stmt);
+            } else {
+                self.advance();
+            }
+        }
+        if !self.expect(&Token::RBrace) {
+            return None;
+        }
+
+        Some(LogicBlock {
+            name,
+            params,
+            return_type,
+            body,
+            line,
+            column,
+        })
+    }
+
+    fn parse_logic_param_list(&mut self, scene: &str) -> Option<Vec<LogicParam>> {
+        let mut params = Vec::new();
+
+        if self.peek() == &Token::RParen {
+            return Some(params);
+        }
+
+        loop {
+            let (line, column) = self.current_span();
+            if !self.expect(&Token::Dollar) {
+                return None;
+            }
+
+            let name = if let Token::Ident(name) = self.peek().clone() {
+                self.advance();
+                name
+            } else {
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticCode::ESyntax,
+                    "Expected parameter name after '$'",
+                    Phase::Parse,
+                    scene,
+                    line,
+                    column,
+                ));
+                return None;
+            };
+
+            if !self.expect(&Token::As) {
+                return None;
+            }
+            let var_type = self.parse_var_type(scene)?;
+
+            params.push(LogicParam {
+                name,
+                var_type,
+                line,
+                column,
+            });
+
+            if self.peek() == &Token::Comma {
+                self.advance();
+                continue;
+            }
+            break;
+        }
+
+        Some(params)
+    }
+
+    fn parse_logic_statement(&mut self, scene: &str) -> Option<PrepStatement> {
+        match self.peek().clone() {
+            Token::AtBg => {
+                let (l, c) = self.current_span();
+                self.advance();
+                if let Token::StringLit(path) = self.peek().clone() {
+                    self.advance();
+                    self.eat_optional_semicolon();
+                    Some(PrepStatement::BgDirective {
+                        path,
+                        line: l,
+                        column: c,
+                    })
+                } else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticCode::ESyntax,
+                        "Expected path string after @bg",
+                        Phase::Parse,
+                        scene,
+                        l,
+                        c,
+                    ));
+                    None
+                }
+            }
+            Token::AtBgm => {
+                let (l, c) = self.current_span();
+                self.advance();
+                let value = if self.peek() == &Token::Stop {
+                    self.advance();
+                    BgmValue::Stop
+                } else if let Token::StringLit(path) = self.peek().clone() {
+                    self.advance();
+                    BgmValue::Path(path)
+                } else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticCode::ESyntax,
+                        "Expected path string or STOP after @bgm",
+                        Phase::Parse,
+                        scene,
+                        l,
+                        c,
+                    ));
+                    return None;
+                };
+                self.eat_optional_semicolon();
+                Some(PrepStatement::BgmDirective {
+                    value,
+                    line: l,
+                    column: c,
+                })
+            }
+            Token::AtSfx => {
+                let (l, c) = self.current_span();
+                self.advance();
+                if let Token::StringLit(path) = self.peek().clone() {
+                    self.advance();
+                    self.eat_optional_semicolon();
+                    Some(PrepStatement::SfxDirective {
+                        path,
+                        line: l,
+                        column: c,
+                    })
+                } else {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticCode::ESyntax,
+                        "Expected path string after @sfx",
+                        Phase::Parse,
+                        scene,
+                        l,
+                        c,
+                    ));
+                    None
+                }
+            }
+            Token::Dollar => {
+                if matches!(self.peek_n(1), Token::Ident(_)) && self.peek_n(2) == &Token::As {
+                    if let Some(decl) = self.parse_scene_var_decl(scene) {
+                        Some(PrepStatement::VarDecl(decl))
+                    } else {
+                        None
+                    }
+                } else if let Some(assign) = self.parse_var_assign(scene) {
+                    Some(PrepStatement::VarAssign(assign))
+                } else {
+                    None
+                }
+            }
+            Token::If => {
+                if let Some(if_else) = self.parse_logic_if_else(scene) {
+                    Some(PrepStatement::IfElse(if_else))
+                } else {
+                    None
+                }
+            }
+            Token::For => self.parse_logic_for_snapshot(scene),
+            Token::Repeat => self.parse_logic_repeat(scene),
+            Token::Break => {
+                let (line, column) = self.current_span();
+                self.advance();
+                self.eat_optional_semicolon();
+                Some(PrepStatement::Break { line, column })
+            }
+            Token::Continue => {
+                let (line, column) = self.current_span();
+                self.advance();
+                self.eat_optional_semicolon();
+                Some(PrepStatement::Continue { line, column })
+            }
+            Token::Return => self.parse_return_statement(scene),
+            Token::Ident(_) => self.parse_prep_call_statement(scene),
+            _ => {
+                let (l, c) = self.current_span();
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticCode::EPhaseTokenForbidden,
+                    format!("Token {} is not allowed in logic block", self.peek().name()),
+                    Phase::Parse,
+                    scene,
+                    l,
+                    c,
+                ));
+                None
+            }
+        }
+    }
+
+    fn parse_logic_if_else(&mut self, scene: &str) -> Option<PrepIfElse> {
+        let (line, column) = self.current_span();
+        self.advance(); // if
+
+        if !self.expect(&Token::LParen) {
+            return None;
+        }
+        let condition = self.parse_expression()?;
+        if !self.expect(&Token::RParen) {
+            return None;
+        }
+        if !self.expect(&Token::LBrace) {
+            return None;
+        }
+
+        let mut then_branch = Vec::new();
+        while self.peek() != &Token::RBrace && self.peek() != &Token::Eof {
+            if let Some(stmt) = self.parse_logic_statement(scene) {
+                then_branch.push(stmt);
+            } else {
+                self.advance();
+            }
+        }
+        self.expect(&Token::RBrace);
+
+        let else_branch = if self.peek() == &Token::Else {
+            self.advance();
+            if self.peek() == &Token::If {
+                let nested_if = self.parse_logic_if_else(scene)?;
+                Some(vec![PrepStatement::IfElse(nested_if)])
+            } else {
+                if !self.expect(&Token::LBrace) {
+                    return None;
+                } else {
+                    let mut stmts = Vec::new();
+                    while self.peek() != &Token::RBrace && self.peek() != &Token::Eof {
+                        if let Some(stmt) = self.parse_logic_statement(scene) {
+                            stmts.push(stmt);
+                        } else {
+                            self.advance();
+                        }
+                    }
+                    self.expect(&Token::RBrace);
+                    Some(stmts)
+                }
+            }
+        } else {
+            None
+        };
+
+        Some(PrepIfElse {
+            condition,
+            then_branch,
+            else_branch,
+            line,
+            column,
+        })
+    }
+
+    fn parse_logic_for_snapshot(&mut self, scene: &str) -> Option<PrepStatement> {
+        let (line, column) = self.current_span();
+        self.advance(); // for
+
+        let (item_name, array_name) = self.parse_for_snapshot_header(scene, line, column)?;
+        if !self.expect(&Token::LBrace) {
+            return None;
+        }
+
+        let mut body = Vec::new();
+        while self.peek() != &Token::RBrace && self.peek() != &Token::Eof {
+            if let Some(stmt) = self.parse_logic_statement(scene) {
+                body.push(stmt);
+            } else {
+                self.advance();
+            }
+        }
+        if !self.expect(&Token::RBrace) {
+            return None;
+        }
+
+        Some(PrepStatement::ForSnapshot(PrepForSnapshot {
+            item_name,
+            array_name,
+            body,
+            line,
+            column,
+        }))
+    }
+
+    fn parse_logic_repeat(&mut self, scene: &str) -> Option<PrepStatement> {
+        let (line, column) = self.current_span();
+        self.advance(); // repeat
+
+        if !self.expect(&Token::LParen) {
+            return None;
+        }
+        let count = self.parse_repeat_count(scene)?;
+        if !self.expect(&Token::RParen) {
+            return None;
+        }
+        if !self.expect(&Token::LBrace) {
+            return None;
+        }
+
+        let mut body = Vec::new();
+        while self.peek() != &Token::RBrace && self.peek() != &Token::Eof {
+            if let Some(stmt) = self.parse_logic_statement(scene) {
+                body.push(stmt);
+            } else {
+                self.advance();
+            }
+        }
+        if !self.expect(&Token::RBrace) {
+            return None;
+        }
+
+        Some(PrepStatement::Repeat(PrepRepeat {
+            count,
+            body,
+            line,
+            column,
+        }))
+    }
+
+    fn parse_return_statement(&mut self, _scene: &str) -> Option<PrepStatement> {
+        let (line, column) = self.current_span();
+        self.advance(); // return
+
+        let value = if matches!(self.peek(), Token::Semicolon | Token::RBrace) {
+            None
+        } else {
+            Some(self.parse_expression()?)
+        };
+
+        self.eat_optional_semicolon();
+        Some(PrepStatement::Return {
+            value,
+            line,
+            column,
+        })
+    }
+
+    // -----------------------------------------------------------------------
     // Scene
     // -----------------------------------------------------------------------
 
@@ -1002,6 +1426,23 @@ impl Parser {
                 self.advance();
                 self.eat_optional_semicolon();
                 Some(PrepStatement::Continue { line, column })
+            }
+            Token::Return => {
+                let (l, c) = self.current_span();
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticCode::EPhaseTokenForbidden,
+                    "return is only allowed inside logic blocks",
+                    Phase::Parse,
+                    scene,
+                    l,
+                    c,
+                ));
+                self.advance();
+                if !matches!(self.peek(), Token::Semicolon | Token::RBrace) {
+                    let _ = self.parse_expression();
+                }
+                self.eat_optional_semicolon();
+                None
             }
             Token::Ident(_) => self.parse_prep_call_statement(scene),
             _ => {

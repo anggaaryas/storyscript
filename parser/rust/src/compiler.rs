@@ -108,6 +108,7 @@ pub fn compile_file(path: &Path) -> Result<CompileOutput, String> {
     }
 
     for module in &modules {
+        root_script.logic_blocks.extend(module.logic_blocks.clone());
         root_script.scenes.extend(module.scenes.clone());
     }
 
