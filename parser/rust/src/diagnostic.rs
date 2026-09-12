@@ -4,6 +4,7 @@ use std::fmt;
 pub enum DiagnosticCode {
     // Compile-time errors
     ESyntax,
+    ENumericLiteralInvalid,
     EInitCount,
     EInitOrder,
     EStartCount,
@@ -77,6 +78,7 @@ impl fmt::Display for DiagnosticCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             Self::ESyntax => "E_SYNTAX",
+            Self::ENumericLiteralInvalid => "E_NUMERIC_LITERAL_INVALID",
             Self::EInitCount => "E_INIT_COUNT",
             Self::EInitOrder => "E_INIT_ORDER",
             Self::EStartCount => "E_START_COUNT",

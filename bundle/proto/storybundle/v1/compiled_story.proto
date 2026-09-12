@@ -1,0 +1,332 @@
+syntax = "proto3";
+
+package storybundle.v1;
+
+import "google/protobuf/empty.proto";
+
+// Canonical, source-free StoryScript semantic model for .storybundle v1.
+message CompiledStory {
+  uint32 format_version = 1;
+  ProjectMetadata project = 2;
+  Initialization initialization = 3;
+  repeated LogicBlock logic_blocks = 4;
+  repeated Scene scenes = 5;
+}
+
+message ProjectMetadata {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+}
+
+message Initialization {
+  repeated VariableDefinition variables = 1;
+  repeated Actor actors = 2;
+  string start_scene = 3;
+}
+
+enum VariableType {
+  VARIABLE_TYPE_UNSPECIFIED = 0;
+  VARIABLE_TYPE_INTEGER = 1;
+  VARIABLE_TYPE_STRING = 2;
+  VARIABLE_TYPE_BOOLEAN = 3;
+  VARIABLE_TYPE_DECIMAL = 4;
+  VARIABLE_TYPE_ARRAY_INTEGER = 5;
+  VARIABLE_TYPE_ARRAY_STRING = 6;
+  VARIABLE_TYPE_ARRAY_BOOLEAN = 7;
+  VARIABLE_TYPE_ARRAY_DECIMAL = 8;
+}
+
+message VariableDefinition {
+  string name = 1;
+  VariableType type = 2;
+  Expression value = 3;
+}
+
+message Actor {
+  string id = 1;
+  InterpolatedString display_name = 2;
+  repeated Portrait portraits = 3;
+}
+
+message Portrait {
+  string emotion = 1;
+  InterpolatedString asset_path = 2;
+}
+
+message InterpolatedString {
+  repeated StringSegment segments = 1;
+}
+
+message StringSegment {
+  oneof value {
+    string literal = 1;
+    string variable = 2;
+  }
+}
+
+message LogicBlock {
+  string name = 1;
+  repeated LogicParameter parameters = 2;
+  optional VariableType return_type = 3;
+  repeated PrepStatement body = 4;
+}
+
+message LogicParameter {
+  string name = 1;
+  VariableType type = 2;
+}
+
+message Scene {
+  string label = 1;
+  optional PrepBlock prep = 2;
+  StoryBlock story = 3;
+}
+
+message PrepBlock {
+  repeated PrepStatement statements = 1;
+}
+
+message StoryBlock {
+  repeated StoryStatement statements = 1;
+}
+
+message PrepStatement {
+  oneof value {
+    BackgroundDirective background = 1;
+    BgmDirective bgm = 2;
+    SfxDirective sfx = 3;
+    VariableDefinition variable_definition = 4;
+    VariableAssignment variable_assignment = 5;
+    CallExpression call = 6;
+    PrepIfElse if_else = 7;
+    PrepForSnapshot for_snapshot = 8;
+    PrepRepeat repeat = 9;
+    google.protobuf.Empty break_loop = 10;
+    google.protobuf.Empty continue_loop = 11;
+    ReturnStatement return_statement = 12;
+  }
+}
+
+message BackgroundDirective {
+  InterpolatedString asset_path = 1;
+}
+
+message BgmDirective {
+  oneof value {
+    InterpolatedString asset_path = 1;
+    google.protobuf.Empty stop = 2;
+  }
+}
+
+message SfxDirective {
+  InterpolatedString asset_path = 1;
+}
+
+enum AssignmentOperator {
+  ASSIGNMENT_OPERATOR_UNSPECIFIED = 0;
+  ASSIGNMENT_OPERATOR_SET = 1;
+  ASSIGNMENT_OPERATOR_ADD = 2;
+  ASSIGNMENT_OPERATOR_SUBTRACT = 3;
+}
+
+message VariableAssignment {
+  string name = 1;
+  AssignmentOperator operator = 2;
+  Expression value = 3;
+}
+
+message PrepStatementList {
+  repeated PrepStatement statements = 1;
+}
+
+message PrepIfElse {
+  Expression condition = 1;
+  PrepStatementList then_branch = 2;
+  optional PrepStatementList else_branch = 3;
+}
+
+message PrepForSnapshot {
+  string item_name = 1;
+  string array_name = 2;
+  repeated PrepStatement body = 3;
+}
+
+message PrepRepeat {
+  RepeatCount count = 1;
+  repeated PrepStatement body = 2;
+}
+
+message ReturnStatement {
+  optional Expression value = 1;
+}
+
+message StoryStatement {
+  oneof value {
+    Narration narration = 1;
+    VariableOutput variable_output = 2;
+    Dialogue dialogue = 3;
+    StoryIfElse if_else = 4;
+    ChoiceBlock choice = 5;
+    Jump jump = 6;
+    google.protobuf.Empty end = 7;
+    SfxDirective sfx = 8;
+    StoryForSnapshot for_snapshot = 9;
+    StoryRepeat repeat = 10;
+    google.protobuf.Empty break_loop = 11;
+    google.protobuf.Empty continue_loop = 12;
+  }
+}
+
+message Narration {
+  InterpolatedString text = 1;
+}
+
+message VariableOutput {
+  string name = 1;
+}
+
+message Dialogue {
+  string actor_id = 1;
+  oneof form {
+    google.protobuf.Empty name_only = 2;
+    PortraitDialogue portrait = 3;
+  }
+  InterpolatedString text = 4;
+}
+
+enum Position {
+  POSITION_UNSPECIFIED = 0;
+  POSITION_LEFT = 1;
+  POSITION_CENTER = 2;
+  POSITION_RIGHT = 3;
+}
+
+message PortraitDialogue {
+  string emotion = 1;
+  Position position = 2;
+}
+
+message StoryStatementList {
+  repeated StoryStatement statements = 1;
+}
+
+message StoryIfElse {
+  Expression condition = 1;
+  StoryStatementList then_branch = 2;
+  optional StoryStatementList else_branch = 3;
+}
+
+message ChoiceBlock {
+  repeated ChoiceEntry entries = 1;
+}
+
+message ChoiceEntry {
+  oneof value {
+    ChoiceOption option = 1;
+    ChoiceIf if_entry = 2;
+    ChoiceRepeat repeat = 3;
+    ChoiceForSnapshot for_snapshot = 4;
+  }
+}
+
+message ChoiceOption {
+  InterpolatedString text = 1;
+  string target = 2;
+}
+
+message ChoiceEntryList {
+  repeated ChoiceEntry entries = 1;
+}
+
+message ChoiceIf {
+  Expression condition = 1;
+  ChoiceEntryList body = 2;
+}
+
+message ChoiceRepeat {
+  RepeatCount count = 1;
+  ChoiceEntryList body = 2;
+}
+
+message ChoiceForSnapshot {
+  string item_name = 1;
+  string array_name = 2;
+  ChoiceEntryList body = 3;
+}
+
+message Jump {
+  string target = 1;
+}
+
+message StoryForSnapshot {
+  string item_name = 1;
+  string array_name = 2;
+  repeated StoryStatement body = 3;
+}
+
+message StoryRepeat {
+  RepeatCount count = 1;
+  repeated StoryStatement body = 2;
+}
+
+message RepeatCount {
+  oneof value {
+    int64 integer = 1;
+    string variable = 2;
+  }
+}
+
+message Expression {
+  oneof value {
+    int64 integer = 1;
+    DecimalValue decimal = 2;
+    bool boolean = 3;
+    InterpolatedString string_value = 4;
+    VariableReference variable = 5;
+    BinaryExpression binary = 6;
+    CallExpression call = 7;
+    ListExpression list = 8;
+  }
+}
+
+// Base-10 representation with no exponent. Scale is significant: 1.0 and
+// 1.00 are distinct canonical values and must round-trip unchanged.
+message DecimalValue {
+  string canonical = 1;
+}
+
+message VariableReference {
+  string name = 1;
+}
+
+
+enum BinaryOperator {
+  BINARY_OPERATOR_UNSPECIFIED = 0;
+  BINARY_OPERATOR_ADD = 1;
+  BINARY_OPERATOR_SUBTRACT = 2;
+  BINARY_OPERATOR_MULTIPLY = 3;
+  BINARY_OPERATOR_DIVIDE = 4;
+  BINARY_OPERATOR_MODULO = 5;
+  BINARY_OPERATOR_EQUAL = 6;
+  BINARY_OPERATOR_NOT_EQUAL = 7;
+  BINARY_OPERATOR_LESS = 8;
+  BINARY_OPERATOR_LESS_EQUAL = 9;
+  BINARY_OPERATOR_GREATER = 10;
+  BINARY_OPERATOR_GREATER_EQUAL = 11;
+}
+
+message BinaryExpression {
+  Expression left = 1;
+  BinaryOperator operator = 2;
+  Expression right = 3;
+}
+
+message CallExpression {
+  string name = 1;
+  repeated Expression arguments = 2;
+}
+
+message ListExpression {
+  repeated Expression items = 1;
+}

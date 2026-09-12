@@ -72,8 +72,9 @@ StoryScript supports compile-time child modules to split large narratives safely
 
 Child include semantics:
 * `@include` is valid only inside root `* INIT`.
-* Include paths are resolved relative to the root file path.
-* Duplicate include path strings in one manifest are compile-time invalid.
+* Include paths are resolved relative to the root file path and confined to the selected project root.
+* Absolute paths, parent traversal, symlink escapes, non-files, and invalid UTF-8 source are compile-time invalid.
+* Duplicate normalized or case-folded include paths in one manifest are compile-time invalid.
 * Included child files must contain exactly one `* REQUIRE` block.
 * Included child files must not contain `* INIT`.
 * Child files must not declare `@start`; root `* INIT` is the only entrypoint owner.
@@ -472,11 +473,12 @@ Diagnostic code naming:
 | Code | Trigger |
 | :--- | :--- |
 | `E_SYNTAX` | Any lexical/tokenization/parser error, including malformed interpolation placeholder syntax. |
+| `E_NUMERIC_LITERAL_INVALID` | An integer is outside the signed 64-bit range or a decimal cannot be represented exactly by the compiler decimal type. |
 | `E_INIT_COUNT` | The script contains zero or multiple `* INIT` blocks. |
 | `E_INIT_ORDER` | `* INIT` is not the first top-level block. |
 | `E_START_COUNT` | `* INIT` contains zero or multiple `@start` directives. |
 | `E_INCLUDE_FILE_NOT_FOUND` | Include path in `@include` cannot be resolved/read. |
-| `E_INCLUDE_DUPLICATE_PATH` | Duplicate include path strings are declared in one `@include` manifest. |
+| `E_INCLUDE_DUPLICATE_PATH` | Duplicate normalized/case-folded include paths or aliases to the same source file are declared in one `@include` manifest. |
 | `E_INCLUDE_CHILD_INIT_FORBIDDEN` | Included child file contains `* INIT`. |
 | `E_REQUIRE_COUNT` | Included child file does not contain exactly one `* REQUIRE` block. |
 | `E_REQUIRE_VARIABLE_MISSING` | Child `* REQUIRE` variable does not exist in root `* INIT`. |
@@ -555,8 +557,8 @@ Diagnostic code naming:
 #### Include/REQUIRE Diagnostic Mapping
 | Rule ID | Validation Condition | Diagnostic Code | Rationale |
 | :--- | :--- | :--- | :--- |
-| `INC001` | Include path cannot be read from root `@include` manifest. | `E_INCLUDE_FILE_NOT_FOUND` | Child module cannot be compiled if source file is unavailable. |
-| `INC002` | Same include path string appears more than once in one manifest. | `E_INCLUDE_DUPLICATE_PATH` | Prevents accidental double-merge of child scenes. |
+| `INC001` | Include path cannot be read safely from the root `@include` manifest, including absolute/traversing paths, symlink escape, non-file targets, or invalid UTF-8. | `E_INCLUDE_FILE_NOT_FOUND` | Child module cannot be compiled if source is unavailable or outside the selected project boundary. |
+| `INC002` | The same normalized/case-folded include path or canonical source file appears more than once in one manifest. | `E_INCLUDE_DUPLICATE_PATH` | Prevents accidental double-merge and cross-platform path aliases. |
 | `INC003` | Included child file declares `* INIT`. | `E_INCLUDE_CHILD_INIT_FORBIDDEN` | Root-only bootstrap ownership keeps global state deterministic. |
 | `INC004` | Included child file has zero or multiple `* REQUIRE` blocks. | `E_REQUIRE_COUNT` | Child contract cardinality must be exactly one. |
 | `INC005` | Child REQUIRE variable is absent in root INIT. | `E_REQUIRE_VARIABLE_MISSING` | Child variable dependency must be declared by root bootstrap. |

@@ -79,6 +79,50 @@ impl Parser {
     // -----------------------------------------------------------------------
 
     pub fn parse(&mut self) -> Option<Script> {
+        let init_positions = self
+            .tokens
+            .windows(2)
+            .enumerate()
+            .filter_map(|(index, pair)| {
+                (pair[0].token == Token::Star && pair[1].token == Token::Init).then_some(index)
+            })
+            .collect::<Vec<_>>();
+
+        if init_positions.len() != 1 {
+            let position = init_positions
+                .get(1)
+                .or_else(|| init_positions.first())
+                .copied()
+                .unwrap_or(0);
+            let span = self
+                .tokens
+                .get(position)
+                .map(|token| (token.line, token.column));
+            let (line, column) = span.unwrap_or((1, 1));
+            self.diagnostics.push(Diagnostic::new(
+                DiagnosticCode::EInitCount,
+                "Root script must contain exactly one * INIT block",
+                Phase::Parse,
+                "GLOBAL",
+                line,
+                column,
+            ));
+            return None;
+        }
+
+        if init_positions[0] != 0 {
+            let token = &self.tokens[init_positions[0]];
+            self.diagnostics.push(Diagnostic::new(
+                DiagnosticCode::EInitOrder,
+                "* INIT must be the first top-level block",
+                Phase::Parse,
+                "GLOBAL",
+                token.line,
+                token.column,
+            ));
+            return None;
+        }
+
         let init = self.parse_init_block()?;
         let mut logic_blocks = Vec::new();
         let mut scenes = Vec::new();

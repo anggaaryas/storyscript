@@ -123,7 +123,7 @@ impl Lexer {
         Token::StringLit(s)
     }
 
-    fn read_number(&mut self, first: char) -> Token {
+    fn read_number(&mut self, first: char, line: usize, column: usize) -> Token {
         let mut s = String::new();
         s.push(first);
         while let Some(c) = self.peek() {
@@ -148,10 +148,42 @@ impl Lexer {
                 }
             }
 
-            return Token::DecimalLit(Decimal::from_str_exact(&s).unwrap());
+            return match Decimal::from_str_exact(&s) {
+                Ok(value) => Token::DecimalLit(value),
+                Err(_) => {
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticCode::ENumericLiteralInvalid,
+                        format!(
+                            "Decimal literal '{}' is outside the supported decimal range",
+                            s
+                        ),
+                        Phase::Lex,
+                        "GLOBAL",
+                        line,
+                        column,
+                    ));
+                    Token::DecimalLit(Decimal::ZERO)
+                }
+            };
         }
 
-        Token::IntLit(s.parse().unwrap())
+        match s.parse() {
+            Ok(value) => Token::IntLit(value),
+            Err(_) => {
+                self.diagnostics.push(Diagnostic::new(
+                    DiagnosticCode::ENumericLiteralInvalid,
+                    format!(
+                        "Integer literal '{}' is outside the supported 64-bit range",
+                        s
+                    ),
+                    Phase::Lex,
+                    "GLOBAL",
+                    line,
+                    column,
+                ));
+                Token::IntLit(0)
+            }
+        }
     }
 
     fn read_ident(&mut self, first: char) -> Token {
@@ -341,7 +373,7 @@ impl Lexer {
                 }
             }
 
-            c if c.is_ascii_digit() => self.read_number(c),
+            c if c.is_ascii_digit() => self.read_number(c, line, col),
             c if c.is_alphabetic() || c == '_' => self.read_ident(c),
 
             other => {
@@ -425,6 +457,33 @@ mod tests {
         assert_eq!(
             tokens[1].token,
             Token::DecimalLit(Decimal::from_str_exact("3.14").unwrap())
+        );
+    }
+
+    #[test]
+    fn oversized_integer_literal_returns_diagnostic_without_panicking() {
+        let mut lexer = Lexer::new("999999999999999999999999999999999999999999");
+        let tokens = lexer.tokenize();
+
+        assert_eq!(tokens[0].token, Token::IntLit(0));
+        assert!(lexer.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == DiagnosticCode::ENumericLiteralInvalid
+                && diagnostic.line == 1
+                && diagnostic.column == 1
+        }));
+    }
+
+    #[test]
+    fn oversized_decimal_literal_returns_diagnostic_without_panicking() {
+        let mut lexer = Lexer::new("999999999999999999999999999999999999999999.123456789");
+        let tokens = lexer.tokenize();
+
+        assert_eq!(tokens[0].token, Token::DecimalLit(Decimal::ZERO));
+        assert!(
+            lexer
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == DiagnosticCode::ENumericLiteralInvalid)
         );
     }
 

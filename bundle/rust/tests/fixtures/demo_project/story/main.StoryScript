@@ -1,0 +1,24 @@
+// Authoring-only comment: this text must never enter compiled output.
+* INIT {
+    $time_of_day as string = "day"
+    @actor HERO "Hero ${time_of_day}" {
+        neutral -> "portraits/hero.svg"
+    }
+    @include ["child.StoryScript"];
+    @start opening
+}
+
+logic set_stage() {
+    @bg "backgrounds/${time_of_day}.svg"
+}
+
+* opening {
+    #PREP
+    @bg "backgrounds/${time_of_day}.svg"
+    @bgm "audio/theme.m3u8"
+    @sfx "audio/click.m3u8"
+
+    #STORY
+    HERO(neutral, Center): "Welcome, ${time_of_day}."
+    @jump child_scene
+}

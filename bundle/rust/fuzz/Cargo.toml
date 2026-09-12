@@ -1,0 +1,20 @@
+[package]
+name = "storyscript-bundle-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+prost = "=0.14.1"
+storyscript-bundle = { path = ".." }
+
+[[bin]]
+name = "archive_and_protobuf"
+path = "fuzz_targets/archive_and_protobuf.rs"
+test = false
+doc = false
+bench = false

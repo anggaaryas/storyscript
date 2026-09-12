@@ -12,6 +12,7 @@ This repository includes:
 - A Rust terminal-based player (TUI) to run StoryScript scenes.
 - A VS Code extension for `.StoryScript` syntax highlighting and language intelligence.
 - A Flutter plugin integration for the Rust runtime.
+- A Rust compiler/exporter and hardened loader for signed `.storybundle` files.
 
 Live demo: [web](https://labs.angarsa.com/storyscript/index.html)
 
@@ -22,6 +23,8 @@ Live demo: [web](https://labs.angarsa.com/storyscript/index.html)
 ├── PLAN.md                      # Language spec and validation rules
 ├── example/                     # Example StoryScript files
 ├── parser/rust/                 # storyscript-parser (lexer/parser/validator)
+├── bundle/proto/                # Canonical StoryBundle v1 Protobuf contract
+├── bundle/rust/                 # storyscript-bundle library and CLI
 ├── player/                      # storyscript-player (TUI runtime)
 ├── storyscript_player_core/     # Flutter plugin integration and WebAssembly bindings
 └── tool/vscode-storyscript/     # VS Code language extension
@@ -56,6 +59,39 @@ cargo run -- ../example/the_last_signal.StoryScript
 ```
 
 If no file is passed, the player scans for `.StoryScript` files in the current directory and `../example`.
+
+### 3) Export and verify a signed StoryBundle
+
+Create `StoryScript.toml` using the format in
+`docs/feature/storybundle_export_loading.md`. The compiler version must match
+exactly, and dynamic asset templates require explicit files/globs.
+
+```bash
+openssl genpkey -algorithm ED25519 -out /secure/storybundle-private.pem
+openssl pkey -in /secure/storybundle-private.pem -pubout \
+  -out /secure/storybundle-public.pem
+
+cargo run --manifest-path bundle/rust/Cargo.toml -- schema check
+cargo run --manifest-path bundle/rust/Cargo.toml -- export \
+  --project ./my-story \
+  --output /tmp/my-story.storybundle \
+  --signing-key /secure/storybundle-private.pem
+cargo run --manifest-path bundle/rust/Cargo.toml -- inspect \
+  /tmp/my-story.storybundle --json
+cargo run --manifest-path bundle/rust/Cargo.toml -- verify \
+  /tmp/my-story.storybundle \
+  --public-key /secure/storybundle-public.pem --json
+```
+
+`inspect` output remains untrusted; `verify` performs strict host-key signature,
+exact compiler/schema, digest, Protobuf, semantic, and asset-closure validation.
+The hard profile is 100 MiB archive/uncompressed total, 64 MiB per asset, 16 MiB
+compiled IR, 1 MiB manifest, and 4,096 entries.
+
+A bundle excludes raw `.StoryScript` source, but it is **not encryption or DRM**.
+Semantic text and assets remain recoverable. Keep private signing keys outside the
+project/repository. Flutter StoryBundle loading is deferred to a later iteration;
+the existing player APIs do not open `.storybundle` files.
 
 ## Player Controls
 
@@ -255,4 +291,3 @@ cargo build --target aarch64-apple-ios-sim --release
 ## License
 
 See `LICENSE`.
-

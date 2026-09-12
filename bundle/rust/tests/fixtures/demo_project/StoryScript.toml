@@ -1,0 +1,11 @@
+[project]
+id = "storybundle.demo"
+name = "StoryBundle Demo"
+version = "1.0.0"
+entry = "story/main.StoryScript"
+compiler-version = "0.1.0"
+
+[assets]
+root = "assets"
+literal-policy = "required"
+dynamic-globs = ["backgrounds/*.svg"]

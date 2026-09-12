@@ -1,0 +1,10 @@
+* REQUIRE {
+    $time_of_day as string;
+    @actor HERO [ neutral ];
+}
+
+* child_scene {
+    #STORY
+    "Compiled child module."
+    @end
+}

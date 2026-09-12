@@ -46,3 +46,10 @@ dist/
 *.swo
 *~
 docs/plan/
+docs
+journal
+
+# StoryBundle author outputs and private signing material
+*.storybundle
+*private*.pem
+*signing*.pem
