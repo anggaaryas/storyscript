@@ -1,0 +1,212 @@
+name: StoryBundle CI
+
+on:
+  push:
+    paths:
+      - 'parser/rust/**'
+      - 'bundle/**'
+      - 'storyscript_bundle/**'
+      - 'docs/**'
+      - '.github/workflows/storybundle-ci.yml'
+  pull_request:
+    paths:
+      - 'parser/rust/**'
+      - 'bundle/**'
+      - 'storyscript_bundle/**'
+      - 'docs/**'
+      - '.github/workflows/storybundle-ci.yml'
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  FLUTTER_RUST_BRIDGE_VERSION: 2.12.0
+  PROTOC_PLUGIN_VERSION: 25.1.0
+
+jobs:
+  parser-safety:
+    name: Parser safety owner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --manifest-path parser/rust/Cargo.toml -- --check
+      - run: cargo test --manifest-path parser/rust/Cargo.toml
+      - run: cargo check --manifest-path player/Cargo.toml --no-default-features
+
+  rust-bundle:
+    name: Rust format and security owner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy,rustfmt
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit,cargo-deny
+      - run: cargo fmt --manifest-path bundle/rust/Cargo.toml -- --check
+      - run: cargo clippy --manifest-path bundle/rust/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --manifest-path bundle/rust/Cargo.toml
+      - run: cargo run --manifest-path bundle/rust/Cargo.toml -- schema check
+      - run: cargo check --manifest-path bundle/rust/fuzz/Cargo.toml
+      - run: cargo test --manifest-path storyscript_bundle/rust/Cargo.toml
+      - run: cargo check --manifest-path storyscript_player_core/rust/Cargo.toml
+      - run: cargo audit --file bundle/rust/Cargo.lock
+      - run: cargo deny --manifest-path bundle/rust/Cargo.toml check
+
+  generated-contracts:
+    name: Generated contract owner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - run: dart pub global activate protoc_plugin "$PROTOC_PLUGIN_VERSION"
+      - run: echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+      - run: cargo install flutter_rust_bridge_codegen --version "$FLUTTER_RUST_BRIDGE_VERSION" --locked
+      - run: flutter pub get
+        working-directory: storyscript_bundle
+      - run: >-
+          protoc --proto_path=bundle/proto
+          --dart_out=storyscript_bundle/lib/src/proto
+          bundle/proto/storybundle/v1/compiled_story.proto
+      - run: flutter_rust_bridge_codegen generate
+        working-directory: storyscript_bundle
+      - run: cargo run --manifest-path bundle/rust/Cargo.toml -- schema check
+      - run: >-
+          git diff --exit-code --
+          bundle/proto/storybundle/v1
+          storyscript_bundle/lib/src/proto
+          storyscript_bundle/lib/src/rust
+          storyscript_bundle/rust/src/frb_generated.rs
+
+  flutter-tests:
+    name: Flutter package and inspector owner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+        working-directory: storyscript_bundle
+      - run: dart format --output=none --set-exit-if-changed lib test
+        working-directory: storyscript_bundle
+      - run: flutter analyze
+        working-directory: storyscript_bundle
+      - run: flutter test
+        working-directory: storyscript_bundle
+      - run: flutter pub get
+        working-directory: storyscript_bundle/example
+      - run: dart format --output=none --set-exit-if-changed lib test integration_test
+        working-directory: storyscript_bundle/example
+      - run: flutter analyze
+        working-directory: storyscript_bundle/example
+      - run: flutter test test/bundle_inspector_screen_test.dart
+        working-directory: storyscript_bundle/example
+
+  web-wasm:
+    name: Web Wasm and COOP/COEP owner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack,wasm-bindgen-cli@0.2.92
+      - uses: nanasess/setup-chromedriver@v2
+      - run: cargo install flutter_rust_bridge_codegen --version "$FLUTTER_RUST_BRIDGE_VERSION" --locked
+      - run: >-
+          flutter_rust_bridge_codegen build-web
+          --output ../example/web
+          --wasm-pack-rustflags
+          "-C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-args=--shared-memory -C link-args=--max-memory=1073741824 -C link-args=--import-memory -C link-args=--export=__wasm_init_tls -C link-args=--export=__tls_size -C link-args=--export=__tls_align -C link-args=--export=__tls_base"
+        working-directory: storyscript_bundle
+      - run: flutter build web
+        working-directory: storyscript_bundle/example
+      - run: chromedriver --port=4444 &
+      - run: >-
+          flutter drive
+          --driver=test_driver/integration_test.dart
+          --target=integration_test/storybundle_loading_test.dart
+          -d chrome
+          --web-header=Cross-Origin-Opener-Policy=same-origin
+          --web-header=Cross-Origin-Embedder-Policy=require-corp
+        working-directory: storyscript_bundle/example
+
+  platform-builds:
+    name: ${{ matrix.name }} package build owner
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Android
+            os: ubuntu-latest
+            command: flutter build apk --debug
+          - name: Linux
+            os: ubuntu-latest
+            command: flutter build linux --debug
+          - name: iOS simulator
+            os: macos-latest
+            command: flutter build ios --simulator --no-codesign
+          - name: macOS
+            os: macos-latest
+            command: flutter build macos --debug
+          - name: Windows
+            os: windows-latest
+            command: flutter build windows --debug
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - if: matrix.name == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev
+      - run: ${{ matrix.command }}
+        working-directory: storyscript_bundle/example
+
+  docs-and-secrets:
+    name: Shared docs and secret-scan owner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: >-
+          test -f docs/contracts/storybundle_v1.md &&
+          test -f docs/feature/storybundle_export_loading.md &&
+          test -f docs/onboarding/storybundle_project_checklist.md &&
+          test -f docs/playbook/storybundle_signing_verification.md &&
+          test -f docs/qa-docs/storybundle_v1_qa.md
+      - run: >-
+          rg -n "compiler|schema|signature|100 MiB|raw source|unsigned"
+          docs/contracts/storybundle_v1.md
+          docs/feature/storybundle_export_loading.md
+          docs/onboarding/storybundle_project_checklist.md
+          docs/playbook/storybundle_signing_verification.md
+          docs/qa-docs/storybundle_v1_qa.md

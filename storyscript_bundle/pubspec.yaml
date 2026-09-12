@@ -1,0 +1,36 @@
+name: storyscript_bundle
+description: Verified, bounded loading of signed StoryScript bundle archives.
+version: 0.1.0
+homepage: https://github.com/anggaaryas/storyscript
+repository: https://github.com/anggaaryas/storyscript
+topics: [storyscript, visual-novel, protobuf, ffi]
+
+environment:
+  sdk: ^3.11.4
+  flutter: '>=3.3.0'
+
+dependencies:
+  fixnum: 1.1.1
+  flutter:
+    sdk: flutter
+  flutter_rust_bridge: 2.12.0
+  protobuf: 6.1.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        ffiPlugin: true
+      ios:
+        ffiPlugin: true
+      linux:
+        ffiPlugin: true
+      macos:
+        ffiPlugin: true
+      windows:
+        ffiPlugin: true

@@ -45,11 +45,15 @@ dist/
 *.swp
 *.swo
 *~
+# StoryBundle author outputs and private signing material
+*.storybundle
+!storyscript_bundle/example/assets/demo.storybundle
+*private*.pem
+*signing*.pem
+*.p8
+*.pk8
+*.key
+
 docs/plan/
 docs
 journal
-
-# StoryBundle author outputs and private signing material
-*.storybundle
-*private*.pem
-*signing*.pem

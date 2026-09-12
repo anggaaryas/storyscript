@@ -13,6 +13,7 @@ This repository includes:
 - A VS Code extension for `.StoryScript` syntax highlighting and language intelligence.
 - A Flutter plugin integration for the Rust runtime.
 - A Rust compiler/exporter and hardened loader for signed `.storybundle` files.
+- An all-platform Flutter package and inspector for verified `.storybundle` files.
 
 Live demo: [web](https://labs.angarsa.com/storyscript/index.html)
 
@@ -25,6 +26,7 @@ Live demo: [web](https://labs.angarsa.com/storyscript/index.html)
 ├── parser/rust/                 # storyscript-parser (lexer/parser/validator)
 ├── bundle/proto/                # Canonical StoryBundle v1 Protobuf contract
 ├── bundle/rust/                 # storyscript-bundle library and CLI
+├── storyscript_bundle/          # Flutter FFI loader and Bundle Inspector
 ├── player/                      # storyscript-player (TUI runtime)
 ├── storyscript_player_core/     # Flutter plugin integration and WebAssembly bindings
 └── tool/vscode-storyscript/     # VS Code language extension
@@ -90,8 +92,27 @@ compiled IR, 1 MiB manifest, and 4,096 entries.
 
 A bundle excludes raw `.StoryScript` source, but it is **not encryption or DRM**.
 Semantic text and assets remain recoverable. Keep private signing keys outside the
-project/repository. Flutter StoryBundle loading is deferred to a later iteration;
-the existing player APIs do not open `.storybundle` files.
+project/repository. The existing player APIs do not open `.storybundle` files.
+
+### 4) Load a StoryBundle from Flutter
+
+```dart
+await RustLib.init();
+final loader = StoryBundleLoader(
+  trustStore: StoryBundleTrustStore([
+    StoryBundleTrustKey(publicKeyBytes, expectedKeyId: keyId),
+  ]),
+);
+final loaded = await loader.openBytes(bundleBytes);
+print(loaded.story.scenes.length);
+final asset = await loaded.readAsset('portraits/hero.png');
+await loaded.dispose();
+```
+
+Strict verification is the default. Unsigned development loading requires the
+explicit named constructor and remains visible in verification metadata. Native
+hosts may open a path; Web is bytes-only and requires the documented COOP/COEP
+headers. See `storyscript_bundle/README.md` and run its example Bundle Inspector.
 
 ## Player Controls
 
