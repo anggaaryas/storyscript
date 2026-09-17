@@ -48,7 +48,8 @@ Starting or cancelling a newer load prevents stale results from being exposed.
 
 ## Generated contracts
 
-- FRB runtime/codegen: `2.12.0`
+- FRB runtime/codegen: `2.13.0`
+- Web `wasm-bindgen` crate/CLI: `0.2.118`
 - Dart Protobuf runtime: `6.1.0`
 - Dart Protobuf generator: `protoc_plugin 25.1.0`
 - Canonical schema: `../bundle/proto/storybundle/v1/compiled_story.proto`
@@ -56,8 +57,8 @@ Starting or cancelling a newer load prevents stale results from being exposed.
 
 Regenerate FRB with `flutter_rust_bridge_codegen generate`. Build Web bindings
 into the example with `flutter_rust_bridge_codegen build-web --output
-../example/web` plus the shared-memory flags used by CI. Regenerate Protobuf
-from the repository root:
+../example/web`; FRB supplies the complete threaded-Wasm flags. Regenerate
+Protobuf from the repository root:
 
 ```bash
 dart pub global activate protoc_plugin 25.1.0

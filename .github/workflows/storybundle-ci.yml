@@ -21,8 +21,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  FLUTTER_RUST_BRIDGE_VERSION: 2.12.0
+  FLUTTER_RUST_BRIDGE_VERSION: 2.13.0
   PROTOC_PLUGIN_VERSION: 25.1.0
+  WASM_BINDGEN_VERSION: 0.2.118
 
 jobs:
   parser-safety:
@@ -132,14 +133,12 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: taiki-e/install-action@v2
         with:
-          tool: wasm-pack,wasm-bindgen-cli@0.2.92
+          tool: wasm-pack,wasm-bindgen-cli@${{ env.WASM_BINDGEN_VERSION }}
       - uses: nanasess/setup-chromedriver@v2
       - run: cargo install flutter_rust_bridge_codegen --version "$FLUTTER_RUST_BRIDGE_VERSION" --locked
       - run: >-
           flutter_rust_bridge_codegen build-web
           --output ../example/web
-          --wasm-pack-rustflags
-          "-C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-args=--shared-memory -C link-args=--max-memory=1073741824 -C link-args=--import-memory -C link-args=--export=__wasm_init_tls -C link-args=--export=__tls_size -C link-args=--export=__tls_align -C link-args=--export=__tls_base"
         working-directory: storyscript_bundle
       - run: flutter build web
         working-directory: storyscript_bundle/example

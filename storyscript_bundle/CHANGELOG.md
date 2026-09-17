@@ -1,3 +1,9 @@
+## 0.1.1
+
+- Upgrade to FRB 2.13.0 and align the `wasm-bindgen` crate/CLI at 0.2.118 so
+  WebAssembly initialization passes compatible inputs to both the browser main
+  thread and worker pool.
+
 ## 0.1.0
 
 - Add strict signed and explicit unsigned-development bundle loading.

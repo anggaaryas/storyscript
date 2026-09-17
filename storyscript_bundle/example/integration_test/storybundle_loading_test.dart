@@ -2,11 +2,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:storyscript_bundle/storyscript_bundle.dart';
+import 'package:storyscript_bundle/src/rust/api/bundle.dart' as rust;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(RustLib.init);
+
+  testWidgets('WebAssembly bridge initializes its worker pool', (tester) async {
+    final limits = await rust.bridgeHardLimits();
+
+    expect(limits.maxArchiveBytes, BigInt.from(100 * 1024 * 1024));
+    expect(limits.maxEntries, 4096);
+  });
 
   testWidgets(
     'Rust verifies fixture, Dart decodes model, reads asset, disposes',

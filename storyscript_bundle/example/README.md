@@ -13,8 +13,7 @@ For Web, generate Wasm from the parent package and serve COOP/COEP headers:
 
 ```bash
 cd ..
-flutter_rust_bridge_codegen build-web --output ../example/web \
-  --wasm-pack-rustflags "-C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-args=--shared-memory -C link-args=--max-memory=1073741824 -C link-args=--import-memory"
+flutter_rust_bridge_codegen build-web --output ../example/web
 cd example
 flutter run -d chrome \
   --web-header=Cross-Origin-Opener-Policy=same-origin \

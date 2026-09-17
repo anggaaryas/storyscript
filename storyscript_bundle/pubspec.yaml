@@ -13,7 +13,7 @@ dependencies:
   fixnum: 1.1.1
   flutter:
     sdk: flutter
-  flutter_rust_bridge: 2.12.0
+  flutter_rust_bridge: 2.13.0
   protobuf: 6.1.0
 
 dev_dependencies:
