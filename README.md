@@ -274,6 +274,22 @@ You can also open the extension folder in VS Code and use the Extensions UI to i
 - Parser and player crates compile successfully with `cargo check`.
 - VS Code extension now includes syntax highlighting plus LSP-based diagnostics, completion, hover, document symbols, definition, and references for `.StoryScript` files.
 
+## Publishing CLI Releases
+
+The `Release CLIs` GitHub Actions workflow builds the parser, player, and bundle
+commands for Linux, macOS, and Windows, then uploads platform archives and
+SHA-256 checksums to a GitHub Release.
+
+To publish a release:
+
+1. Open **Actions → Release CLIs → Run workflow** in GitHub.
+2. Select the source branch to release.
+3. Enter a new SemVer-style tag such as `v0.1.0`.
+4. Optionally enter a release title or mark it as a prerelease.
+
+The workflow runs all Rust tests before it creates the tag or GitHub Release. A
+release is published only after every platform build succeeds.
+
 
 ## Flutter plugin integration
 

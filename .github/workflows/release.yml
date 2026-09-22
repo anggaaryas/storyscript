@@ -1,0 +1,223 @@
+name: Release CLIs
+
+run-name: Release ${{ inputs.tag }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (for example, v0.1.0)
+        required: true
+        type: string
+      release_name:
+        description: Optional GitHub Release title
+        required: false
+        type: string
+      prerelease:
+        description: Mark this release as a prerelease
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tag must be SemVer-like, for example v0.1.0 or v0.1.0-rc.1." >&2
+            exit 1
+          fi
+
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            echo "Tag $RELEASE_TAG already exists. Choose a new release tag." >&2
+            exit 1
+          fi
+
+      - name: Show Rust toolchain
+        run: |
+          rustc --version
+          cargo --version
+
+      - name: Test parser
+        run: cargo test --manifest-path parser/rust/Cargo.toml
+
+      - name: Test player
+        run: cargo test --manifest-path player/Cargo.toml --all-features
+
+      - name: Test bundle
+        run: cargo test --manifest-path bundle/rust/Cargo.toml
+
+  build:
+    name: Build ${{ matrix.asset }}
+    needs: verify
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            asset: linux-x86_64
+            archive: tar.gz
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            asset: linux-aarch64
+            archive: tar.gz
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            asset: macos-aarch64
+            archive: tar.gz
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            asset: macos-x86_64
+            archive: tar.gz
+          - runner: windows-2025
+            target: x86_64-pc-windows-msvc
+            asset: windows-x86_64
+            archive: zip
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build parser
+        run: cargo build --release --manifest-path parser/rust/Cargo.toml --target ${{ matrix.target }}
+
+      - name: Build player
+        run: cargo build --release --manifest-path player/Cargo.toml --target ${{ matrix.target }}
+
+      - name: Build bundle
+        run: cargo build --release --manifest-path bundle/rust/Cargo.toml --target ${{ matrix.target }}
+
+      - name: Package Unix executables
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_TARGET: ${{ matrix.target }}
+          RELEASE_ASSET: ${{ matrix.asset }}
+        run: |
+          set -euo pipefail
+
+          archive_basename="storyscript-${RELEASE_TAG}-${RELEASE_ASSET}"
+          staging_dir="dist/${archive_basename}"
+          mkdir -p "$staging_dir"
+
+          cp "parser/rust/target/${RELEASE_TARGET}/release/storyscript-parser" "$staging_dir/"
+          cp "player/target/${RELEASE_TARGET}/release/storyscript-player" "$staging_dir/"
+          cp "bundle/rust/target/${RELEASE_TARGET}/release/storyscript-bundle" "$staging_dir/"
+          cp README.md LICENSE "$staging_dir/"
+
+          tar -C dist -czf "dist/${archive_basename}.tar.gz" "$archive_basename"
+          if command -v sha256sum >/dev/null 2>&1; then
+            (cd dist && sha256sum "${archive_basename}.tar.gz" > "${archive_basename}.tar.gz.sha256")
+          else
+            (cd dist && shasum -a 256 "${archive_basename}.tar.gz" > "${archive_basename}.tar.gz.sha256")
+          fi
+
+      - name: Package Windows executables
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_TARGET: ${{ matrix.target }}
+          RELEASE_ASSET: ${{ matrix.asset }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $archiveBase = "storyscript-$env:RELEASE_TAG-$env:RELEASE_ASSET"
+          $stagingDir = Join-Path "dist" $archiveBase
+          New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
+
+          Copy-Item "parser/rust/target/$env:RELEASE_TARGET/release/storyscript-parser.exe" $stagingDir
+          Copy-Item "player/target/$env:RELEASE_TARGET/release/storyscript-player.exe" $stagingDir
+          Copy-Item "bundle/rust/target/$env:RELEASE_TARGET/release/storyscript-bundle.exe" $stagingDir
+          Copy-Item "README.md", "LICENSE" $stagingDir
+
+          $archive = Join-Path "dist" "$archiveBase.zip"
+          Compress-Archive -Path $stagingDir -DestinationPath $archive -CompressionLevel Optimal
+          $hash = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+          "$hash  $archiveBase.zip" | Set-Content -NoNewline "$archive.sha256"
+
+      - name: Upload packaged executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: storyscript-${{ matrix.asset }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      RELEASE_NAME: ${{ inputs.release_name }}
+      PRERELEASE: ${{ inputs.prerelease }}
+    steps:
+      - name: Download packaged executables
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: storyscript-*
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          title="$RELEASE_NAME"
+          if [[ -z "$title" ]]; then
+            title="StoryScript $RELEASE_TAG"
+          fi
+
+          args=(
+            "$RELEASE_TAG"
+            release-assets/*
+            --repo "$GITHUB_REPOSITORY"
+            --target "$GITHUB_SHA"
+            --title "$title"
+            --generate-notes
+          )
+          if [[ "$PRERELEASE" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+
+          gh release create "${args[@]}"
+
+      - name: Show published release
+        run: gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url
