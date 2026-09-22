@@ -4,6 +4,7 @@ pub mod config;
 pub mod contract;
 pub mod error;
 pub mod exporter;
+pub mod init;
 pub mod ir;
 pub mod limits;
 pub mod loader;

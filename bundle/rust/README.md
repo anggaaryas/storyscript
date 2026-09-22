@@ -7,6 +7,8 @@ inspection, strict verification, and archive-backed asset APIs.
 ## Commands
 
 ```bash
+cargo run --manifest-path bundle/rust/Cargo.toml -- init ./project \
+  --id com.example.project --name "Example Project"
 cargo run --manifest-path bundle/rust/Cargo.toml -- schema check
 cargo run --manifest-path bundle/rust/Cargo.toml -- export \
   --project ./project --output /tmp/story.storybundle \
@@ -15,6 +17,10 @@ cargo run --manifest-path bundle/rust/Cargo.toml -- inspect /tmp/story.storybund
 cargo run --manifest-path bundle/rust/Cargo.toml -- verify /tmp/story.storybundle \
   --public-key /secure/ed25519-public.pem --json
 ```
+
+`init` creates a minimal compilable project and requires a target path that does
+not already exist. Project ID and display name are explicit; the command never
+derives identity from a host path or overwrites existing content.
 
 See `docs/contracts/storybundle_v1.md` for the normative contract,
 `docs/feature/storybundle_export_loading.md` for flows, and

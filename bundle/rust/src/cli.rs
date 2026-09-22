@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use storyscript_bundle::limits::ResourceLimits;
 use storyscript_bundle::loader::{self, VerificationPolicy};
 use storyscript_bundle::trust::TrustStore;
-use storyscript_bundle::{BundleError, Result, exporter, schema};
+use storyscript_bundle::{BundleError, Result, exporter, init, schema};
 
 #[derive(Debug, Parser)]
 #[command(name = "storyscript-bundle", version, about)]
@@ -17,6 +17,16 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Create a minimal StoryScript project in a new directory.
+    Init {
+        path: PathBuf,
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        json: bool,
+    },
     /// Validate the checked-in Protobuf descriptor fingerprint.
     Schema {
         #[command(subcommand)]
@@ -56,6 +66,26 @@ enum SchemaCommand {
 
 pub fn run() -> Result<()> {
     match Cli::parse().command {
+        Command::Init {
+            path,
+            id,
+            name,
+            json,
+        } => {
+            init::create(&path, &id, &name)?;
+            if json {
+                println!(
+                    "{}",
+                    serde_json::json!({
+                        "status": "ok",
+                        "path": path,
+                    })
+                );
+            } else {
+                println!("Initialized {}", path.display());
+            }
+            Ok(())
+        }
         Command::Schema {
             command: SchemaCommand::Check,
         } => {

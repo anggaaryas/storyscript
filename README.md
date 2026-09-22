@@ -64,9 +64,18 @@ If no file is passed, the player scans for `.StoryScript` files in the current d
 
 ### 3) Export and verify a signed StoryBundle
 
-Create `StoryScript.toml` using the format in
-`docs/feature/storybundle_export_loading.md`. The compiler version must match
-exactly, and dynamic asset templates require explicit files/globs.
+Create a minimal project in a new path (the target must not already exist):
+
+```bash
+cargo run --manifest-path bundle/rust/Cargo.toml -- init ./my-story \
+  --id com.example.my-story \
+  --name "My Story"
+```
+
+This creates `StoryScript.toml`, `story/main.StoryScript`, and a tracked empty
+`assets/` directory. Alternatively, create `StoryScript.toml` manually using the
+format in `docs/feature/storybundle_export_loading.md`. The compiler version must
+match exactly, and dynamic asset templates require explicit files/globs.
 
 ```bash
 openssl genpkey -algorithm ED25519 -out /secure/storybundle-private.pem
