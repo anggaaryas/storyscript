@@ -59,6 +59,9 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Test CLI installer
+        run: sh tests/install_test.sh
+
       - name: Test parser
         run: cargo test --manifest-path parser/rust/Cargo.toml
 

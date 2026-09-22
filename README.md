@@ -17,6 +17,31 @@ This repository includes:
 
 Live demo: [web](https://labs.angarsa.com/storyscript/index.html)
 
+## Install the CLI tools
+
+On Linux or macOS, install the latest published release (including a prerelease)
+with:
+
+```bash
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/anggaaryas/storyscript/main/install.sh | sh
+```
+
+This verifies the release checksum and installs `storyscript-parser`,
+`storyscript-player`, and `storyscript-bundle` into `$HOME/.local/bin`. Make sure
+that directory is on your `PATH`.
+
+To pin a release or choose another install directory:
+
+```bash
+curl --proto '=https' --tlsv1.2 -fsSL https://raw.githubusercontent.com/anggaaryas/storyscript/main/install.sh | \
+  STORYSCRIPT_VERSION=v0.1.0 STORYSCRIPT_INSTALL_DIR="$HOME/bin" sh
+```
+
+For the safest workflow, download and inspect `install.sh` before running it.
+Supported release targets are Linux (`x86_64`, `aarch64`) and macOS (`x86_64`,
+Apple Silicon). Windows users can download the `.zip` archive from
+[GitHub Releases](https://github.com/anggaaryas/storyscript/releases).
+
 ## Repository Layout
 
 ```text
