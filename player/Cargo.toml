@@ -5,10 +5,11 @@ edition = "2024"
 
 [features]
 default = ["tui"]
-tui = ["dep:ratatui", "dep:crossterm"]
+tui = ["dep:clap", "dep:ratatui", "dep:crossterm"]
 
 [dependencies]
 storyscript-parser = { path = "../parser/rust" }
+clap = { version = "4.5.47", features = ["derive"], optional = true }
 ratatui = { version = "0.28", optional = true }
 crossterm = { version = "0.28", optional = true }
 rust_decimal = "1.41.0"

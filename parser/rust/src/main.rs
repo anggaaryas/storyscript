@@ -1,20 +1,28 @@
-use std::env;
-use std::path::Path;
+use std::path::PathBuf;
 use std::process;
 
+use clap::Parser;
 use storyscript_parser::{compiler, diagnostic};
 
+#[derive(Debug, Parser)]
+#[command(
+    name = "storyscript-parser",
+    version,
+    about = "Compile and validate a StoryScript file"
+)]
+struct Cli {
+    /// StoryScript file to compile and validate.
+    file: PathBuf,
+
+    /// Emit diagnostics as JSON.
+    #[arg(long)]
+    json: bool,
+}
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Usage: storyscript-parser <file.story> [--json]");
-        process::exit(1);
-    }
+    let cli = Cli::parse();
 
-    let file_path = &args[1];
-    let json_output = args.iter().any(|a| a == "--json");
-
-    let compile = match compiler::compile_file(Path::new(file_path)) {
+    let compile = match compiler::compile_file(&cli.file) {
         Ok(output) => output,
         Err(err) => {
             eprintln!("{}", err);
@@ -26,7 +34,7 @@ fn main() {
     let script = match compile.script {
         Some(s) => s,
         None => {
-            print_diagnostics(&all_diagnostics, json_output);
+            print_diagnostics(&all_diagnostics, cli.json);
             process::exit(1);
         }
     };
@@ -40,9 +48,9 @@ fn main() {
     let actor_count = script.init.actors.len();
     let var_count = script.init.variables.len();
 
-    if !json_output {
+    if !cli.json {
         println!("=== StoryScript Parser ===");
-        println!("File:   {}", file_path);
+        println!("File:   {}", cli.file.display());
         println!("Scenes: {}", scene_count);
         println!("Actors: {}", actor_count);
         println!("Vars:   {}", var_count);
@@ -63,10 +71,10 @@ fn main() {
         println!();
     }
 
-    print_diagnostics(&all_diagnostics, json_output);
+    print_diagnostics(&all_diagnostics, cli.json);
 
     if has_errors {
-        if !json_output {
+        if !cli.json {
             let error_count = all_diagnostics.iter().filter(|d| d.is_error()).count();
             let warn_count = all_diagnostics.len() - error_count;
             println!(
@@ -77,7 +85,7 @@ fn main() {
         process::exit(1);
     } else {
         let warn_count = all_diagnostics.len();
-        if !json_output {
+        if !cli.json {
             if warn_count > 0 {
                 println!("Compilation OK with {} warning(s)", warn_count);
             } else {

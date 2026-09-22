@@ -4,6 +4,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::process;
 
+use clap::Parser;
 use crossterm::{
     event::{self, Event, KeyCode, KeyEventKind},
     execute,
@@ -12,6 +13,17 @@ use crossterm::{
 use ratatui::{prelude::*, widgets::*};
 
 use storyscript_player::{StepResult, StoryPlayer, Value};
+
+#[derive(Debug, Parser)]
+#[command(
+    name = "storyscript-player",
+    version,
+    about = "Play StoryScript stories in an interactive terminal"
+)]
+struct Cli {
+    /// StoryScript file or directory to open.
+    path: Option<PathBuf>,
+}
 
 // ===========================================================================
 // Player state
@@ -113,8 +125,8 @@ impl RootApp {
 // ===========================================================================
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = env::args().collect();
-    let files = discover_story_files(args.get(1).map(String::as_str));
+    let cli = Cli::parse();
+    let files = discover_story_files(cli.path.as_deref());
     let mut root_app = RootApp {
         chooser: FileChooser::new(files),
         player: None,
@@ -591,17 +603,16 @@ fn render_file_chooser(frame: &mut Frame, chooser: &FileChooser) {
 // Helpers
 // ===========================================================================
 
-fn discover_story_files(arg_path: Option<&str>) -> Vec<PathBuf> {
+fn discover_story_files(arg_path: Option<&Path>) -> Vec<PathBuf> {
     let mut files = Vec::new();
 
-    if let Some(p) = arg_path {
-        let path = PathBuf::from(p);
+    if let Some(path) = arg_path {
         if path.is_file() {
-            if is_storyscript_file(&path) {
-                files.push(path);
+            if is_storyscript_file(path) {
+                files.push(path.to_path_buf());
             }
         } else if path.is_dir() {
-            collect_story_files(&path, &mut files);
+            collect_story_files(path, &mut files);
         }
     }
 

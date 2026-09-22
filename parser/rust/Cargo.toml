@@ -5,6 +5,7 @@ edition = "2024"
 license = "LGPL-2.1-only"
 
 [dependencies]
+clap = { version = "4.5.47", features = ["derive"] }
 rust_decimal = "1.41.0"
 unicode-normalization = "0.1.24"
 
