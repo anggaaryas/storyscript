@@ -15,6 +15,13 @@ on:
       - 'storyscript_bundle/**'
       - 'docs/**'
       - '.github/workflows/storybundle-ci.yml'
+  workflow_dispatch:
+    inputs:
+      run_web_wasm:
+        description: Run the slow WebAssembly browser integration test
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -128,6 +135,7 @@ jobs:
 
   web-wasm:
     name: Web Wasm and COOP/COEP owner
+    if: github.event_name == 'workflow_dispatch' && inputs.run_web_wasm
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
