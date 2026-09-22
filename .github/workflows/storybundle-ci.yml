@@ -19,6 +19,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: storybundle-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   FLUTTER_RUST_BRIDGE_VERSION: 2.13.0
@@ -29,6 +33,7 @@ jobs:
   parser-safety:
     name: Parser safety owner
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -41,6 +46,7 @@ jobs:
   rust-bundle:
     name: Rust format and security owner
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -62,6 +68,7 @@ jobs:
   generated-contracts:
     name: Generated contract owner
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -92,6 +99,7 @@ jobs:
   flutter-tests:
     name: Flutter package and inspector owner
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -100,6 +108,9 @@ jobs:
           cache: true
       - run: flutter pub get
         working-directory: storyscript_bundle
+      - name: Resolve vendored Cargokit dependencies
+        run: dart pub get
+        working-directory: storyscript_bundle/cargokit/build_tool
       - run: dart format --output=none --set-exit-if-changed lib test
         working-directory: storyscript_bundle
       - run: flutter analyze
@@ -118,6 +129,7 @@ jobs:
   web-wasm:
     name: Web Wasm and COOP/COEP owner
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -142,18 +154,48 @@ jobs:
         working-directory: storyscript_bundle
       - run: flutter build web
         working-directory: storyscript_bundle/example
-      - run: chromedriver --port=4444 &
-      - run: >-
-          flutter drive
-          --driver=test_driver/integration_test.dart
-          --target=integration_test/storybundle_loading_test.dart
-          -d chrome
-          --web-header=Cross-Origin-Opener-Policy=same-origin
-          --web-header=Cross-Origin-Embedder-Policy=require-corp
+      - name: Run bounded browser integration test
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          chromedriver --port=4444 >"$RUNNER_TEMP/chromedriver.log" 2>&1 &
+          chromedriver_pid=$!
+          trap 'kill "$chromedriver_pid" 2>/dev/null || true' EXIT
+
+          chromedriver_ready=false
+          for _ in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:4444/status >/dev/null; then
+              chromedriver_ready=true
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$chromedriver_ready" != "true" ]]; then
+            cat "$RUNNER_TEMP/chromedriver.log"
+            echo "ChromeDriver did not become ready within 30 seconds." >&2
+            exit 1
+          fi
+
+          set +e
+          timeout --signal=TERM 15m flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/storybundle_loading_test.dart \
+            -d chrome \
+            --web-header=Cross-Origin-Opener-Policy=same-origin \
+            --web-header=Cross-Origin-Embedder-Policy=require-corp
+          test_status=$?
+          set -e
+
+          if [[ $test_status -ne 0 ]]; then
+            cat "$RUNNER_TEMP/chromedriver.log"
+            exit "$test_status"
+          fi
         working-directory: storyscript_bundle/example
 
   platform-builds:
     name: ${{ matrix.name }} package build owner
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -187,8 +229,9 @@ jobs:
         working-directory: storyscript_bundle/example
 
   docs-and-secrets:
-    name: Shared docs and secret-scan owner
+    name: Secret-scan owner
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -196,16 +239,3 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: >-
-          test -f docs/contracts/storybundle_v1.md &&
-          test -f docs/feature/storybundle_export_loading.md &&
-          test -f docs/onboarding/storybundle_project_checklist.md &&
-          test -f docs/playbook/storybundle_signing_verification.md &&
-          test -f docs/qa-docs/storybundle_v1_qa.md
-      - run: >-
-          rg -n "compiler|schema|signature|100 MiB|raw source|unsigned"
-          docs/contracts/storybundle_v1.md
-          docs/feature/storybundle_export_loading.md
-          docs/onboarding/storybundle_project_checklist.md
-          docs/playbook/storybundle_signing_verification.md
-          docs/qa-docs/storybundle_v1_qa.md

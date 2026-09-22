@@ -403,14 +403,7 @@ fn validate_logic_recursion(
                     continue;
                 }
 
-                dfs(
-                    &edge.target,
-                    graph,
-                    states,
-                    stack,
-                    flagged_edges,
-                    diags,
-                );
+                dfs(&edge.target, graph, states, stack, flagged_edges, diags);
             }
         }
 
@@ -1136,7 +1129,11 @@ fn validate_prep_statements(
             PrepStatement::SfxDirective { path, line, column } => {
                 validate_interpolated_string(path, *line, *column, scoped_vars, scene, diags);
             }
-            PrepStatement::Return { value, line, column } => {
+            PrepStatement::Return {
+                value,
+                line,
+                column,
+            } => {
                 if !in_logic_body {
                     diags.push(Diagnostic::new(
                         DiagnosticCode::EReturnContextInvalid,
@@ -1448,8 +1445,7 @@ fn validate_story_statements(
                     diags,
                 );
             }
-            StoryStatement::Break { line, column }
-            | StoryStatement::Continue { line, column } => {
+            StoryStatement::Break { line, column } | StoryStatement::Continue { line, column } => {
                 if loop_depth == 0 {
                     diags.push(Diagnostic::new(
                         DiagnosticCode::ELoopControlOutsideLoop,
@@ -1535,7 +1531,10 @@ fn validate_choice_entry(
             if !scene_labels.contains(&opt.target) {
                 diags.push(Diagnostic::new(
                     DiagnosticCode::EChoiceTargetMissing,
-                    format!("@choice target '{}' does not match any scene label", opt.target),
+                    format!(
+                        "@choice target '{}' does not match any scene label",
+                        opt.target
+                    ),
                     Phase::Validation,
                     scene,
                     opt.line,
@@ -2078,7 +2077,10 @@ fn infer_call_type(
             } else {
                 diags.push(Diagnostic::new(
                     DiagnosticCode::EFunctionArgumentInvalid,
-                    format!("abs() requires numeric argument, found {}", type_name(arg_type)),
+                    format!(
+                        "abs() requires numeric argument, found {}",
+                        type_name(arg_type)
+                    ),
                     Phase::Validation,
                     scene,
                     line,
@@ -2199,10 +2201,7 @@ fn infer_call_type(
                 _ => {
                     diags.push(Diagnostic::new(
                         DiagnosticCode::EFunctionArityInvalid,
-                        format!(
-                            "rand() expects 0 or 2 arguments, found {}",
-                            args.len()
-                        ),
+                        format!("rand() expects 0 or 2 arguments, found {}", args.len()),
                         Phase::Validation,
                         scene,
                         line,
@@ -2216,7 +2215,10 @@ fn infer_call_type(
             if args.len() != 2 {
                 diags.push(Diagnostic::new(
                     DiagnosticCode::EFunctionArityInvalid,
-                    format!("array_push() expects exactly 2 arguments, found {}", args.len()),
+                    format!(
+                        "array_push() expects exactly 2 arguments, found {}",
+                        args.len()
+                    ),
                     Phase::Validation,
                     scene,
                     line,
@@ -2310,7 +2312,10 @@ fn infer_call_type(
             if args.len() != 1 {
                 diags.push(Diagnostic::new(
                     DiagnosticCode::EFunctionArityInvalid,
-                    format!("array_pop() expects exactly 1 argument, found {}", args.len()),
+                    format!(
+                        "array_pop() expects exactly 1 argument, found {}",
+                        args.len()
+                    ),
                     Phase::Validation,
                     scene,
                     line,
@@ -2350,7 +2355,10 @@ fn infer_call_type(
             if args.len() != 2 {
                 diags.push(Diagnostic::new(
                     DiagnosticCode::EFunctionArityInvalid,
-                    format!("array_strip() expects exactly 2 arguments, found {}", args.len()),
+                    format!(
+                        "array_strip() expects exactly 2 arguments, found {}",
+                        args.len()
+                    ),
                     Phase::Validation,
                     scene,
                     line,
@@ -2450,7 +2458,10 @@ fn infer_call_type(
             if args.len() != 1 {
                 diags.push(Diagnostic::new(
                     DiagnosticCode::EFunctionArityInvalid,
-                    format!("array_clear() expects exactly 1 argument, found {}", args.len()),
+                    format!(
+                        "array_clear() expects exactly 1 argument, found {}",
+                        args.len()
+                    ),
                     Phase::Validation,
                     scene,
                     line,
@@ -2582,7 +2593,10 @@ fn infer_call_type(
             if args.len() != 1 {
                 diags.push(Diagnostic::new(
                     DiagnosticCode::EFunctionArityInvalid,
-                    format!("array_size() expects exactly 1 argument, found {}", args.len()),
+                    format!(
+                        "array_size() expects exactly 1 argument, found {}",
+                        args.len()
+                    ),
                     Phase::Validation,
                     scene,
                     line,
@@ -2611,7 +2625,10 @@ fn infer_call_type(
             if args.len() != 2 {
                 diags.push(Diagnostic::new(
                     DiagnosticCode::EFunctionArityInvalid,
-                    format!("array_join() expects exactly 2 arguments, found {}", args.len()),
+                    format!(
+                        "array_join() expects exactly 2 arguments, found {}",
+                        args.len()
+                    ),
                     Phase::Validation,
                     scene,
                     line,
@@ -2679,7 +2696,10 @@ fn infer_call_type(
             if args.len() != 2 {
                 diags.push(Diagnostic::new(
                     DiagnosticCode::EFunctionArityInvalid,
-                    format!("array_get() expects exactly 2 arguments, found {}", args.len()),
+                    format!(
+                        "array_get() expects exactly 2 arguments, found {}",
+                        args.len()
+                    ),
                     Phase::Validation,
                     scene,
                     line,
@@ -2963,10 +2983,7 @@ fn infer_call_type(
             if args.len() != 1 && args.len() != 2 {
                 diags.push(Diagnostic::new(
                     DiagnosticCode::EFunctionArityInvalid,
-                    format!(
-                        "pick() expects 1 or 2 arguments, found {}",
-                        args.len()
-                    ),
+                    format!("pick() expects 1 or 2 arguments, found {}", args.len()),
                     Phase::Validation,
                     scene,
                     line,
@@ -3756,8 +3773,7 @@ mod tests {
 "#;
         let diags = parse_and_validate(src);
         assert!(diags.iter().any(|d| {
-            d.code == DiagnosticCode::EListEmpty
-                && d.message.contains("non-empty candidate list")
+            d.code == DiagnosticCode::EListEmpty && d.message.contains("non-empty candidate list")
         }));
     }
 
@@ -3851,9 +3867,11 @@ mod tests {
 }
 "#;
         let diags = parse_and_validate(src);
-        assert!(diags
-            .iter()
-            .any(|d| d.code == DiagnosticCode::EVariableScopeConflict));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EVariableScopeConflict)
+        );
     }
 
     #[test]
@@ -3873,9 +3891,11 @@ mod tests {
 }
 "#;
         let diags = parse_and_validate(src);
-        assert!(diags
-            .iter()
-            .any(|d| d.code == DiagnosticCode::ELocalDuplicate));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::ELocalDuplicate)
+        );
     }
 
     #[test]
@@ -3967,9 +3987,11 @@ mod tests {
 }
 "#;
         let diags = parse_and_validate(src);
-        assert!(diags
-            .iter()
-            .any(|d| d.code == DiagnosticCode::EConditionTypeInvalid));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EConditionTypeInvalid)
+        );
     }
 
     #[test]
@@ -3995,9 +4017,11 @@ mod tests {
 }
 "#;
         let diags = parse_and_validate(src);
-        assert!(diags
-            .iter()
-            .any(|d| d.code == DiagnosticCode::EStoryUnterminatedPath));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EStoryUnterminatedPath)
+        );
     }
 
     #[test]
@@ -4124,9 +4148,11 @@ mod tests {
 "#;
 
         let diags = parse_and_validate(src);
-        assert!(diags
-            .iter()
-            .any(|d| d.code == DiagnosticCode::ELoopControlOutsideLoop));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::ELoopControlOutsideLoop)
+        );
     }
 
     #[test]
@@ -4148,7 +4174,11 @@ mod tests {
 "#;
 
         let diags = parse_and_validate(src);
-        assert!(diags.iter().any(|d| d.code == DiagnosticCode::ERangeInvalid));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::ERangeInvalid)
+        );
     }
 
     #[test]
@@ -4171,9 +4201,11 @@ mod tests {
 "#;
 
         let diags = parse_and_validate(src);
-        assert!(diags
-            .iter()
-            .any(|d| d.code == DiagnosticCode::ELoopIteratorReadOnly));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::ELoopIteratorReadOnly)
+        );
     }
 
     #[test]
@@ -4326,10 +4358,16 @@ mod tests {
 "#;
 
         let diags = parse_and_validate(src);
-        assert!(diags.iter().any(|d| d.code == DiagnosticCode::ERangeInvalid));
-        assert!(diags
-            .iter()
-            .any(|d| d.code == DiagnosticCode::EChoiceStaticEmpty));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::ERangeInvalid)
+        );
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EChoiceStaticEmpty)
+        );
     }
 
     #[test]
@@ -4356,9 +4394,11 @@ mod tests {
 "#;
 
         let diags = parse_and_validate(src);
-        assert!(diags
-            .iter()
-            .any(|d| d.code == DiagnosticCode::EVariableScopeConflict));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EVariableScopeConflict)
+        );
     }
 
     #[test]
@@ -4444,9 +4484,11 @@ logic bump($v as integer) -> integer {
 "#;
 
         let diags = parse_and_validate(src);
-        assert!(diags
-            .iter()
-            .any(|d| d.code == DiagnosticCode::EFunctionReturnMissing));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EFunctionReturnMissing)
+        );
     }
 
     #[test]
@@ -4476,9 +4518,11 @@ logic b($n as integer) -> integer {
 "#;
 
         let diags = parse_and_validate(src);
-        assert!(diags
-            .iter()
-            .any(|d| d.code == DiagnosticCode::EFunctionRecursionForbidden));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EFunctionRecursionForbidden)
+        );
     }
 
     #[test]
@@ -4499,8 +4543,10 @@ logic b($n as integer) -> integer {
 "#;
 
         let diags = parse_and_validate(src);
-        assert!(diags
-            .iter()
-            .any(|d| d.code == DiagnosticCode::EPhaseTokenForbidden));
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == DiagnosticCode::EPhaseTokenForbidden)
+        );
     }
 }

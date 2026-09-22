@@ -2,6 +2,7 @@
 name = "storyscript-parser"
 version = "0.1.0"
 edition = "2024"
+license = "LGPL-2.1-only"
 
 [dependencies]
 rust_decimal = "1.41.0"

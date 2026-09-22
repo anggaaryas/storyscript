@@ -34,14 +34,14 @@ pub enum Token {
     Return,
 
     // Directives
-    AtActor,  // @actor
-    AtBg,     // @bg
-    AtBgm,    // @bgm
-    AtSfx,    // @sfx
-    AtChoice, // @choice
-    AtJump,   // @jump
-    AtEnd,    // @end
-    AtStart,  // @start
+    AtActor,   // @actor
+    AtBg,      // @bg
+    AtBgm,     // @bgm
+    AtSfx,     // @sfx
+    AtChoice,  // @choice
+    AtJump,    // @jump
+    AtEnd,     // @end
+    AtStart,   // @start
     AtInclude, // @include
 
     // Keywords

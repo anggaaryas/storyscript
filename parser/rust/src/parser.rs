@@ -2248,9 +2248,7 @@ impl Parser {
 
     fn parse_choice_entry(&mut self, scene: &str) -> Option<ChoiceEntry> {
         match self.peek().clone() {
-            Token::StringLit(_) => self
-                .parse_choice_option(scene)
-                .map(ChoiceEntry::Option),
+            Token::StringLit(_) => self.parse_choice_option(scene).map(ChoiceEntry::Option),
             Token::If => self.parse_choice_if_entry(scene),
             Token::Repeat => self.parse_choice_repeat_entry(scene),
             Token::For => self.parse_choice_for_snapshot_entry(scene),
