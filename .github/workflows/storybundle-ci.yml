@@ -150,6 +150,9 @@ jobs:
         working-directory: storyscript_bundle
       - run: flutter pub get
         working-directory: storyscript_player_core
+      - name: Resolve vendored Cargokit dependencies
+        run: dart pub get
+        working-directory: storyscript_player_core/cargokit/build_tool
       - run: dart format --output=none --set-exit-if-changed lib test
         working-directory: storyscript_player_core
       - run: flutter analyze

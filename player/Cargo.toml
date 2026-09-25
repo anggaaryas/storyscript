@@ -35,3 +35,8 @@ getrandom = { version = "0.4.2", features = ["wasm_js"] }
 name = "storyscript-player"
 path = "src/main.rs"
 required-features = ["tui"]
+
+[[test]]
+name = "cli_help"
+path = "tests/cli_help.rs"
+required-features = ["tui"]
