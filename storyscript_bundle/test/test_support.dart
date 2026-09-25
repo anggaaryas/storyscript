@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:storyscript_bundle/storyscript_bundle.dart';
+import 'package:storyscript_bundle/storyscript_bundle_player.dart';
 
 final class FakeStoryBundleBindings implements StoryBundleBindings {
   FakeStoryBundleBindings({StoryBundleBridgePayload? payload})
@@ -93,4 +94,133 @@ StoryBundleManifest makeManifest() => StoryBundleManifest(
   signerKeyId: 'a' * 64,
   resourceLimits: const StoryBundleLimits(),
   entries: const <StoryBundleManifestEntry>[],
+);
+
+final class FakeStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
+  final resource = Object();
+  StoryBundlePlayerDelta currentDelta = makePlayerDelta();
+  int openBytesCalls = 0;
+  int fromBundleCalls = 0;
+  int disposeCalls = 0;
+  int assetCalls = 0;
+  Completer<StoryBundlePlayerBridgePayload>? pendingOpen;
+
+  StoryBundlePlayerBridgePayload get payload =>
+      StoryBundlePlayerBridgePayload(resource: resource, current: currentDelta);
+
+  @override
+  Future<StoryBundlePlayerDelta> advance(Object resource) async {
+    return currentDelta = makePlayerDelta(
+      event: StoryBundlePlayerEvent(
+        kind: StoryBundlePlayerEventKind.narration,
+        text: 'hello',
+      ),
+      sequence: 1,
+    );
+  }
+
+  @override
+  Future<StoryBundlePlayerDelta> choose(Object resource, int index) async =>
+      currentDelta;
+  @override
+  Future<StoryBundlePlayerDelta> current(Object resource) async => currentDelta;
+  @override
+  Future<void> dispose(Object resource) async {
+    disposeCalls++;
+  }
+
+  @override
+  Future<Uint8List> exportSave(Object resource) async =>
+      Uint8List.fromList([1, 2, 3]);
+  @override
+  Future<StoryBundlePlayerHistoryPage> history(
+    Object resource,
+    int startSequence,
+    int maximum,
+  ) async => StoryBundlePlayerHistoryPage(
+    entries: [
+      StoryBundlePlayerHistoryEntry(
+        sequence: 0,
+        event: currentDelta.event,
+        effects: const [],
+        scene: 'start',
+      ),
+    ],
+    nextSequence: 1,
+    firstRetainedSequence: 0,
+    omittedHistoryCount: 0,
+  );
+  @override
+  Future<StoryBundlePlayerBridgePayload> openBytes(
+    Uint8List bytes,
+    StoryBundleBridgeRequest request,
+    StoryBundlePlayerLimits limits,
+  ) {
+    openBytesCalls++;
+    return pendingOpen?.future ?? Future.value(payload);
+  }
+
+  @override
+  Future<StoryBundlePlayerBridgePayload> openFromBundle(
+    Object bundleResource,
+    StoryBundlePlayerLimits limits,
+  ) async {
+    fromBundleCalls++;
+    return payload;
+  }
+
+  @override
+  Future<StoryBundlePlayerBridgePayload> openPath(
+    String path,
+    StoryBundleBridgeRequest request,
+    StoryBundlePlayerLimits limits,
+  ) async => payload;
+  @override
+  Future<Uint8List> readAsset(
+    Object resource,
+    String path,
+    int maximumBytes,
+  ) async {
+    assetCalls++;
+    return Uint8List.fromList([4, 5, 6]);
+  }
+
+  @override
+  Future<StoryBundlePlayerBridgePayload> restoreBytes(
+    Uint8List bytes,
+    Uint8List save,
+    StoryBundleBridgeRequest request,
+    StoryBundlePlayerLimits limits,
+  ) async => payload;
+  @override
+  Future<StoryBundlePlayerBridgePayload> restoreFromBundle(
+    Object bundleResource,
+    Uint8List save,
+    StoryBundlePlayerLimits limits,
+  ) async => payload;
+  @override
+  Future<StoryBundlePlayerBridgePayload> restorePath(
+    String path,
+    Uint8List save,
+    StoryBundleBridgeRequest request,
+    StoryBundlePlayerLimits limits,
+  ) async => payload;
+}
+
+StoryBundlePlayerDelta makePlayerDelta({
+  StoryBundlePlayerEvent? event,
+  int sequence = 0,
+}) => StoryBundlePlayerDelta(
+  event:
+      event ??
+      StoryBundlePlayerEvent(
+        kind: StoryBundlePlayerEventKind.scene,
+        scene: 'start',
+      ),
+  effects: const [],
+  scene: 'start',
+  status: StoryBundlePlayerStatus.active,
+  sequence: sequence,
+  firstRetainedSequence: 0,
+  omittedHistoryCount: 0,
 );

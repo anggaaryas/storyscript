@@ -150,6 +150,16 @@ impl LoadedBundle {
         &self.status
     }
 
+    /// Digest authenticated by the manifest for the validated compiled model.
+    pub fn compiled_entry_sha256(&self) -> &str {
+        self.manifest
+            .entries
+            .iter()
+            .find(|entry| entry.path == crate::manifest::COMPILED_PATH)
+            .map(|entry| entry.sha256.as_str())
+            .expect("validated bundle always has compiled/story.pb")
+    }
+
     pub fn assets(&self) -> &[AssetDescriptor] {
         &self.assets
     }

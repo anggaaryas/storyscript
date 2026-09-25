@@ -527,8 +527,9 @@ fn render_file_chooser(frame: &mut Frame, chooser: &FileChooser) {
             .alignment(Alignment::Center);
         frame.render_widget(empty, chunks[1]);
     } else {
-        let body_chunks = Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)])
-            .split(chunks[1]);
+        let body_chunks =
+            Layout::horizontal([Constraint::Percentage(55), Constraint::Percentage(45)])
+                .split(chunks[1]);
 
         let items: Vec<ListItem> = chooser
             .files

@@ -1,9 +1,15 @@
 use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
 
-use rand::RngExt;
-use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use crate::adapters::ast;
+use crate::contract::{
+    Choice, HARD_LIMITS, MediaEffect, PlayerLimits, RuntimeError, SemanticEvent,
+};
+use crate::model::*;
+use crate::session_rng::{RngState, SessionRng};
 use rust_decimal::Decimal;
-use storyscript_parser::ast::*;
+use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
+use storyscript_parser::ast::Script as ParserScript;
 use storyscript_parser::interpolation::{ESCAPED_DOLLAR_MARKER, render_interpolated};
 
 // ---------------------------------------------------------------------------
@@ -47,6 +53,7 @@ impl std::fmt::Display for Value {
 #[derive(Debug, Clone)]
 pub struct ActorInfo {
     pub display_name: String,
+    pub portraits: HashMap<String, String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -77,18 +84,43 @@ pub enum StepResult {
 // Internal events (before filtering)
 // ---------------------------------------------------------------------------
 
+#[derive(Clone)]
 enum InternalEvent {
+    Scene(String, Vec<MediaEffect>),
+    Media(MediaEffect),
+    Error(RuntimeError),
     Narration(String),
     Dialogue {
         actor_name: String,
         actor_id: String,
         emotion: Option<String>,
         position: Option<String>,
+        portrait_path: Option<String>,
         text: String,
     },
     Choices(Vec<ChoiceDisplay>),
     Jump(String),
     End,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum PendingEvent {
+    Event(SemanticEvent, Vec<MediaEffect>),
+    Jump(String),
+}
+
+#[derive(Clone)]
+pub(crate) struct EngineState {
+    pub variables: HashMap<String, Value>,
+    pub local_variables: HashMap<String, Value>,
+    pub local_var_types: HashMap<String, VarType>,
+    pub current_scene: String,
+    pub bg: Option<String>,
+    pub bgm: Option<String>,
+    pub pending: Vec<PendingEvent>,
+    pub finished: bool,
+    pub rng: RngState,
+    pub active_choices: Option<Vec<ChoiceDisplay>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,12 +153,66 @@ const CHOICE_OPTION_CAP: usize = 9;
 // Engine
 // ---------------------------------------------------------------------------
 
-pub struct Engine {
+// Static story indexes are constructed independently of scene entry; a future
+// restore can build these without executing the current scene's PREP/STORY.
+struct StoryIndexes {
+    model: StoryModel,
     scenes: HashMap<String, Scene>,
     logic_blocks: HashMap<String, LogicBlock>,
     actors: HashMap<String, ActorInfo>,
-    pub variables: HashMap<String, Value>,
     var_types: HashMap<String, VarType>,
+}
+
+impl StoryIndexes {
+    fn from_model(script: &StoryModel) -> Self {
+        let var_types = script
+            .init
+            .variables
+            .iter()
+            .map(|var| (var.name.clone(), var.var_type))
+            .collect();
+        let actors = script
+            .init
+            .actors
+            .iter()
+            .map(|actor| {
+                (
+                    actor.id.clone(),
+                    ActorInfo {
+                        display_name: actor.display_name.clone(),
+                        portraits: actor
+                            .portraits
+                            .iter()
+                            .map(|p| (p.emotion.clone(), p.path.clone()))
+                            .collect(),
+                    },
+                )
+            })
+            .collect();
+        let scenes = script
+            .scenes
+            .iter()
+            .map(|scene| (scene.label.clone(), scene.clone()))
+            .collect();
+        let logic_blocks = script
+            .logic_blocks
+            .iter()
+            .map(|logic| (logic.name.clone(), logic.clone()))
+            .collect();
+        Self {
+            model: script.clone(),
+            scenes,
+            logic_blocks,
+            actors,
+            var_types,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct Engine {
+    indexes: Arc<StoryIndexes>,
+    pub variables: HashMap<String, Value>,
     local_variables: HashMap<String, Value>,
     local_var_types: HashMap<String, VarType>,
     pub current_scene: String,
@@ -134,52 +220,139 @@ pub struct Engine {
     pub bgm: Option<String>,
     pending: VecDeque<InternalEvent>,
     pub finished: bool,
+    rng: SessionRng,
+    scene_effects: Vec<MediaEffect>,
+    limits: PlayerLimits,
+    operations: usize,
+    call_depth: usize,
+    last_error: Option<RuntimeError>,
+    active_choices: Option<Vec<ChoiceDisplay>>,
 }
 
 impl Engine {
-    pub fn new(script: &Script) -> Self {
-        // Initialize variables and immutable types from INIT block.
-        let mut variables = HashMap::new();
-        let mut var_types = HashMap::new();
-        for var in &script.init.variables {
-            var_types.insert(var.name.clone(), var.var_type);
+    pub fn new(script: &ParserScript) -> Self {
+        Self::from_model(&ast::adapt(script))
+    }
 
-            let value = eval_init_expr(&var.value, &variables, Some(var.var_type))
-                .and_then(|v| coerce_value_for_type(v, var.var_type))
-                .unwrap_or_else(|| default_value_for_type(var.var_type));
-            variables.insert(var.name.clone(), value);
+    pub fn from_model(script: &StoryModel) -> Self {
+        let mut engine = Self::without_execution(script, SessionRng::random());
+        engine.current_scene = script.init.start.clone();
+        if engine.initialize(&script.init.variables) {
+            engine.enter_scene(&script.init.start);
         }
+        engine
+    }
 
-        // Build actor map
-        let mut actors = HashMap::new();
-        for actor in &script.init.actors {
-            actors.insert(
-                actor.id.clone(),
-                ActorInfo {
-                    display_name: actor.display_name.clone(),
-                },
-            );
+    /// Explicit seeds make a session reproducible, including INIT expressions.
+    pub fn new_seeded(script: &ParserScript, seed: [u8; 32]) -> Self {
+        Self::from_model_seeded(&ast::adapt(script), seed)
+    }
+
+    pub fn from_model_seeded(script: &StoryModel, seed: [u8; 32]) -> Self {
+        let mut engine = Self::without_execution(script, SessionRng::from_seed(seed));
+        engine.current_scene = script.init.start.clone();
+        if engine.initialize(&script.init.variables) {
+            engine.enter_scene(&script.init.start);
         }
+        engine
+    }
 
-        // Build scene map
-        let mut scenes = HashMap::new();
-        for scene in &script.scenes {
-            scenes.insert(scene.label.clone(), scene.clone());
+    /// Fail closed during scene opening; no candidate engine escapes on error.
+    pub fn open_checked(
+        script: &ParserScript,
+        seed: [u8; 32],
+        limits: PlayerLimits,
+    ) -> Result<Self, RuntimeError> {
+        Self::open_model_checked(&ast::adapt(script), seed, limits)
+    }
+
+    pub fn open_model_checked(
+        script: &StoryModel,
+        seed: [u8; 32],
+        limits: PlayerLimits,
+    ) -> Result<Self, RuntimeError> {
+        let limits = limits.lowered().map_err(|invalid| RuntimeError {
+            code: "R_LIMIT_CONFIGURATION".into(),
+            scene: script.init.start.clone(),
+            message: format!("{} exceeds hard limits or is zero", invalid.resource),
+            resource: Some(invalid.resource.into()),
+            actual: Some(invalid.requested as u64),
+            limit: Some(invalid.hard_maximum as u64),
+        })?;
+        let mut candidate = Self::without_execution(script, SessionRng::from_seed(seed));
+        candidate.limits = limits;
+        candidate.current_scene = script.init.start.clone();
+        if candidate.initialize(&script.init.variables) {
+            candidate.enter_scene(&script.init.start);
         }
-
-        let mut logic_blocks = HashMap::new();
-        for logic in &script.logic_blocks {
-            logic_blocks.insert(logic.name.clone(), logic.clone());
+        if let Some(error) = candidate.last_error.take() {
+            return Err(error);
         }
+        Ok(candidate)
+    }
 
-        let start = script.init.start.target.clone();
+    /// A failed interaction cannot mutate a previously published checkpoint.
+    pub fn advance_checked(
+        &mut self,
+    ) -> Result<Option<(SemanticEvent, Vec<MediaEffect>)>, RuntimeError> {
+        if self.active_choices.is_some() {
+            return Err(self.action_error(
+                "R_INVALID_ACTION",
+                "choose an available option before advancing",
+            ));
+        }
+        let mut candidate = self.clone();
+        candidate.operations = 0;
+        candidate.last_error = None;
+        let event = candidate.step_semantic();
+        if let Some(error) = candidate.last_error.take() {
+            return Err(error);
+        }
+        *self = candidate;
+        Ok(event)
+    }
 
-        let mut engine = Engine {
-            scenes,
-            logic_blocks,
-            actors,
-            variables,
-            var_types,
+    pub fn choose_checked(
+        &mut self,
+        choice: &ChoiceDisplay,
+    ) -> Result<Option<(SemanticEvent, Vec<MediaEffect>)>, RuntimeError> {
+        if !self.active_choices.as_ref().is_some_and(|available| {
+            available
+                .iter()
+                .any(|item| item.text == choice.text && item.target == choice.target)
+        }) {
+            return Err(self.action_error("R_INVALID_CHOICE", "choice is not available"));
+        }
+        let mut candidate = self.clone();
+        candidate.operations = 0;
+        candidate.last_error = None;
+        candidate.active_choices = None;
+        candidate.select_choice(choice);
+        let event = candidate.step_semantic();
+        if let Some(error) = candidate.last_error.take() {
+            return Err(error);
+        }
+        *self = candidate;
+        Ok(event)
+    }
+
+    fn action_error(&self, code: &str, message: &str) -> RuntimeError {
+        RuntimeError {
+            code: code.into(),
+            scene: self.current_scene.clone(),
+            message: message.into(),
+            resource: None,
+            actual: None,
+            limit: None,
+        }
+    }
+
+    // This constructor builds only story indexes. Restore can inject validated
+    // mutable state here without rerunning INIT or entering a scene.
+    fn without_execution(script: &StoryModel, rng: SessionRng) -> Self {
+        Self {
+            indexes: Arc::new(StoryIndexes::from_model(script)),
+            variables: HashMap::new(),
             local_variables: HashMap::new(),
             local_var_types: HashMap::new(),
             current_scene: String::new(),
@@ -187,10 +360,160 @@ impl Engine {
             bgm: None,
             pending: VecDeque::new(),
             finished: false,
-        };
+            rng,
+            scene_effects: Vec::new(),
+            limits: HARD_LIMITS,
+            operations: 0,
+            call_depth: 0,
+            last_error: None,
+            active_choices: None,
+        }
+    }
 
-        engine.enter_scene(&start);
-        engine
+    pub fn rng_state(&self) -> RngState {
+        self.rng.state()
+    }
+
+    pub(crate) fn model(&self) -> &StoryModel {
+        &self.indexes.model
+    }
+
+    pub(crate) fn snapshot(&self) -> EngineState {
+        EngineState {
+            variables: self.variables.clone(),
+            local_variables: self.local_variables.clone(),
+            local_var_types: self.local_var_types.clone(),
+            current_scene: self.current_scene.clone(),
+            bg: self.bg.clone(),
+            bgm: self.bgm.clone(),
+            pending: self.pending.iter().map(internal_to_pending).collect(),
+            finished: self.finished,
+            rng: self.rng.state(),
+            active_choices: self.active_choices.clone(),
+        }
+    }
+
+    pub(crate) fn restore_model(
+        model: &StoryModel,
+        state: EngineState,
+        limits: PlayerLimits,
+    ) -> Result<Self, RuntimeError> {
+        let limits = limits.lowered().map_err(|invalid| RuntimeError {
+            code: "R_LIMIT_CONFIGURATION".into(),
+            scene: state.current_scene.clone(),
+            message: format!("{} exceeds hard limits or is zero", invalid.resource),
+            resource: Some(invalid.resource.into()),
+            actual: Some(invalid.requested as u64),
+            limit: Some(invalid.hard_maximum as u64),
+        })?;
+        let rng = SessionRng::from_state(state.rng).map_err(|message| RuntimeError {
+            code: "R_SAVE_STATE_CORRUPT".into(),
+            scene: state.current_scene.clone(),
+            message: message.to_string(),
+            resource: None,
+            actual: None,
+            limit: None,
+        })?;
+        let mut engine = Self::without_execution(model, rng);
+        engine.variables = state.variables;
+        engine.local_variables = state.local_variables;
+        engine.local_var_types = state.local_var_types;
+        engine.current_scene = state.current_scene;
+        engine.bg = state.bg;
+        engine.bgm = state.bgm;
+        engine.pending = state.pending.into_iter().map(pending_to_internal).collect();
+        engine.finished = state.finished;
+        engine.active_choices = state.active_choices;
+        engine.limits = limits;
+        Ok(engine)
+    }
+
+    fn initialize(&mut self, declarations: &[VarDecl]) -> bool {
+        for var in declarations {
+            if !self.charge() {
+                return false;
+            }
+            let raw = match self.eval_expr(&var.value, Some(var.var_type)) {
+                Some(value) => value,
+                None => return false,
+            };
+            let value = match coerce_value_for_type(raw, var.var_type) {
+                Some(value) => value,
+                None => {
+                    self.raise_runtime_error(
+                        "RUNTIME",
+                        format!(
+                            "INIT value for '${}' is incompatible with {}",
+                            var.name,
+                            type_name(var.var_type)
+                        ),
+                    );
+                    return false;
+                }
+            };
+            if !self.ensure_value_limits(&value) {
+                return false;
+            }
+            self.variables.insert(var.name.clone(), value);
+        }
+        true
+    }
+
+    fn charge(&mut self) -> bool {
+        if self.operations >= self.limits.operations_per_interaction {
+            self.limit_error(
+                "operations_per_interaction",
+                self.operations.saturating_add(1),
+                self.limits.operations_per_interaction,
+            );
+            return false;
+        }
+        self.operations += 1;
+        true
+    }
+
+    fn limit_error(&mut self, resource: &str, actual: usize, limit: usize) {
+        let error = RuntimeError {
+            code: "R_EXECUTION_LIMIT".into(),
+            scene: self.current_scene.clone(),
+            message: format!("{} exceeded: {} > {}", resource, actual, limit),
+            resource: Some(resource.into()),
+            actual: Some(actual as u64),
+            limit: Some(limit as u64),
+        };
+        self.raise_runtime_error(&error.code, error.message.clone());
+        self.last_error = Some(error.clone());
+        self.pending.clear();
+        self.pending.push_back(InternalEvent::Error(error));
+        self.pending.push_back(InternalEvent::End);
+    }
+
+    fn push_event(&mut self, event: InternalEvent) -> bool {
+        if self.pending.len() >= self.limits.pending_events_per_scene {
+            self.limit_error(
+                "pending_events_per_scene",
+                self.pending.len().saturating_add(1),
+                self.limits.pending_events_per_scene,
+            );
+            false
+        } else {
+            self.pending.push_back(event);
+            true
+        }
+    }
+
+    fn push_effect(&mut self, effect: MediaEffect) -> bool {
+        if self.scene_effects.len() >= self.limits.pending_events_per_scene {
+            self.limit_error(
+                "pending_events_per_scene",
+                self.scene_effects.len().saturating_add(1),
+                self.limits.pending_events_per_scene,
+            );
+            false
+        } else {
+            self.scene_effects.push(effect);
+            true
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -198,7 +521,10 @@ impl Engine {
     // -----------------------------------------------------------------------
 
     fn enter_scene(&mut self, label: &str) {
-        let scene = match self.scenes.get(label) {
+        if !self.charge() {
+            return;
+        }
+        let scene = match self.indexes.scenes.get(label) {
             Some(s) => s.clone(),
             None => {
                 self.finished = true;
@@ -209,22 +535,22 @@ impl Engine {
         self.current_scene = label.to_string();
         self.local_variables.clear();
         self.local_var_types.clear();
+        self.scene_effects.clear();
 
         // Execute #PREP (silent — modifies state, sets assets)
-        if let Some(prep) = &scene.prep {
-            if !self.execute_prep(&prep.statements) {
+        if !scene.prep.is_empty() {
+            if !self.execute_prep(&scene.prep) {
                 return;
             }
         }
 
-        // Emit scene header
-        self.pending.push_back(InternalEvent::Narration(format!(
-            "─── Scene: {} ───",
-            label
-        )));
+        let effects = std::mem::take(&mut self.scene_effects);
+        if !self.push_event(InternalEvent::Scene(label.to_string(), effects)) {
+            return;
+        }
 
         // Flatten #STORY into pending events
-        self.flatten_story(&scene.story.statements);
+        self.flatten_story(&scene.story);
     }
 
     // -----------------------------------------------------------------------
@@ -232,7 +558,10 @@ impl Engine {
     // -----------------------------------------------------------------------
 
     fn execute_prep(&mut self, stmts: &[PrepStatement]) -> bool {
-        matches!(self.execute_prep_block(stmts, false, false, None), PrepFlow::Next)
+        matches!(
+            self.execute_prep_block(stmts, false, false, None),
+            PrepFlow::Next
+        )
     }
 
     fn execute_prep_block(
@@ -243,6 +572,9 @@ impl Engine {
         logic_return_type: Option<VarType>,
     ) -> PrepFlow {
         for stmt in stmts {
+            if !self.charge() {
+                return PrepFlow::Error;
+            }
             match stmt {
                 PrepStatement::BgDirective { path, .. } => {
                     let resolved = match self.resolve_string_or_error(path, "@bg path") {
@@ -250,6 +582,10 @@ impl Engine {
                         None => return PrepFlow::Error,
                     };
                     self.bg = Some(resolved);
+                    if !self.push_effect(MediaEffect::Background(self.bg.as_ref().unwrap().clone()))
+                    {
+                        return PrepFlow::Error;
+                    }
                 }
                 PrepStatement::BgmDirective { value, .. } => {
                     self.bgm = match value {
@@ -262,12 +598,25 @@ impl Engine {
                         }
                         BgmValue::Stop => None,
                     };
+                    let effect = match &self.bgm {
+                        Some(path) => MediaEffect::Bgm(path.clone()),
+                        None => MediaEffect::BgmStop,
+                    };
+                    if !self.push_effect(effect) {
+                        return PrepFlow::Error;
+                    }
                 }
-                PrepStatement::SfxDirective { .. } => {
-                    // SFX: can't play audio in TUI, skip
+                PrepStatement::SfxDirective { path, .. } => {
+                    let resolved = match self.resolve_string_or_error(path, "@sfx path") {
+                        Some(value) => value,
+                        None => return PrepFlow::Error,
+                    };
+                    if !self.push_effect(MediaEffect::Sfx(resolved)) {
+                        return PrepFlow::Error;
+                    }
                 }
                 PrepStatement::VarDecl(decl) => {
-                    if self.var_types.contains_key(&decl.name)
+                    if self.indexes.var_types.contains_key(&decl.name)
                         || self.local_var_types.contains_key(&decl.name)
                     {
                         self.raise_runtime_error(
@@ -301,7 +650,8 @@ impl Engine {
                         }
                     };
 
-                    self.local_var_types.insert(decl.name.clone(), decl.var_type);
+                    self.local_var_types
+                        .insert(decl.name.clone(), decl.var_type);
                     self.local_variables.insert(decl.name.clone(), coerced);
                 }
                 PrepStatement::VarAssign(assign) => {
@@ -379,9 +729,22 @@ impl Engine {
                                     };
 
                                     let updated = match assign.op {
-                                        AssignOp::AddEq => Value::Int(a + b),
-                                        AssignOp::SubEq => Value::Int(a - b),
-                                        AssignOp::Set => Value::Int(a),
+                                        AssignOp::AddEq => a.checked_add(b).map(Value::Int),
+                                        AssignOp::SubEq => a.checked_sub(b).map(Value::Int),
+                                        AssignOp::Set => Some(Value::Int(a)),
+                                    };
+                                    let updated = match updated {
+                                        Some(value) => value,
+                                        None => {
+                                            self.raise_runtime_error(
+                                                "R_NUMERIC_OVERFLOW",
+                                                format!(
+                                                    "integer assignment overflow for ${}",
+                                                    assign.name
+                                                ),
+                                            );
+                                            return PrepFlow::Error;
+                                        }
                                     };
                                     self.write_variable(&assign.name, updated);
                                 }
@@ -451,14 +814,16 @@ impl Engine {
                         }
                     }
                 }
-                PrepStatement::Call {
-                    name,
-                    args,
-                    line,
-                    column,
-                } => {
+                PrepStatement::Call { name, args, span } => {
                     if self
-                        .eval_call(name, args, *line, *column, None, CallMode::Statement)
+                        .eval_call(
+                            name,
+                            args,
+                            span.line,
+                            span.column,
+                            None,
+                            CallMode::Statement,
+                        )
                         .is_none()
                     {
                         return PrepFlow::Error;
@@ -478,12 +843,7 @@ impl Engine {
                             logic_return_type,
                         )
                     } else if let Some(else_branch) = &if_else.else_branch {
-                        self.execute_prep_block(
-                            else_branch,
-                            in_loop,
-                            in_logic,
-                            logic_return_type,
-                        )
+                        self.execute_prep_block(else_branch, in_loop, in_logic, logic_return_type)
                     } else {
                         PrepFlow::Next
                     };
@@ -499,12 +859,17 @@ impl Engine {
                             None => return PrepFlow::Error,
                         };
 
-                    let previous_type =
-                        self.local_var_types.insert(loop_stmt.item_name.clone(), element_type);
+                    let previous_type = self
+                        .local_var_types
+                        .insert(loop_stmt.item_name.clone(), element_type);
                     let previous_value = self.local_variables.remove(&loop_stmt.item_name);
 
                     for item in snapshot_items {
-                        self.local_variables.insert(loop_stmt.item_name.clone(), item);
+                        if !self.charge() {
+                            return PrepFlow::Error;
+                        }
+                        self.local_variables
+                            .insert(loop_stmt.item_name.clone(), item);
 
                         match self.execute_prep_block(
                             &loop_stmt.body,
@@ -543,6 +908,9 @@ impl Engine {
                     };
 
                     for _ in 0..count {
+                        if !self.charge() {
+                            return PrepFlow::Error;
+                        }
                         match self.execute_prep_block(
                             &repeat_stmt.body,
                             true,
@@ -644,6 +1012,9 @@ impl Engine {
         let len = stmts.len();
 
         for (idx, stmt) in stmts.iter().enumerate() {
+            if !self.charge() {
+                return StoryFlow::Error;
+            }
             let is_last_stmt = idx + 1 == len;
 
             match stmt {
@@ -652,12 +1023,20 @@ impl Engine {
                         Some(value) => value,
                         None => return StoryFlow::Error,
                     };
-                    self.pending.push_back(InternalEvent::Narration(resolved));
+                    if !self.push_event(InternalEvent::Narration(resolved)) {
+                        return StoryFlow::Error;
+                    }
                 }
                 StoryStatement::VarOutput { name, .. } => {
                     if let Some(value) = self.resolve_var_value(name) {
-                        self.pending
-                            .push_back(InternalEvent::Narration(Self::value_to_plain_text(value)));
+                        let value = value.clone();
+                        let text = match self.render_value(&value) {
+                            Some(text) => text,
+                            None => return StoryFlow::Error,
+                        };
+                        if !self.push_event(InternalEvent::Narration(text)) {
+                            return StoryFlow::Error;
+                        }
                     } else {
                         self.raise_runtime_error(
                             "RUNTIME",
@@ -668,6 +1047,7 @@ impl Engine {
                 }
                 StoryStatement::Dialogue(dlg) => {
                     let actor_name_template = self
+                        .indexes
                         .actors
                         .get(&dlg.actor_id)
                         .map(|a| a.display_name.clone())
@@ -680,15 +1060,21 @@ impl Engine {
                         None => return StoryFlow::Error,
                     };
 
-                    let (emotion, position) = match &dlg.form {
-                        DialogueForm::NameOnly => (None, None),
+                    let (emotion, position, portrait_path) = match &dlg.form {
+                        DialogueForm::NameOnly => (None, None, None),
                         DialogueForm::Portrait { emotion, position } => {
                             let pos_str = match position {
                                 Position::Left => "Left",
                                 Position::Center => "Center",
                                 Position::Right => "Right",
                             };
-                            (Some(emotion.clone()), Some(pos_str.to_string()))
+                            let path = self
+                                .indexes
+                                .actors
+                                .get(&dlg.actor_id)
+                                .and_then(|actor| actor.portraits.get(emotion))
+                                .cloned();
+                            (Some(emotion.clone()), Some(pos_str.to_string()), path)
                         }
                     };
 
@@ -697,13 +1083,28 @@ impl Engine {
                         None => return StoryFlow::Error,
                     };
 
-                    self.pending.push_back(InternalEvent::Dialogue {
+                    if portrait_path
+                        .as_ref()
+                        .is_some_and(|path| path.len() > self.limits.rendered_bytes)
+                    {
+                        self.limit_error(
+                            "rendered_bytes",
+                            portrait_path.as_ref().unwrap().len(),
+                            self.limits.rendered_bytes,
+                        );
+                        return StoryFlow::Error;
+                    }
+
+                    if !self.push_event(InternalEvent::Dialogue {
                         actor_name,
                         actor_id: dlg.actor_id.clone(),
                         emotion,
                         position,
+                        portrait_path,
                         text,
-                    });
+                    }) {
+                        return StoryFlow::Error;
+                    }
                 }
                 StoryStatement::IfElse(if_else) => {
                     let condition = match self.eval_bool(&if_else.condition) {
@@ -770,19 +1171,31 @@ impl Engine {
                         return StoryFlow::Error;
                     }
 
-                    self.pending.push_back(InternalEvent::Choices(options));
+                    if !self.push_event(InternalEvent::Choices(options)) {
+                        return StoryFlow::Error;
+                    }
                     return StoryFlow::Terminated;
                 }
                 StoryStatement::Jump { target, .. } => {
-                    self.pending.push_back(InternalEvent::Jump(target.clone()));
+                    if !self.push_event(InternalEvent::Jump(target.clone())) {
+                        return StoryFlow::Error;
+                    }
                     return StoryFlow::Terminated;
                 }
                 StoryStatement::End { .. } => {
-                    self.pending.push_back(InternalEvent::End);
+                    if !self.push_event(InternalEvent::End) {
+                        return StoryFlow::Error;
+                    }
                     return StoryFlow::Terminated;
                 }
-                StoryStatement::SfxDirective { .. } => {
-                    // SFX in STORY: skip in TUI mode
+                StoryStatement::SfxDirective { path, .. } => {
+                    let resolved = match self.resolve_string_or_error(path, "@sfx path") {
+                        Some(value) => value,
+                        None => return StoryFlow::Error,
+                    };
+                    if !self.push_event(InternalEvent::Media(MediaEffect::Sfx(resolved))) {
+                        return StoryFlow::Error;
+                    }
                 }
             }
         }
@@ -796,6 +1209,9 @@ impl Engine {
         options: &mut Vec<ChoiceDisplay>,
     ) -> StoryFlow {
         for entry in entries {
+            if !self.charge() {
+                return StoryFlow::Error;
+            }
             let flow = self.flatten_choice_entry(entry, options);
             if flow != StoryFlow::Open {
                 return flow;
@@ -837,6 +1253,9 @@ impl Engine {
                 };
 
                 for _ in 0..count {
+                    if !self.charge() {
+                        return StoryFlow::Error;
+                    }
                     let flow = self.flatten_choice_entries(&repeat_entry.body, options);
                     if flow != StoryFlow::Open {
                         return flow;
@@ -858,7 +1277,11 @@ impl Engine {
                 let previous_value = self.local_variables.remove(&loop_entry.item_name);
 
                 for item in snapshot_items {
-                    self.local_variables.insert(loop_entry.item_name.clone(), item);
+                    if !self.charge() {
+                        return StoryFlow::Error;
+                    }
+                    self.local_variables
+                        .insert(loop_entry.item_name.clone(), item);
                     let flow = self.flatten_choice_entries(&loop_entry.body, options);
                     if flow != StoryFlow::Open {
                         self.restore_loop_binding(
@@ -902,18 +1325,24 @@ impl Engine {
         loop_stmt: &StoryForSnapshot,
         is_last_stmt: bool,
     ) -> StoryFlow {
-        let (snapshot_items, element_type) = match self.resolve_snapshot_array(&loop_stmt.array_name)
-        {
-            Some(result) => result,
-            None => return StoryFlow::Error,
-        };
+        let (snapshot_items, element_type) =
+            match self.resolve_snapshot_array(&loop_stmt.array_name) {
+                Some(result) => result,
+                None => return StoryFlow::Error,
+            };
 
         let total_iterations = snapshot_items.len();
-        let previous_type = self.local_var_types.insert(loop_stmt.item_name.clone(), element_type);
+        let previous_type = self
+            .local_var_types
+            .insert(loop_stmt.item_name.clone(), element_type);
         let previous_value = self.local_variables.remove(&loop_stmt.item_name);
 
         for (idx, item) in snapshot_items.into_iter().enumerate() {
-            self.local_variables.insert(loop_stmt.item_name.clone(), item);
+            if !self.charge() {
+                return StoryFlow::Error;
+            }
+            self.local_variables
+                .insert(loop_stmt.item_name.clone(), item);
 
             match self.flatten_story_block(&loop_stmt.body, true) {
                 StoryFlow::Open => {}
@@ -933,19 +1362,11 @@ impl Engine {
                         return StoryFlow::Error;
                     }
 
-                    self.restore_loop_binding(
-                        &loop_stmt.item_name,
-                        previous_type,
-                        previous_value,
-                    );
+                    self.restore_loop_binding(&loop_stmt.item_name, previous_type, previous_value);
                     return StoryFlow::Terminated;
                 }
                 StoryFlow::Error => {
-                    self.restore_loop_binding(
-                        &loop_stmt.item_name,
-                        previous_type,
-                        previous_value,
-                    );
+                    self.restore_loop_binding(&loop_stmt.item_name, previous_type, previous_value);
                     return StoryFlow::Error;
                 }
             }
@@ -971,6 +1392,9 @@ impl Engine {
         };
 
         for idx in 0..count {
+            if !self.charge() {
+                return StoryFlow::Error;
+            }
             match self.flatten_story_block(&repeat_stmt.body, true) {
                 StoryFlow::Open => {}
                 StoryFlow::ContinueLoop => continue,
@@ -1008,7 +1432,22 @@ impl Engine {
     /// Returns None only when the story is fully exhausted.
     pub fn step(&mut self) -> Option<StepResult> {
         loop {
+            if !self.charge() {
+                return self.last_error.take().map(|error| {
+                    StepResult::Narration(format!("[{}] {}", error.code, error.message))
+                });
+            }
             match self.pending.pop_front() {
+                Some(InternalEvent::Scene(label, _)) => {
+                    return Some(StepResult::Narration(format!("─── Scene: {} ───", label)));
+                }
+                Some(InternalEvent::Media(_)) => continue,
+                Some(InternalEvent::Error(error)) => {
+                    return Some(StepResult::Narration(format!(
+                        "[{}] {}",
+                        error.code, error.message
+                    )));
+                }
                 Some(InternalEvent::Jump(target)) => {
                     self.pending.clear();
                     self.enter_scene(&target);
@@ -1022,6 +1461,7 @@ impl Engine {
                     actor_id,
                     emotion,
                     position,
+                    portrait_path: _,
                     text,
                 }) => {
                     return Some(StepResult::Dialogue {
@@ -1046,8 +1486,73 @@ impl Engine {
         }
     }
 
+    /// UI-independent event stream. Scene effects are emitted once and in PREP
+    /// order; STORY SFX are standalone events. No legacy header is serialized.
+    pub fn step_semantic(&mut self) -> Option<(SemanticEvent, Vec<MediaEffect>)> {
+        loop {
+            if !self.charge() {
+                return None;
+            }
+            let next = match self.pending.pop_front() {
+                Some(event) => event,
+                None => return None,
+            };
+            return Some(match next {
+                InternalEvent::Scene(label, effects) => {
+                    (SemanticEvent::SceneTransition(label), effects)
+                }
+                InternalEvent::Media(effect) => (SemanticEvent::Media(effect), Vec::new()),
+                InternalEvent::Error(error) => (SemanticEvent::Error(error), Vec::new()),
+                InternalEvent::Narration(text) => (SemanticEvent::Narration(text), Vec::new()),
+                InternalEvent::Dialogue {
+                    actor_name,
+                    actor_id,
+                    emotion,
+                    position,
+                    portrait_path,
+                    text,
+                } => (
+                    SemanticEvent::Dialogue {
+                        actor_name,
+                        actor_id,
+                        emotion,
+                        position,
+                        portrait_path,
+                        text,
+                    },
+                    Vec::new(),
+                ),
+                InternalEvent::Choices(options) => {
+                    self.active_choices = Some(options.clone());
+                    (
+                        SemanticEvent::Choices(
+                            options
+                                .into_iter()
+                                .map(|item| Choice {
+                                    text: item.text,
+                                    target_scene: item.target,
+                                })
+                                .collect(),
+                        ),
+                        Vec::new(),
+                    )
+                }
+                InternalEvent::End => {
+                    self.finished = true;
+                    (SemanticEvent::End, Vec::new())
+                }
+                InternalEvent::Jump(target) => {
+                    self.pending.clear();
+                    self.enter_scene(&target);
+                    continue;
+                }
+            });
+        }
+    }
+
     /// Execute a player's choice — enter the target scene.
     pub fn select_choice(&mut self, choice: &ChoiceDisplay) {
+        self.active_choices = None;
         self.pending.clear();
         self.enter_scene(&choice.target);
     }
@@ -1057,7 +1562,10 @@ impl Engine {
     // -----------------------------------------------------------------------
 
     fn eval_expr(&mut self, expr: &Expr, assignment_target: Option<VarType>) -> Option<Value> {
-        match expr {
+        if !self.charge() {
+            return None;
+        }
+        let result = match expr {
             Expr::IntLit(n) => Some(Value::Int(*n)),
             Expr::DecimalLit(n) => Some(Value::Decimal(*n)),
             Expr::BoolLit(b) => Some(Value::Bool(*b)),
@@ -1075,16 +1583,11 @@ impl Engine {
                     None
                 }
             }
-            Expr::Call {
+            Expr::Call { name, args, span } => self.eval_call(
                 name,
                 args,
-                line,
-                column,
-            } => self.eval_call(
-                name,
-                args,
-                *line,
-                *column,
+                span.line,
+                span.column,
                 assignment_target,
                 CallMode::Expression,
             ),
@@ -1106,7 +1609,14 @@ impl Engine {
                     BinOperator::GtEq => self.eval_relational_binop(">=", l, r, |a, b| a >= b),
                 }
             }
-        }
+        };
+        result.and_then(|value| {
+            if self.ensure_value_limits(&value) {
+                Some(value)
+            } else {
+                None
+            }
+        })
     }
 
     fn eval_bool(&mut self, expr: &Expr) -> Option<bool> {
@@ -1127,31 +1637,35 @@ impl Engine {
 
     fn eval_numeric_binop(&mut self, op: &str, left: Value, right: Value) -> Option<Value> {
         if let (Value::Int(a), Value::Int(b)) = (&left, &right) {
-            return Some(match op {
-                "+" => Value::Int(a + b),
-                "-" => Value::Int(a - b),
-                "*" => Value::Int(a * b),
-                "/" => {
-                    if *b == 0 {
-                        self.raise_runtime_error(
-                            "R_DIVIDE_BY_ZERO",
-                            "Division by zero is not allowed".to_string(),
-                        );
-                        return None;
-                    }
-                    Value::Int(a / b)
-                }
-                "%" => {
-                    if *b == 0 {
-                        self.raise_runtime_error(
-                            "R_MODULO_BY_ZERO",
-                            "Modulo by zero is not allowed".to_string(),
-                        );
-                        return None;
-                    }
-                    Value::Int(a % b)
-                }
-                _ => Value::Int(*a),
+            if *b == 0 && matches!(op, "/" | "%") {
+                self.raise_runtime_error(
+                    if op == "/" {
+                        "R_DIVIDE_BY_ZERO"
+                    } else {
+                        "R_MODULO_BY_ZERO"
+                    },
+                    if op == "/" {
+                        "Division by zero is not allowed".into()
+                    } else {
+                        "Modulo by zero is not allowed".into()
+                    },
+                );
+                return None;
+            }
+            let result = match op {
+                "+" => a.checked_add(*b),
+                "-" => a.checked_sub(*b),
+                "*" => a.checked_mul(*b),
+                "/" => a.checked_div(*b),
+                "%" => a.checked_rem(*b),
+                _ => Some(*a),
+            };
+            return result.map(Value::Int).or_else(|| {
+                self.raise_runtime_error(
+                    "R_NUMERIC_OVERFLOW",
+                    format!("integer operator '{op}' overflowed"),
+                );
+                None
             });
         }
 
@@ -1212,10 +1726,7 @@ impl Engine {
             "*" => l * r,
             "/" => l / r,
             _ => {
-                self.raise_runtime_error(
-                    "RUNTIME",
-                    format!("Unknown numeric operator '{}'", op),
-                );
+                self.raise_runtime_error("RUNTIME", format!("Unknown numeric operator '{}'", op));
                 return None;
             }
         };
@@ -1301,6 +1812,10 @@ impl Engine {
         items: &[Expr],
         assignment_target: Option<VarType>,
     ) -> Option<Value> {
+        if items.len() > self.limits.array_elements {
+            self.limit_error("array_elements", items.len(), self.limits.array_elements);
+            return None;
+        }
         let expected_element = assignment_target.and_then(array_element_type);
 
         if items.is_empty() {
@@ -1351,10 +1866,7 @@ impl Engine {
             let value_ty = value_type(&value);
 
             if is_array_type(value_ty) {
-                self.raise_runtime_error(
-                    "RUNTIME",
-                    "Nested arrays are not supported".to_string(),
-                );
+                self.raise_runtime_error("RUNTIME", "Nested arrays are not supported".to_string());
                 return None;
             }
 
@@ -1434,21 +1946,22 @@ impl Engine {
                     None
                 }
             },
-            Expr::ListLit { items, .. } => match self.eval_array_literal(items, assignment_target_hint)
-            {
-                Some(Value::Array {
-                    items,
-                    element_type,
-                }) => Some((items, element_type, None)),
-                Some(_) => {
-                    self.raise_runtime_error(
-                        "RUNTIME",
-                        format!("{}() expected array literal argument", function_name),
-                    );
-                    None
+            Expr::ListLit { items, .. } => {
+                match self.eval_array_literal(items, assignment_target_hint) {
+                    Some(Value::Array {
+                        items,
+                        element_type,
+                    }) => Some((items, element_type, None)),
+                    Some(_) => {
+                        self.raise_runtime_error(
+                            "RUNTIME",
+                            format!("{}() expected array literal argument", function_name),
+                        );
+                        None
+                    }
+                    None => None,
                 }
-                None => None,
-            },
+            }
             _ => {
                 self.raise_runtime_error(
                     "RUNTIME",
@@ -1503,7 +2016,8 @@ impl Engine {
     }
 
     fn eval_integer_argument(&mut self, expr: &Expr, function_name: &str) -> Option<i64> {
-        let value = self.eval_scalar_argument(expr, Some(VarType::Integer), function_name, "index")?;
+        let value =
+            self.eval_scalar_argument(expr, Some(VarType::Integer), function_name, "index")?;
         match value {
             Value::Int(n) => Some(n),
             other => {
@@ -1529,8 +2043,22 @@ impl Engine {
         assignment_target: Option<VarType>,
         mode: CallMode,
     ) -> Option<Value> {
-        if self.logic_blocks.contains_key(name) {
-            return self.eval_logic_call(name, args, line, column, assignment_target, mode);
+        if !self.charge() {
+            return None;
+        }
+        if self.indexes.logic_blocks.contains_key(name) {
+            if self.call_depth >= self.limits.logic_depth {
+                self.limit_error(
+                    "logic_depth",
+                    self.call_depth.saturating_add(1),
+                    self.limits.logic_depth,
+                );
+                return None;
+            }
+            self.call_depth += 1;
+            let result = self.eval_logic_call(name, args, line, column, assignment_target, mode);
+            self.call_depth -= 1;
+            return result;
         }
 
         match name {
@@ -1594,9 +2122,9 @@ impl Engine {
 
                 match args.len() {
                     0 => match target {
-                        VarType::Integer => Some(Value::Int(rand::rng().random::<i64>())),
+                        VarType::Integer => Some(Value::Int(self.rng.sample::<i64>())),
                         VarType::Decimal => {
-                            let sample = rand::rng().random_range(0.0f64..=1.0f64);
+                            let sample = self.rng.range(0.0f64..=1.0f64);
                             Decimal::from_f64(sample).map(Value::Decimal).or_else(|| {
                                 self.raise_runtime_error(
                                     "RUNTIME",
@@ -1634,7 +2162,7 @@ impl Engine {
                                 return None;
                             }
 
-                            Some(Value::Int(rand::rng().random_range(min..=max)))
+                            Some(Value::Int(self.rng.range(min..=max)))
                         }
                         VarType::Decimal => {
                             let min = self.eval_expr(&args[0], assignment_target)?;
@@ -1698,7 +2226,7 @@ impl Engine {
                                 }
                             };
 
-                            let sample = rand::rng().random_range(min_f..=max_f);
+                            let sample = self.rng.range(min_f..=max_f);
                             Decimal::from_f64(sample).map(Value::Decimal).or_else(|| {
                                 self.raise_runtime_error(
                                     "RUNTIME",
@@ -1720,7 +2248,8 @@ impl Engine {
             }
             "pick" => {
                 if args.len() == 1 {
-                    let (items, _element_type, _) = self.eval_array_argument(&args[0], None, "pick")?;
+                    let (items, _element_type, _) =
+                        self.eval_array_argument(&args[0], None, "pick")?;
                     if items.is_empty() {
                         self.raise_runtime_error(
                             "R_ARRAY_EMPTY",
@@ -1729,7 +2258,7 @@ impl Engine {
                         return None;
                     }
 
-                    let index = rand::rng().random_range(0..items.len());
+                    let index = self.rng.range(0..items.len());
                     return Some(items[index].clone());
                 }
 
@@ -1741,12 +2270,8 @@ impl Engine {
                     return None;
                 }
 
-                let count_value = self.eval_scalar_argument(
-                    &args[0],
-                    Some(VarType::Integer),
-                    "pick",
-                    "count",
-                )?;
+                let count_value =
+                    self.eval_scalar_argument(&args[0], Some(VarType::Integer), "pick", "count")?;
                 let count = match count_value {
                     Value::Int(n) if n >= 0 => n as usize,
                     Value::Int(_) => {
@@ -1793,7 +2318,7 @@ impl Engine {
                 let mut pool: Vec<usize> = (0..items.len()).collect();
                 let mut selected = Vec::with_capacity(count);
                 for _ in 0..count {
-                    let random_index = rand::rng().random_range(0..pool.len());
+                    let random_index = self.rng.range(0..pool.len());
                     let source_index = pool.swap_remove(random_index);
                     selected.push(items[source_index].clone());
                 }
@@ -1807,7 +2332,10 @@ impl Engine {
                 if args.len() != 2 {
                     self.raise_runtime_error(
                         "RUNTIME",
-                        format!("array_push() expects exactly 2 arguments, found {}", args.len()),
+                        format!(
+                            "array_push() expects exactly 2 arguments, found {}",
+                            args.len()
+                        ),
                     );
                     return None;
                 }
@@ -1822,12 +2350,8 @@ impl Engine {
 
                 let (mut items, element_type, target_name) =
                     self.eval_array_argument(&args[0], None, "array_push")?;
-                let value = self.eval_scalar_argument(
-                    &args[1],
-                    Some(element_type),
-                    "array_push",
-                    "value",
-                )?;
+                let value =
+                    self.eval_scalar_argument(&args[1], Some(element_type), "array_push", "value")?;
                 let coerced = match coerce_value_for_type(value, element_type) {
                     Some(v) => v,
                     None => {
@@ -1841,6 +2365,14 @@ impl Engine {
                         return None;
                     }
                 };
+                if items.len() >= self.limits.array_elements {
+                    self.limit_error(
+                        "array_elements",
+                        items.len().saturating_add(1),
+                        self.limits.array_elements,
+                    );
+                    return None;
+                }
                 items.push(coerced);
                 if let Some(name) = target_name {
                     self.write_variable(
@@ -1858,7 +2390,10 @@ impl Engine {
                 if args.len() != 1 {
                     self.raise_runtime_error(
                         "RUNTIME",
-                        format!("array_pop() expects exactly 1 argument, found {}", args.len()),
+                        format!(
+                            "array_pop() expects exactly 1 argument, found {}",
+                            args.len()
+                        ),
                     );
                     return None;
                 }
@@ -1892,7 +2427,10 @@ impl Engine {
                 if args.len() != 2 {
                     self.raise_runtime_error(
                         "RUNTIME",
-                        format!("array_strip() expects exactly 2 arguments, found {}", args.len()),
+                        format!(
+                            "array_strip() expects exactly 2 arguments, found {}",
+                            args.len()
+                        ),
                     );
                     return None;
                 }
@@ -1900,7 +2438,8 @@ impl Engine {
                 if mode == CallMode::Expression {
                     self.raise_runtime_error(
                         "RUNTIME",
-                        "array_strip() returns void and cannot be used as an expression".to_string(),
+                        "array_strip() returns void and cannot be used as an expression"
+                            .to_string(),
                     );
                     return None;
                 }
@@ -1944,7 +2483,10 @@ impl Engine {
                 if args.len() != 1 {
                     self.raise_runtime_error(
                         "RUNTIME",
-                        format!("array_clear() expects exactly 1 argument, found {}", args.len()),
+                        format!(
+                            "array_clear() expects exactly 1 argument, found {}",
+                            args.len()
+                        ),
                     );
                     return None;
                 }
@@ -1952,7 +2494,8 @@ impl Engine {
                 if mode == CallMode::Expression {
                     self.raise_runtime_error(
                         "RUNTIME",
-                        "array_clear() returns void and cannot be used as an expression".to_string(),
+                        "array_clear() returns void and cannot be used as an expression"
+                            .to_string(),
                     );
                     return None;
                 }
@@ -2011,7 +2554,10 @@ impl Engine {
                 if args.len() != 1 {
                     self.raise_runtime_error(
                         "RUNTIME",
-                        format!("array_size() expects exactly 1 argument, found {}", args.len()),
+                        format!(
+                            "array_size() expects exactly 1 argument, found {}",
+                            args.len()
+                        ),
                     );
                     return None;
                 }
@@ -2024,7 +2570,10 @@ impl Engine {
                 if args.len() != 2 {
                     self.raise_runtime_error(
                         "RUNTIME",
-                        format!("array_join() expects exactly 2 arguments, found {}", args.len()),
+                        format!(
+                            "array_join() expects exactly 2 arguments, found {}",
+                            args.len()
+                        ),
                     );
                     return None;
                 }
@@ -2051,19 +2600,35 @@ impl Engine {
                     }
                 };
 
-                let parts: Vec<String> = items.iter().map(Self::value_to_plain_text).collect();
+                let mut total = separator
+                    .len()
+                    .saturating_mul(items.len().saturating_sub(1));
+                let mut parts = Vec::with_capacity(items.len());
+                for item in &items {
+                    let part = self.render_value(item)?;
+                    total = total.saturating_add(part.len());
+                    if total > self.limits.rendered_bytes {
+                        self.limit_error("rendered_bytes", total, self.limits.rendered_bytes);
+                        return None;
+                    }
+                    parts.push(part);
+                }
                 Some(Value::Str(parts.join(&separator)))
             }
             "array_get" => {
                 if args.len() != 2 {
                     self.raise_runtime_error(
                         "RUNTIME",
-                        format!("array_get() expects exactly 2 arguments, found {}", args.len()),
+                        format!(
+                            "array_get() expects exactly 2 arguments, found {}",
+                            args.len()
+                        ),
                     );
                     return None;
                 }
 
-                let (items, _element_type, _) = self.eval_array_argument(&args[0], None, "array_get")?;
+                let (items, _element_type, _) =
+                    self.eval_array_argument(&args[0], None, "array_get")?;
                 let index = self.eval_integer_argument(&args[1], "array_get")?;
                 if index < 0 || (index as usize) >= items.len() {
                     self.raise_runtime_error(
@@ -2135,6 +2700,14 @@ impl Engine {
                     }
                 };
 
+                if items.len() >= self.limits.array_elements {
+                    self.limit_error(
+                        "array_elements",
+                        items.len().saturating_add(1),
+                        self.limits.array_elements,
+                    );
+                    return None;
+                }
                 items.insert(index as usize, coerced);
                 if let Some(name) = target_name {
                     self.write_variable(
@@ -2204,7 +2777,7 @@ impl Engine {
         _assignment_target: Option<VarType>,
         mode: CallMode,
     ) -> Option<Value> {
-        let logic = match self.logic_blocks.get(name).cloned() {
+        let logic = match self.indexes.logic_blocks.get(name).cloned() {
             Some(block) => block,
             None => {
                 self.raise_runtime_error("RUNTIME", format!("Unknown function '{}'", name));
@@ -2278,7 +2851,8 @@ impl Engine {
                 }
             };
 
-            self.local_var_types.insert(param.name.clone(), param.var_type);
+            self.local_var_types
+                .insert(param.name.clone(), param.var_type);
             self.local_variables.insert(param.name.clone(), coerced);
         }
 
@@ -2288,7 +2862,10 @@ impl Engine {
             (_, PrepFlow::BreakLoop | PrepFlow::ContinueLoop) => {
                 self.raise_runtime_error(
                     "RUNTIME",
-                    format!("Logic function '{}' terminated with invalid loop control", name),
+                    format!(
+                        "Logic function '{}' terminated with invalid loop control",
+                        name
+                    ),
                 );
                 None
             }
@@ -2296,7 +2873,10 @@ impl Engine {
                 if mode == CallMode::Expression {
                     self.raise_runtime_error(
                         "RUNTIME",
-                        format!("{}() returns void and cannot be used as an expression", name),
+                        format!(
+                            "{}() returns void and cannot be used as an expression",
+                            name
+                        ),
                     );
                     None
                 } else {
@@ -2373,8 +2953,16 @@ impl Engine {
     }
 
     fn resolve_string_or_error(&mut self, template: &str, context: &str) -> Option<String> {
+        if template.len() > self.limits.rendered_bytes {
+            self.limit_error("rendered_bytes", template.len(), self.limits.rendered_bytes);
+            return None;
+        }
         match self.resolve_string(template) {
-            Ok(value) => Some(value),
+            Ok(value) if value.len() <= self.limits.rendered_bytes => Some(value),
+            Ok(value) => {
+                self.limit_error("rendered_bytes", value.len(), self.limits.rendered_bytes);
+                None
+            }
             Err(message) => {
                 self.raise_runtime_error(
                     "RUNTIME",
@@ -2386,7 +2974,14 @@ impl Engine {
     }
 
     fn resolve_string(&self, template: &str) -> Result<String, String> {
-        render_interpolated(template, |name| self.resolve_var_value(name).map(Self::value_to_plain_text))
+        let mut replacement_bytes = 0usize;
+        render_interpolated(template, |name| {
+            self.resolve_var_value(name).and_then(|value| {
+                let rendered = Self::value_to_plain_text(value);
+                replacement_bytes = replacement_bytes.saturating_add(rendered.len());
+                (replacement_bytes <= self.limits.rendered_bytes).then_some(rendered)
+            })
+        })
         .map_err(|e| e.message)
     }
 
@@ -2394,7 +2989,7 @@ impl Engine {
         self.local_var_types
             .get(name)
             .copied()
-            .or_else(|| self.var_types.get(name).copied())
+            .or_else(|| self.indexes.var_types.get(name).copied())
     }
 
     fn eval_repeat_count(&mut self, count: &RepeatCount) -> Option<usize> {
@@ -2430,7 +3025,13 @@ impl Engine {
             return None;
         }
 
-        Some(raw_count as usize)
+        usize::try_from(raw_count).ok().or_else(|| {
+            self.raise_runtime_error(
+                "R_REPEAT_COUNT_INVALID",
+                format!("repeat count {} cannot be represented", raw_count),
+            );
+            None
+        })
     }
 
     fn resolve_snapshot_array(&mut self, name: &str) -> Option<(Vec<Value>, VarType)> {
@@ -2453,7 +3054,10 @@ impl Engine {
             None => {
                 self.raise_runtime_error(
                     "RUNTIME",
-                    format!("Read of undeclared variable '${}' in for snapshot source", name),
+                    format!(
+                        "Read of undeclared variable '${}' in for snapshot source",
+                        name
+                    ),
                 );
                 None
             }
@@ -2515,10 +3119,53 @@ impl Engine {
         }
     }
 
+    fn render_value(&mut self, value: &Value) -> Option<String> {
+        if !self.ensure_value_limits(value) {
+            return None;
+        }
+        let rendered = Self::value_to_plain_text(value);
+        if rendered.len() > self.limits.rendered_bytes {
+            self.limit_error("rendered_bytes", rendered.len(), self.limits.rendered_bytes);
+            None
+        } else {
+            Some(rendered)
+        }
+    }
+
+    fn ensure_value_limits(&mut self, value: &Value) -> bool {
+        match value {
+            Value::Str(text) => {
+                if text.len() > self.limits.rendered_bytes {
+                    self.limit_error("rendered_bytes", text.len(), self.limits.rendered_bytes);
+                    false
+                } else {
+                    true
+                }
+            }
+            Value::Array { items, .. } => {
+                if items.len() > self.limits.array_elements {
+                    self.limit_error("array_elements", items.len(), self.limits.array_elements);
+                    return false;
+                }
+                items.iter().all(|item| self.ensure_value_limits(item))
+            }
+            _ => true,
+        }
+    }
+
     fn raise_runtime_error(&mut self, code: &str, message: String) {
         self.pending.clear();
-        self.pending
-            .push_back(InternalEvent::Narration(format!("[{}] {}", code, message)));
+        self.scene_effects.clear();
+        let error = RuntimeError {
+            code: code.to_string(),
+            scene: self.current_scene.clone(),
+            message,
+            resource: None,
+            actual: None,
+            limit: None,
+        };
+        self.last_error = Some(error.clone());
+        self.pending.push_back(InternalEvent::Error(error));
         self.pending.push_back(InternalEvent::End);
         self.finished = true;
     }
@@ -2528,10 +3175,102 @@ impl Engine {
 // Helpers
 // ---------------------------------------------------------------------------
 
+fn internal_to_pending(event: &InternalEvent) -> PendingEvent {
+    match event {
+        InternalEvent::Scene(scene, effects) => PendingEvent::Event(
+            SemanticEvent::SceneTransition(scene.clone()),
+            effects.clone(),
+        ),
+        InternalEvent::Media(effect) => {
+            PendingEvent::Event(SemanticEvent::Media(effect.clone()), Vec::new())
+        }
+        InternalEvent::Error(error) => {
+            PendingEvent::Event(SemanticEvent::Error(error.clone()), Vec::new())
+        }
+        InternalEvent::Narration(text) => {
+            PendingEvent::Event(SemanticEvent::Narration(text.clone()), Vec::new())
+        }
+        InternalEvent::Dialogue {
+            actor_name,
+            actor_id,
+            emotion,
+            position,
+            portrait_path,
+            text,
+        } => PendingEvent::Event(
+            SemanticEvent::Dialogue {
+                actor_name: actor_name.clone(),
+                actor_id: actor_id.clone(),
+                emotion: emotion.clone(),
+                position: position.clone(),
+                portrait_path: portrait_path.clone(),
+                text: text.clone(),
+            },
+            Vec::new(),
+        ),
+        InternalEvent::Choices(items) => PendingEvent::Event(
+            SemanticEvent::Choices(
+                items
+                    .iter()
+                    .map(|item| Choice {
+                        text: item.text.clone(),
+                        target_scene: item.target.clone(),
+                    })
+                    .collect(),
+            ),
+            Vec::new(),
+        ),
+        InternalEvent::Jump(target) => PendingEvent::Jump(target.clone()),
+        InternalEvent::End => PendingEvent::Event(SemanticEvent::End, Vec::new()),
+    }
+}
+
+fn pending_to_internal(event: PendingEvent) -> InternalEvent {
+    match event {
+        PendingEvent::Jump(target) => InternalEvent::Jump(target),
+        PendingEvent::Event(SemanticEvent::SceneTransition(scene), effects) => {
+            InternalEvent::Scene(scene, effects)
+        }
+        PendingEvent::Event(SemanticEvent::Narration(text), _) => InternalEvent::Narration(text),
+        PendingEvent::Event(
+            SemanticEvent::Dialogue {
+                actor_name,
+                actor_id,
+                emotion,
+                position,
+                portrait_path,
+                text,
+            },
+            _,
+        ) => InternalEvent::Dialogue {
+            actor_name,
+            actor_id,
+            emotion,
+            position,
+            portrait_path,
+            text,
+        },
+        PendingEvent::Event(SemanticEvent::Choices(items), _) => InternalEvent::Choices(
+            items
+                .into_iter()
+                .map(|item| ChoiceDisplay {
+                    text: item.text,
+                    target: item.target_scene,
+                })
+                .collect(),
+        ),
+        PendingEvent::Event(SemanticEvent::Media(effect), _) => InternalEvent::Media(effect),
+        PendingEvent::Event(SemanticEvent::End, _) => InternalEvent::End,
+        PendingEvent::Event(SemanticEvent::Error(error), _) => InternalEvent::Error(error),
+    }
+}
+
+#[allow(dead_code)]
 fn eval_init_expr(
     expr: &Expr,
     vars: &HashMap<String, Value>,
     assignment_target: Option<VarType>,
+    rng: &mut SessionRng,
 ) -> Option<Value> {
     match expr {
         Expr::IntLit(n) => Some(Value::Int(*n)),
@@ -2543,11 +3282,11 @@ fn eval_init_expr(
                 .map(|v| Value::Str(v))
         }
         Expr::VarRef { name, .. } => vars.get(name).cloned(),
-        Expr::Call { name, args, .. } => eval_init_call(name, args, vars, assignment_target),
-        Expr::ListLit { items, .. } => eval_init_array_literal(items, vars, assignment_target),
+        Expr::Call { name, args, .. } => eval_init_call(name, args, vars, assignment_target, rng),
+        Expr::ListLit { items, .. } => eval_init_array_literal(items, vars, assignment_target, rng),
         Expr::BinOp { left, op, right } => {
-            let l = eval_init_expr(left, vars, assignment_target)?;
-            let r = eval_init_expr(right, vars, assignment_target)?;
+            let l = eval_init_expr(left, vars, assignment_target, rng)?;
+            let r = eval_init_expr(right, vars, assignment_target, rng)?;
             match op {
                 BinOperator::Add => eval_init_numeric_binop("+", l, r),
                 BinOperator::Sub => eval_init_numeric_binop("-", l, r),
@@ -2565,6 +3304,7 @@ fn eval_init_expr(
     }
 }
 
+#[allow(dead_code)]
 fn eval_init_numeric_binop(op: &str, left: Value, right: Value) -> Option<Value> {
     if let (Value::Int(a), Value::Int(b)) = (&left, &right) {
         return Some(match op {
@@ -2609,10 +3349,12 @@ fn eval_init_numeric_binop(op: &str, left: Value, right: Value) -> Option<Value>
     Some(Value::Decimal(result))
 }
 
+#[allow(dead_code)]
 fn eval_init_array_literal(
     items: &[Expr],
     vars: &HashMap<String, Value>,
     assignment_target: Option<VarType>,
+    rng: &mut SessionRng,
 ) -> Option<Value> {
     let expected_element = assignment_target.and_then(array_element_type);
 
@@ -2630,7 +3372,7 @@ fn eval_init_array_literal(
 
     if let Some(element_type) = expected_element {
         for item in items {
-            let value = eval_init_expr(item, vars, Some(element_type))?;
+            let value = eval_init_expr(item, vars, Some(element_type), rng)?;
             let coerced = coerce_value_for_type(value, element_type)?;
             evaluated.push(coerced);
         }
@@ -2642,7 +3384,7 @@ fn eval_init_array_literal(
 
     let mut inferred_element: Option<VarType> = None;
     for item in items {
-        let value = eval_init_expr(item, vars, None)?;
+        let value = eval_init_expr(item, vars, None, rng)?;
         let value_ty = value_type(&value);
         if is_array_type(value_ty) {
             return None;
@@ -2682,10 +3424,12 @@ fn eval_init_array_literal(
     })
 }
 
+#[allow(dead_code)]
 fn eval_init_array_argument(
     expr: &Expr,
     vars: &HashMap<String, Value>,
     assignment_target_hint: Option<VarType>,
+    rng: &mut SessionRng,
 ) -> Option<(Vec<Value>, VarType)> {
     match expr {
         Expr::VarRef { name, .. } => match vars.get(name)? {
@@ -2696,7 +3440,7 @@ fn eval_init_array_argument(
             _ => None,
         },
         Expr::ListLit { items, .. } => {
-            let value = eval_init_array_literal(items, vars, assignment_target_hint)?;
+            let value = eval_init_array_literal(items, vars, assignment_target_hint, rng)?;
             match value {
                 Value::Array {
                     items,
@@ -2709,10 +3453,12 @@ fn eval_init_array_argument(
     }
 }
 
+#[allow(dead_code)]
 fn eval_init_scalar_argument(
     expr: &Expr,
     vars: &HashMap<String, Value>,
     assignment_target: Option<VarType>,
+    rng: &mut SessionRng,
 ) -> Option<Value> {
     if !matches!(
         expr,
@@ -2725,7 +3471,7 @@ fn eval_init_scalar_argument(
         return None;
     }
 
-    let value = eval_init_expr(expr, vars, assignment_target)?;
+    let value = eval_init_expr(expr, vars, assignment_target, rng)?;
     if is_array_type(value_type(&value)) {
         return None;
     }
@@ -2733,11 +3479,13 @@ fn eval_init_scalar_argument(
     Some(value)
 }
 
+#[allow(dead_code)]
 fn eval_init_call(
     name: &str,
     args: &[Expr],
     vars: &HashMap<String, Value>,
     assignment_target: Option<VarType>,
+    rng: &mut SessionRng,
 ) -> Option<Value> {
     match name {
         "abs" => {
@@ -2745,7 +3493,7 @@ fn eval_init_call(
                 return None;
             }
 
-            match eval_init_expr(&args[0], vars, assignment_target)? {
+            match eval_init_expr(&args[0], vars, assignment_target, rng)? {
                 Value::Int(n) => n.checked_abs().map(Value::Int),
                 Value::Decimal(n) => Some(Value::Decimal(n.abs())),
                 _ => None,
@@ -2760,15 +3508,14 @@ fn eval_init_call(
 
             match args.len() {
                 0 => match target {
-                    VarType::Integer => Some(Value::Int(rand::rng().random::<i64>())),
-                    VarType::Decimal => Decimal::from_f64(rand::rng().random_range(0.0..=1.0))
-                        .map(Value::Decimal),
+                    VarType::Integer => Some(Value::Int(rng.sample::<i64>())),
+                    VarType::Decimal => Decimal::from_f64(rng.range(0.0..=1.0)).map(Value::Decimal),
                     _ => None,
                 },
                 2 => match target {
                     VarType::Integer => {
-                        let min = eval_init_expr(&args[0], vars, assignment_target)?;
-                        let max = eval_init_expr(&args[1], vars, assignment_target)?;
+                        let min = eval_init_expr(&args[0], vars, assignment_target, rng)?;
+                        let max = eval_init_expr(&args[1], vars, assignment_target, rng)?;
                         let (min, max) = match (min, max) {
                             (Value::Int(min), Value::Int(max)) => (min, max),
                             _ => return None,
@@ -2776,11 +3523,13 @@ fn eval_init_call(
                         if min > max {
                             return None;
                         }
-                        Some(Value::Int(rand::rng().random_range(min..=max)))
+                        Some(Value::Int(rng.range(min..=max)))
                     }
                     VarType::Decimal => {
-                        let min = as_decimal(&eval_init_expr(&args[0], vars, assignment_target)?)?;
-                        let max = as_decimal(&eval_init_expr(&args[1], vars, assignment_target)?)?;
+                        let min =
+                            as_decimal(&eval_init_expr(&args[0], vars, assignment_target, rng)?)?;
+                        let max =
+                            as_decimal(&eval_init_expr(&args[1], vars, assignment_target, rng)?)?;
 
                         if min > max {
                             return None;
@@ -2788,8 +3537,7 @@ fn eval_init_call(
 
                         let min_f = min.to_f64()?;
                         let max_f = max.to_f64()?;
-                        Decimal::from_f64(rand::rng().random_range(min_f..=max_f))
-                            .map(Value::Decimal)
+                        Decimal::from_f64(rng.range(min_f..=max_f)).map(Value::Decimal)
                     }
                     _ => None,
                 },
@@ -2798,12 +3546,12 @@ fn eval_init_call(
         }
         "pick" => {
             if args.len() == 1 {
-                let (items, _element_type) = eval_init_array_argument(&args[0], vars, None)?;
+                let (items, _element_type) = eval_init_array_argument(&args[0], vars, None, rng)?;
                 if items.is_empty() {
                     return None;
                 }
 
-                let index = rand::rng().random_range(0..items.len());
+                let index = rng.range(0..items.len());
                 return Some(items[index].clone());
             }
 
@@ -2811,17 +3559,14 @@ fn eval_init_call(
                 return None;
             }
 
-            let count = match eval_init_scalar_argument(
-                &args[0],
-                vars,
-                Some(VarType::Integer),
-            )? {
-                Value::Int(n) if n >= 0 => n as usize,
-                _ => return None,
-            };
+            let count =
+                match eval_init_scalar_argument(&args[0], vars, Some(VarType::Integer), rng)? {
+                    Value::Int(n) if n >= 0 => n as usize,
+                    _ => return None,
+                };
 
             let hint = assignment_target.filter(|ty| is_array_type(*ty));
-            let (items, element_type) = eval_init_array_argument(&args[1], vars, hint)?;
+            let (items, element_type) = eval_init_array_argument(&args[1], vars, hint, rng)?;
             if count > items.len() {
                 return None;
             }
@@ -2836,7 +3581,7 @@ fn eval_init_call(
             let mut pool: Vec<usize> = (0..items.len()).collect();
             let mut selected = Vec::with_capacity(count);
             for _ in 0..count {
-                let random_index = rand::rng().random_range(0..pool.len());
+                let random_index = rng.range(0..pool.len());
                 let source_index = pool.swap_remove(random_index);
                 selected.push(items[source_index].clone());
             }
@@ -2852,7 +3597,7 @@ fn eval_init_call(
                 return None;
             }
 
-            let (mut items, _element_type) = eval_init_array_argument(&args[0], vars, None)?;
+            let (mut items, _element_type) = eval_init_array_argument(&args[0], vars, None, rng)?;
             items.pop()
         }
         "array_contains" => {
@@ -2860,8 +3605,8 @@ fn eval_init_call(
                 return None;
             }
 
-            let (items, element_type) = eval_init_array_argument(&args[0], vars, None)?;
-            let probe = eval_init_scalar_argument(&args[1], vars, Some(element_type))?;
+            let (items, element_type) = eval_init_array_argument(&args[0], vars, None, rng)?;
+            let probe = eval_init_scalar_argument(&args[1], vars, Some(element_type), rng)?;
             let probe = coerce_value_for_type(probe, element_type)?;
             Some(Value::Bool(items.iter().any(|item| item == &probe)))
         }
@@ -2870,7 +3615,7 @@ fn eval_init_call(
                 return None;
             }
 
-            let (items, _element_type) = eval_init_array_argument(&args[0], vars, None)?;
+            let (items, _element_type) = eval_init_array_argument(&args[0], vars, None, rng)?;
             Some(Value::Int(items.len() as i64))
         }
         "array_join" => {
@@ -2878,15 +3623,12 @@ fn eval_init_call(
                 return None;
             }
 
-            let (items, _element_type) = eval_init_array_argument(&args[0], vars, None)?;
-            let separator = match eval_init_scalar_argument(
-                &args[1],
-                vars,
-                Some(VarType::String),
-            )? {
-                Value::Str(s) => s,
-                _ => return None,
-            };
+            let (items, _element_type) = eval_init_array_argument(&args[0], vars, None, rng)?;
+            let separator =
+                match eval_init_scalar_argument(&args[1], vars, Some(VarType::String), rng)? {
+                    Value::Str(s) => s,
+                    _ => return None,
+                };
 
             let parts: Vec<String> = items.iter().map(value_to_plain_text).collect();
             Some(Value::Str(parts.join(&separator)))
@@ -2896,15 +3638,12 @@ fn eval_init_call(
                 return None;
             }
 
-            let (items, _element_type) = eval_init_array_argument(&args[0], vars, None)?;
-            let index = match eval_init_scalar_argument(
-                &args[1],
-                vars,
-                Some(VarType::Integer),
-            )? {
-                Value::Int(n) if n >= 0 => n as usize,
-                _ => return None,
-            };
+            let (items, _element_type) = eval_init_array_argument(&args[0], vars, None, rng)?;
+            let index =
+                match eval_init_scalar_argument(&args[1], vars, Some(VarType::Integer), rng)? {
+                    Value::Int(n) if n >= 0 => n as usize,
+                    _ => return None,
+                };
 
             items.get(index).cloned()
         }
@@ -2913,15 +3652,12 @@ fn eval_init_call(
                 return None;
             }
 
-            let (mut items, _element_type) = eval_init_array_argument(&args[0], vars, None)?;
-            let index = match eval_init_scalar_argument(
-                &args[1],
-                vars,
-                Some(VarType::Integer),
-            )? {
-                Value::Int(n) if n >= 0 => n as usize,
-                _ => return None,
-            };
+            let (mut items, _element_type) = eval_init_array_argument(&args[0], vars, None, rng)?;
+            let index =
+                match eval_init_scalar_argument(&args[1], vars, Some(VarType::Integer), rng)? {
+                    Value::Int(n) if n >= 0 => n as usize,
+                    _ => return None,
+                };
 
             if index >= items.len() {
                 return None;
@@ -2932,6 +3668,7 @@ fn eval_init_call(
     }
 }
 
+#[allow(dead_code)]
 fn eval_init_equality_binop(left: Value, right: Value, equals: bool) -> Option<Value> {
     if let (Some(l), Some(r)) = (as_decimal(&left), as_decimal(&right)) {
         return Some(Value::Bool(if equals { l == r } else { l != r }));
@@ -2948,6 +3685,7 @@ fn eval_init_equality_binop(left: Value, right: Value, equals: bool) -> Option<V
     }))
 }
 
+#[allow(dead_code)]
 fn eval_init_rel_binop<F>(left: Value, right: Value, f: F) -> Option<Value>
 where
     F: FnOnce(Decimal, Decimal) -> bool,
@@ -3028,6 +3766,7 @@ fn coerce_value_for_type(value: Value, target_type: VarType) -> Option<Value> {
     }
 }
 
+#[allow(dead_code)]
 fn default_value_for_type(var_type: VarType) -> Value {
     match var_type {
         VarType::Integer => Value::Int(0),

@@ -46,10 +46,7 @@ class MyApp extends StatelessWidget {
         ),
         textTheme: GoogleFonts.jetBrainsMonoTextTheme(
           ThemeData.dark().textTheme,
-        ).apply(
-          bodyColor: _C.text,
-          displayColor: _C.text,
-        ),
+        ).apply(bodyColor: _C.text, displayColor: _C.text),
       ),
       home: const StoryScriptViewerPage(),
     );
@@ -65,9 +62,12 @@ class StoryScriptViewerPage extends StatefulWidget {
 }
 
 class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
-  final TextEditingController _sourceController = StoryScriptCodeHighlighterController();
+  final TextEditingController _sourceController =
+      StoryScriptCodeHighlighterController();
   final ScrollController _consoleScroll = ScrollController();
-  final FocusNode _keyboardFocusNode = FocusNode(debugLabel: 'keyboard_shortcuts');
+  final FocusNode _keyboardFocusNode = FocusNode(
+    debugLabel: 'keyboard_shortcuts',
+  );
   final FocusNode _editorFocusNode = FocusNode(debugLabel: 'story_editor');
 
   BigInt? _sessionId;
@@ -267,8 +267,7 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
     return KeyEventResult.handled;
   }
 
-  bool get _isDesktop =>
-      MediaQuery.sizeOf(context).width >= 768;
+  bool get _isDesktop => MediaQuery.sizeOf(context).width >= 768;
 
   bool get _hasPendingChoice {
     final state = _state;
@@ -292,7 +291,9 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
               _buildTitleBar(),
               if (_error != null) _buildErrorBar(),
               Expanded(
-                child: _isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
+                child: _isDesktop
+                    ? _buildDesktopLayout()
+                    : _buildMobileLayout(),
               ),
             ],
           ),
@@ -320,7 +321,9 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: _state!.finished ? _C.errorRed.withValues(alpha: 0.2) : _C.green.withValues(alpha: 0.2),
+                color: _state!.finished
+                    ? _C.errorRed.withValues(alpha: 0.2)
+                    : _C.green.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(3),
               ),
               child: Text(
@@ -429,7 +432,10 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
               children: [
                 Icon(icon, size: 16, color: Colors.white),
                 const SizedBox(width: 6),
-                Text(label, style: _mono.copyWith(fontSize: 12, color: Colors.white)),
+                Text(
+                  label,
+                  style: _mono.copyWith(fontSize: 12, color: Colors.white),
+                ),
               ],
             ),
           ),
@@ -471,7 +477,9 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
                     '    narration "Hello from StoryScript"\n'
                     '  }\n'
                     '}',
-                hintStyle: _mono.copyWith(color: _C.textDim.withValues(alpha: 0.5)),
+                hintStyle: _mono.copyWith(
+                  color: _C.textDim.withValues(alpha: 0.5),
+                ),
               ),
             ),
           ),
@@ -494,7 +502,8 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
           icon: Icons.skip_next,
           tooltip: 'Advance',
           color: _C.accent,
-          onTap: _busy || _state == null || _state!.finished || _hasPendingChoice
+          onTap:
+              _busy || _state == null || _state!.finished || _hasPendingChoice
               ? null
               : _advance,
         ),
@@ -530,10 +539,7 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
           trailing: _buildViewerActions(),
         ),
         Expanded(
-          child: Container(
-            color: _C.panel,
-            child: _buildConsoleContent(),
-          ),
+          child: Container(color: _C.panel, child: _buildConsoleContent()),
         ),
         if (_state != null) _buildVariableBar(),
       ],
@@ -549,7 +555,8 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
           icon: Icons.skip_next,
           tooltip: 'Advance',
           color: _C.accent,
-          onTap: _busy || _state == null || _state!.finished || _hasPendingChoice
+          onTap:
+              _busy || _state == null || _state!.finished || _hasPendingChoice
               ? null
               : _advance,
         ),
@@ -570,7 +577,11 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.terminal, size: 48, color: _C.textDim.withValues(alpha: 0.3)),
+            Icon(
+              Icons.terminal,
+              size: 48,
+              color: _C.textDim.withValues(alpha: 0.3),
+            ),
             const SizedBox(height: 12),
             Text(
               'Waiting for input...',
@@ -579,7 +590,10 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
             const SizedBox(height: 4),
             Text(
               'Write StoryScript in the editor and press Run',
-              style: _mono.copyWith(fontSize: 11, color: _C.textDim.withValues(alpha: 0.6)),
+              style: _mono.copyWith(
+                fontSize: 11,
+                color: _C.textDim.withValues(alpha: 0.6),
+              ),
             ),
           ],
         ),
@@ -655,7 +669,10 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
           if (text.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 4),
-              child: Text(text, style: _mono.copyWith(color: _C.text.withValues(alpha: 0.7))),
+              child: Text(
+                text,
+                style: _mono.copyWith(color: _C.text.withValues(alpha: 0.7)),
+              ),
             ),
         ],
       ),
@@ -730,7 +747,10 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
                 hoverColor: _C.selection,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: _C.surface,
                     borderRadius: BorderRadius.circular(4),
@@ -783,7 +803,10 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            Text('vars ', style: _mono.copyWith(fontSize: 11, color: _C.textDim)),
+            Text(
+              'vars ',
+              style: _mono.copyWith(fontSize: 11, color: _C.textDim),
+            ),
             for (final v in vars)
               Container(
                 margin: const EdgeInsets.only(right: 8),
@@ -821,7 +844,7 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
           const SizedBox(width: 6),
           Text(label, style: _mono.copyWith(fontSize: 12, color: _C.text)),
           const Spacer(),
-          if (trailing != null) trailing,
+          ?trailing,
         ],
       ),
     );
@@ -852,7 +875,10 @@ class _StoryScriptViewerPageState extends State<StoryScriptViewerPage> {
   }
 
   Widget _consoleLine(String text, {Color? color}) {
-    return Text(text, style: _mono.copyWith(fontSize: 12, color: color ?? _C.text));
+    return Text(
+      text,
+      style: _mono.copyWith(fontSize: 12, color: color ?? _C.text),
+    );
   }
 }
 
@@ -892,7 +918,11 @@ class _MobileViewerPage extends StatelessWidget {
                 children: [
                   InkWell(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.arrow_back, size: 18, color: _C.text),
+                    child: const Icon(
+                      Icons.arrow_back,
+                      size: 18,
+                      color: _C.text,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   const Icon(Icons.terminal, size: 14, color: _C.textDim),
@@ -904,7 +934,10 @@ class _MobileViewerPage extends StatelessWidget {
                   const Spacer(),
                   if (state != null) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: state!.finished
                             ? _C.errorRed.withValues(alpha: 0.2)
@@ -940,7 +973,11 @@ class _MobileViewerPage extends StatelessWidget {
                     icon: Icons.skip_next,
                     label: 'Advance',
                     color: _C.accent,
-                    onTap: busy || state == null || state!.finished || hasPendingChoice
+                    onTap:
+                        busy ||
+                            state == null ||
+                            state!.finished ||
+                            hasPendingChoice
                         ? null
                         : onAdvance,
                   ),
@@ -1054,7 +1091,10 @@ class _MobileViewerPage extends StatelessWidget {
           if (text.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 4),
-              child: Text(text, style: _mono.copyWith(color: _C.text.withValues(alpha: 0.7))),
+              child: Text(
+                text,
+                style: _mono.copyWith(color: _C.text.withValues(alpha: 0.7)),
+              ),
             ),
         ],
       ),
@@ -1086,7 +1126,10 @@ class _MobileViewerPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(step.kind, style: _mono.copyWith(fontSize: 10, color: _C.textDim)),
+              Text(
+                step.kind,
+                style: _mono.copyWith(fontSize: 10, color: _C.textDim),
+              ),
             ],
           ),
           if (text.isNotEmpty) ...[
@@ -1114,7 +1157,10 @@ class _MobileViewerPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: _C.surface,
                     borderRadius: BorderRadius.circular(4),
@@ -1153,6 +1199,9 @@ class _MobileViewerPage extends StatelessWidget {
   }
 
   Widget _consoleLine(String text, {Color? color}) {
-    return Text(text, style: _mono.copyWith(fontSize: 12, color: color ?? _C.text));
+    return Text(
+      text,
+      style: _mono.copyWith(fontSize: 12, color: color ?? _C.text),
+    );
   }
 }

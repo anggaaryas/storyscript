@@ -42,4 +42,8 @@ Bundles contain no raw source but are not encrypted and provide no DRM or conten
 confidentiality. Private keys must remain outside the project/repository. Tests use
 ephemeral keys only.
 
-Flutter/FFI packaging and player integration are not part of the current Rust scope.
+Flutter packaging and the verified headless player bridge live in
+`storyscript_bundle/`; the archive crate remains authoritative for verification
+and exposes only verified `LoadedBundle` capabilities to that runtime. Progress
+saves use the separate contract in `docs/contracts/storyplayer_save_v1.md` and
+are not entries in, or authenticated by, the StoryBundle archive.

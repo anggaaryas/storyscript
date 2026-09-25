@@ -1,0 +1,158 @@
+syntax = "proto3";
+package storyplayer.v1;
+
+// Progress only. Never embed source, instructions, compiled models, or archive bytes.
+message PlayerSave {
+  uint32 schema_version = 1;
+  uint32 runtime_version = 2;
+  Origin origin = 3;
+  repeated Variable globals = 4;
+  repeated Variable locals = 5;
+  string current_scene = 6;
+  optional string background = 7;
+  optional string bgm = 8;
+  SemanticEvent current = 9;
+  repeated SemanticEvent pending = 10;
+  SessionRng rng = 11;
+  repeated HistoryEntry history = 12;
+  uint64 next_sequence = 13;
+  uint64 first_retained_sequence = 14;
+  uint64 omitted_history_count = 15;
+  SessionStatus status = 16;
+  // Ordered effects produced at the most recent stable interaction boundary.
+  repeated MediaEffect current_effects = 17;
+}
+
+enum SessionStatus {
+  SESSION_STATUS_UNSPECIFIED = 0;
+  SESSION_STATUS_ACTIVE = 1;
+  SESSION_STATUS_FINISHED = 2;
+  SESSION_STATUS_FAULTED = 3;
+}
+
+message Origin {
+  oneof kind {
+    SourceOrigin source = 1;
+    BundleOrigin bundle = 2;
+  }
+}
+
+message SourceOrigin {
+  string parser_version = 1;
+  string compiler_version = 2;
+  string runtime_fingerprint_sha256 = 3;
+  string runtime_identity = 4;
+}
+
+message BundleOrigin {
+  uint32 format_version = 1;
+  string compiler_version = 2;
+  string compiled_schema_sha256 = 3;
+  string project_id = 4;
+  string project_version = 5;
+  string compiled_entry_sha256 = 6;
+  oneof signer {
+    string signer_key_id = 7;
+    bool unsigned_development = 8;
+  }
+  string runtime_fingerprint_sha256 = 9;
+  string runtime_identity = 10;
+}
+
+enum ValueType {
+  VALUE_TYPE_UNSPECIFIED = 0;
+  VALUE_TYPE_INTEGER = 1;
+  VALUE_TYPE_DECIMAL = 2;
+  VALUE_TYPE_BOOLEAN = 3;
+  VALUE_TYPE_STRING = 4;
+  VALUE_TYPE_ARRAY_INTEGER = 5;
+  VALUE_TYPE_ARRAY_DECIMAL = 6;
+  VALUE_TYPE_ARRAY_BOOLEAN = 7;
+  VALUE_TYPE_ARRAY_STRING = 8;
+}
+
+message Variable {
+  string name = 1;
+  ValueType declared_type = 2;
+  Value value = 3;
+}
+
+// Decimal uses its exact base-10 mantissa and scale, never a floating-point JSON number.
+message DecimalValue {
+  string mantissa = 1;
+  uint32 scale = 2;
+}
+
+message Value {
+  oneof kind {
+    sint64 integer = 1;
+    DecimalValue decimal = 2;
+    bool boolean = 3;
+    string text = 4;
+    ScalarArray array = 5;
+  }
+}
+
+message ScalarArray {
+  ValueType element_type = 1;
+  repeated Value items = 2;
+}
+
+// ChaCha algorithm version, seed and stream/word position are restored together.
+message SessionRng {
+  uint32 algorithm_version = 1;
+  bytes seed = 2;
+  uint64 stream = 3;
+  uint64 word_position_low = 4;
+  uint64 word_position_high = 5;
+}
+
+message SemanticEvent {
+  oneof kind {
+    SceneTransition scene = 1;
+    string narration = 2;
+    Dialogue dialogue = 3;
+    Choices choices = 4;
+    MediaEffect media = 5;
+    bool end = 6;
+    RuntimeError error = 7;
+    string jump = 8; // Internal resolved queue event, never rendered to a host.
+  }
+}
+
+message SceneTransition { string scene = 1; }
+message Dialogue {
+  string actor_id = 1;
+  string actor_name = 2;
+  optional string emotion = 3;
+  optional string position = 4;
+  optional string portrait_path = 5;
+  string text = 6;
+}
+message Choices { repeated Choice items = 1; }
+message Choice { string text = 1; string target_scene = 2; }
+
+message MediaEffect {
+  oneof kind {
+    string background_path = 1;
+    string bgm_path = 2;
+    bool bgm_stop = 3;
+    string sfx_path = 4;
+  }
+}
+
+message RuntimeError {
+  string code = 1;
+  string scene = 2;
+  string message = 3;
+  optional string resource = 4;
+  optional uint64 actual = 5;
+  optional uint64 limit = 6;
+}
+
+message HistoryEntry {
+  uint64 sequence = 1;
+  SemanticEvent event = 2;
+  repeated MediaEffect effects = 3;
+  string scene = 4;
+}

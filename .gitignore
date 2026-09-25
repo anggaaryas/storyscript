@@ -54,7 +54,5 @@ projects/*
 *.p8
 *.pk8
 *.key
-
-docs/plan/
-docs
-journal
+journal/*
+docs/*

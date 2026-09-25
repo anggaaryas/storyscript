@@ -1,14 +1,15 @@
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 #[cfg(not(target_family = "wasm"))]
 use std::fs;
 
 use prost::Message;
-use storyscript_bundle_core::BundleError;
 use storyscript_bundle_core::limits::ResourceLimits;
 use storyscript_bundle_core::loader::{self, LoadedBundle, VerificationPolicy};
 use storyscript_bundle_core::manifest::{BundleManifest, Compression, EntryType};
 use storyscript_bundle_core::trust::TrustStore;
+use storyscript_bundle_core::BundleError;
 
 /// Host-provided Ed25519 trust material. The key must contain exactly 32 raw
 /// public-key bytes. When present, `expected_key_id` must match its SHA-256 ID.
@@ -87,7 +88,8 @@ pub struct BridgeAssetDescriptor {
 /// makes explicit disposal deterministic and idempotent.
 #[derive(Clone)]
 pub struct BundleResource {
-    loaded: Arc<Mutex<Option<LoadedBundle>>>,
+    loaded: Arc<LoadedBundle>,
+    active: Arc<AtomicBool>,
 }
 
 pub struct BridgeOpenedBundle {
@@ -152,20 +154,11 @@ pub fn bundle_read_asset(
     logical_path: String,
     maximum_bytes: u64,
 ) -> BridgeAssetReadResult {
-    let guard = match resource.loaded.lock() {
-        Ok(guard) => guard,
-        Err(_) => {
-            return BridgeAssetReadResult::failure(BridgeError::new(
-                "B_RESOURCE_STATE",
-                "bundle resource lock is poisoned",
-            ));
+    let loaded = match resource.lease() {
+        Ok(loaded) => loaded,
+        Err(error) => {
+            return BridgeAssetReadResult::failure(BridgeError::new(error.code, error.message));
         }
-    };
-    let Some(loaded) = guard.as_ref() else {
-        return BridgeAssetReadResult::failure(BridgeError::new(
-            "B_RESOURCE_DISPOSED",
-            "bundle resource has been disposed",
-        ));
     };
     match loaded.read_asset(&logical_path, maximum_bytes) {
         Ok(bytes) => BridgeAssetReadResult {
@@ -177,18 +170,9 @@ pub fn bundle_read_asset(
 }
 
 pub fn bundle_dispose(resource: &BundleResource) -> BridgeDisposeResult {
-    match resource.loaded.lock() {
-        Ok(mut guard) => BridgeDisposeResult {
-            released: guard.take().is_some(),
-            error: None,
-        },
-        Err(_) => BridgeDisposeResult {
-            released: false,
-            error: Some(BridgeError::new(
-                "B_RESOURCE_STATE",
-                "bundle resource lock is poisoned",
-            )),
-        },
+    BridgeDisposeResult {
+        released: resource.active.swap(false, Ordering::AcqRel),
+        error: None,
     }
 }
 
@@ -196,7 +180,7 @@ pub fn bridge_hard_limits() -> BridgeLimits {
     ResourceLimits::HARD.into()
 }
 
-fn open_bytes_impl(
+pub(crate) fn open_bytes_impl(
     bytes: Vec<u8>,
     trust_keys: Vec<BridgeTrustKey>,
     policy: BridgeVerificationPolicy,
@@ -276,7 +260,8 @@ impl BridgeOpenResult {
         Self {
             opened: Some(BridgeOpenedBundle {
                 resource: BundleResource {
-                    loaded: Arc::new(Mutex::new(Some(loaded))),
+                    loaded: Arc::new(loaded),
+                    active: Arc::new(AtomicBool::new(true)),
                 },
                 manifest,
                 verification,
@@ -305,10 +290,23 @@ impl BridgeAssetReadResult {
 }
 
 impl BridgeError {
-    fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
+    pub(crate) fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             code: code.into(),
             message: message.into(),
+        }
+    }
+}
+
+impl BundleResource {
+    pub(crate) fn lease(&self) -> Result<Arc<LoadedBundle>, BridgeError> {
+        if self.active.load(Ordering::Acquire) {
+            Ok(Arc::clone(&self.loaded))
+        } else {
+            Err(BridgeError::new(
+                "B_RESOURCE_DISPOSED",
+                "bundle resource has been disposed",
+            ))
         }
     }
 }

@@ -35,6 +35,18 @@ Native hosts may call `openPath`; Web is bytes-only. Calls are asynchronous and
 asset bytes are copied lazily. Opening transfers bundle bytes once into Rust and
 returns one verified Protobuf payload; it does not copy every asset into Dart.
 
+## Headless player entrypoint
+
+Import `storyscript_bundle_player.dart` when the host needs execution rather
+than inspection. `StoryBundlePlayerLoader` verifies and opens bytes/path directly
+into a Rust player without returning or decoding `CompiledStory` in Dart. It can
+also create multiple isolated players from an existing `LoadedStoryBundle`.
+
+Players expose compact current/advance/choice deltas, explicit bounded history
+pages, opaque save export/restore, bounded asset reads, and idempotent disposal.
+Save bytes require the exact authenticated bundle origin and are not encrypted
+or authenticated. The host owns UI and persistence.
+
 ## Limits and lifecycle
 
 Hard ceilings are 100 MiB archive/total uncompressed, 64 MiB per entry, 16 MiB
@@ -42,8 +54,9 @@ compiled IR, 1 MiB manifest, 4,096 entries, 1,024-byte paths, and semantic depth
 128. `StoryBundleLimits` may lower but not raise them. Dart preflights observable
 limits and Rust enforces all limits authoritatively.
 
-`LoadedStoryBundle.dispose()` is idempotent and immediately releases Rust-held
-archive bytes. Reads after disposal throw `StoryBundleDisposedException`.
+`LoadedStoryBundle.dispose()` is idempotent and releases its caller handle.
+Reads after disposal throw `StoryBundleDisposedException`; existing child
+players retain a shared verified lease until the final player is disposed.
 Starting or cancelling a newer load prevents stale results from being exposed.
 
 ## Generated contracts

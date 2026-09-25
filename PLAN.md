@@ -86,7 +86,7 @@ Child include semantics:
 A standard scene is defined using `* <scene_label> { ... }`. Every scene operates on a strict, sequential two-phase lifecycle. Blocks must appear in exact order.
 
 ### Phase 1: `#PREP` (Execution Phase)
-The invisible backend phase. The parser executes all math, updates state arrays, and queues engine assets instantly before rendering anything to the screen. 
+The invisible backend phase. The Rust player runtime executes all math, updates state arrays, and queues engine assets instantly before rendering anything to the screen.
 
 * **Allowed Tokens:** `$`, `@bg`, `@bgm`, `@sfx`, standalone function calls (`name(...)`), `if`/`else if`/`else`.
 * **Variable Declaration:** Typed local declarations are allowed only in `#PREP` (`$name as <type> = <expr>`).
@@ -108,6 +108,28 @@ Each scene must follow these structural rules:
 * `#STORY` is mandatory and must appear exactly once.
 * If `#PREP` exists, it must appear before `#STORY`.
 * A scene definition ends when its block closing brace `}` is reached. Runtime script termination is handled by `@end` inside `#STORY`.
+
+### Headless Runtime and Stable Progress
+
+The source AST and authenticated StoryBundle model adapt into one immutable,
+UI-independent Rust execution model. Semantic events are scene transition,
+narration, dialogue, choices, media, end, and structured runtime error; legacy
+TUI scene headers, selected-choice markers, and formatted errors are presentation
+only. Player responses contain the current event/effects and sequence/truncation
+metadata, never the complete model or transcript.
+
+A progress save may be exported only at a stable boundary after open, advance,
+choice, or restore. Restore creates a new candidate session and injects the saved
+current/pending state without rerunning the current scene's `#PREP` or
+re-flattening its `#STORY`. Future scene entry follows the normal lifecycle.
+The session-owned ChaCha RNG stores its version, seed, stream, and word position
+for deterministic continuation; it is not cryptographic randomness.
+
+Every public interaction applies host-lowerable hard limits transactionally.
+Runtime or limit failure leaves the prior stable checkpoint unchanged and emits
+a structured diagnostic with scene and resource/actual/limit when applicable.
+Progress saves use exact source or authenticated-bundle semantic identity, have
+no automatic migration, and are validated but not encrypted/authenticated.
 
 ---
 

@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/bundle.dart';
+import 'api/player.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -19,16 +20,36 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   });
 
   CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_BridgeBundlePlayerOpenedPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpenedPtr;
+
+  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_BridgeOpenedBundlePtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundlePtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_BundlePlayerResourcePtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResourcePtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_BundleResourcePtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundleResourcePtr;
 
   @protected
+  BridgeBundlePlayerOpened
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    dynamic raw,
+  );
+
+  @protected
   BridgeOpenedBundle
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
+    dynamic raw,
+  );
+
+  @protected
+  BundlePlayerResource
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
     dynamic raw,
   );
 
@@ -39,8 +60,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  BridgeBundlePlayerOpened
+  dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    dynamic raw,
+  );
+
+  @protected
   BridgeOpenedBundle
   dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
+    dynamic raw,
+  );
+
+  @protected
+  BridgeBundlePlayerOpened
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
     dynamic raw,
   );
 
@@ -51,14 +84,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  BundlePlayerResource
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    dynamic raw,
+  );
+
+  @protected
   BundleResource
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundleResource(
     dynamic raw,
   );
 
   @protected
+  BridgeBundlePlayerOpened
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    dynamic raw,
+  );
+
+  @protected
   BridgeOpenedBundle
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
+    dynamic raw,
+  );
+
+  @protected
+  BundlePlayerResource
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
     dynamic raw,
   );
 
@@ -75,6 +126,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool dco_decode_bool(dynamic raw);
 
   @protected
+  BridgeBundlePlayerOpened
+  dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    dynamic raw,
+  );
+
+  @protected
   BridgeOpenedBundle
   dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     dynamic raw,
@@ -87,10 +144,55 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BridgeLimits dco_decode_box_autoadd_bridge_limits(dynamic raw);
 
   @protected
+  BridgePlayerDelta dco_decode_box_autoadd_bridge_player_delta(dynamic raw);
+
+  @protected
+  BridgePlayerHistoryPage dco_decode_box_autoadd_bridge_player_history_page(
+    dynamic raw,
+  );
+
+  @protected
+  BridgeRuntimeError dco_decode_box_autoadd_bridge_runtime_error(dynamic raw);
+
+  @protected
+  BridgeRuntimeLimits dco_decode_box_autoadd_bridge_runtime_limits(dynamic raw);
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw);
+
+  @protected
   BridgeAssetDescriptor dco_decode_bridge_asset_descriptor(dynamic raw);
 
   @protected
   BridgeAssetReadResult dco_decode_bridge_asset_read_result(dynamic raw);
+
+  @protected
+  BridgeBundlePlayerActionResult dco_decode_bridge_bundle_player_action_result(
+    dynamic raw,
+  );
+
+  @protected
+  BridgeBundlePlayerAssetResult dco_decode_bridge_bundle_player_asset_result(
+    dynamic raw,
+  );
+
+  @protected
+  BridgeBundlePlayerDisposeResult
+  dco_decode_bridge_bundle_player_dispose_result(dynamic raw);
+
+  @protected
+  BridgeBundlePlayerHistoryResult
+  dco_decode_bridge_bundle_player_history_result(dynamic raw);
+
+  @protected
+  BridgeBundlePlayerOpenResult dco_decode_bridge_bundle_player_open_result(
+    dynamic raw,
+  );
+
+  @protected
+  BridgeBundlePlayerSaveResult dco_decode_bridge_bundle_player_save_result(
+    dynamic raw,
+  );
 
   @protected
   BridgeDisposeResult dco_decode_bridge_dispose_result(dynamic raw);
@@ -111,7 +213,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BridgeOpenResult dco_decode_bridge_open_result(dynamic raw);
 
   @protected
+  BridgePlayerChoice dco_decode_bridge_player_choice(dynamic raw);
+
+  @protected
+  BridgePlayerDelta dco_decode_bridge_player_delta(dynamic raw);
+
+  @protected
+  BridgePlayerEffect dco_decode_bridge_player_effect(dynamic raw);
+
+  @protected
+  BridgePlayerEvent dco_decode_bridge_player_event(dynamic raw);
+
+  @protected
+  BridgePlayerHistoryEntry dco_decode_bridge_player_history_entry(dynamic raw);
+
+  @protected
+  BridgePlayerHistoryPage dco_decode_bridge_player_history_page(dynamic raw);
+
+  @protected
   BridgeProjectMetadata dco_decode_bridge_project_metadata(dynamic raw);
+
+  @protected
+  BridgeRuntimeError dco_decode_bridge_runtime_error(dynamic raw);
+
+  @protected
+  BridgeRuntimeLimits dco_decode_bridge_runtime_limits(dynamic raw);
 
   @protected
   BridgeTrustKey dco_decode_bridge_trust_key(dynamic raw);
@@ -134,6 +260,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<BridgeManifestEntry> dco_decode_list_bridge_manifest_entry(dynamic raw);
 
   @protected
+  List<BridgePlayerChoice> dco_decode_list_bridge_player_choice(dynamic raw);
+
+  @protected
+  List<BridgePlayerEffect> dco_decode_list_bridge_player_effect(dynamic raw);
+
+  @protected
+  List<BridgePlayerHistoryEntry> dco_decode_list_bridge_player_history_entry(
+    dynamic raw,
+  );
+
+  @protected
   List<BridgeTrustKey> dco_decode_list_bridge_trust_key(dynamic raw);
 
   @protected
@@ -146,6 +283,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
+  BridgeBundlePlayerOpened?
+  dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    dynamic raw,
+  );
+
+  @protected
   BridgeOpenedBundle?
   dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     dynamic raw,
@@ -153,6 +296,23 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BridgeError? dco_decode_opt_box_autoadd_bridge_error(dynamic raw);
+
+  @protected
+  BridgePlayerDelta? dco_decode_opt_box_autoadd_bridge_player_delta(
+    dynamic raw,
+  );
+
+  @protected
+  BridgePlayerHistoryPage?
+  dco_decode_opt_box_autoadd_bridge_player_history_page(dynamic raw);
+
+  @protected
+  BridgeRuntimeError? dco_decode_opt_box_autoadd_bridge_runtime_error(
+    dynamic raw,
+  );
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw);
 
   @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
@@ -173,8 +333,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
+  BridgeBundlePlayerOpened
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BridgeOpenedBundle
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BundlePlayerResource
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
     SseDeserializer deserializer,
   );
 
@@ -185,8 +357,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  BridgeBundlePlayerOpened
+  sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BridgeOpenedBundle
   sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgeBundlePlayerOpened
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
     SseDeserializer deserializer,
   );
 
@@ -197,14 +381,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  BundlePlayerResource
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BundleResource
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundleResource(
     SseDeserializer deserializer,
   );
 
   @protected
+  BridgeBundlePlayerOpened
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BridgeOpenedBundle
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BundlePlayerResource
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
     SseDeserializer deserializer,
   );
 
@@ -221,6 +423,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
+  BridgeBundlePlayerOpened
+  sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BridgeOpenedBundle
   sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     SseDeserializer deserializer,
@@ -235,12 +443,63 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  BridgePlayerDelta sse_decode_box_autoadd_bridge_player_delta(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgePlayerHistoryPage sse_decode_box_autoadd_bridge_player_history_page(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgeRuntimeError sse_decode_box_autoadd_bridge_runtime_error(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgeRuntimeLimits sse_decode_box_autoadd_bridge_runtime_limits(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer);
+
+  @protected
   BridgeAssetDescriptor sse_decode_bridge_asset_descriptor(
     SseDeserializer deserializer,
   );
 
   @protected
   BridgeAssetReadResult sse_decode_bridge_asset_read_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgeBundlePlayerActionResult sse_decode_bridge_bundle_player_action_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgeBundlePlayerAssetResult sse_decode_bridge_bundle_player_asset_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgeBundlePlayerDisposeResult
+  sse_decode_bridge_bundle_player_dispose_result(SseDeserializer deserializer);
+
+  @protected
+  BridgeBundlePlayerHistoryResult
+  sse_decode_bridge_bundle_player_history_result(SseDeserializer deserializer);
+
+  @protected
+  BridgeBundlePlayerOpenResult sse_decode_bridge_bundle_player_open_result(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgeBundlePlayerSaveResult sse_decode_bridge_bundle_player_save_result(
     SseDeserializer deserializer,
   );
 
@@ -267,7 +526,47 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BridgeOpenResult sse_decode_bridge_open_result(SseDeserializer deserializer);
 
   @protected
+  BridgePlayerChoice sse_decode_bridge_player_choice(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgePlayerDelta sse_decode_bridge_player_delta(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgePlayerEffect sse_decode_bridge_player_effect(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgePlayerEvent sse_decode_bridge_player_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgePlayerHistoryEntry sse_decode_bridge_player_history_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgePlayerHistoryPage sse_decode_bridge_player_history_page(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BridgeProjectMetadata sse_decode_bridge_project_metadata(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgeRuntimeError sse_decode_bridge_runtime_error(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgeRuntimeLimits sse_decode_bridge_runtime_limits(
     SseDeserializer deserializer,
   );
 
@@ -298,6 +597,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<BridgePlayerChoice> sse_decode_list_bridge_player_choice(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<BridgePlayerEffect> sse_decode_list_bridge_player_effect(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<BridgePlayerHistoryEntry> sse_decode_list_bridge_player_history_entry(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<BridgeTrustKey> sse_decode_list_bridge_trust_key(
     SseDeserializer deserializer,
   );
@@ -312,6 +626,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
+  BridgeBundlePlayerOpened?
+  sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   BridgeOpenedBundle?
   sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     SseDeserializer deserializer,
@@ -321,6 +641,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BridgeError? sse_decode_opt_box_autoadd_bridge_error(
     SseDeserializer deserializer,
   );
+
+  @protected
+  BridgePlayerDelta? sse_decode_opt_box_autoadd_bridge_player_delta(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgePlayerHistoryPage?
+  sse_decode_opt_box_autoadd_bridge_player_history_page(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BridgeRuntimeError? sse_decode_opt_box_autoadd_bridge_runtime_error(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer);
 
   @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
@@ -342,8 +681,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     BridgeOpenedBundle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    BundlePlayerResource self,
     SseSerializer serializer,
   );
 
@@ -356,8 +709,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     BridgeOpenedBundle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened self,
     SseSerializer serializer,
   );
 
@@ -370,6 +737,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    BundlePlayerResource self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundleResource(
     BundleResource self,
     SseSerializer serializer,
@@ -377,8 +751,22 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     BridgeOpenedBundle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    BundlePlayerResource self,
     SseSerializer serializer,
   );
 
@@ -394,6 +782,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void
+  sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened self,
+    SseSerializer serializer,
+  );
 
   @protected
   void
@@ -415,6 +810,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_bridge_player_delta(
+    BridgePlayerDelta self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_bridge_player_history_page(
+    BridgePlayerHistoryPage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_bridge_runtime_error(
+    BridgeRuntimeError self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_bridge_runtime_limits(
+    BridgeRuntimeLimits self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer);
+
+  @protected
   void sse_encode_bridge_asset_descriptor(
     BridgeAssetDescriptor self,
     SseSerializer serializer,
@@ -423,6 +845,42 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_bridge_asset_read_result(
     BridgeAssetReadResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_bundle_player_action_result(
+    BridgeBundlePlayerActionResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_bundle_player_asset_result(
+    BridgeBundlePlayerAssetResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_bundle_player_dispose_result(
+    BridgeBundlePlayerDisposeResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_bundle_player_history_result(
+    BridgeBundlePlayerHistoryResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_bundle_player_open_result(
+    BridgeBundlePlayerOpenResult self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_bundle_player_save_result(
+    BridgeBundlePlayerSaveResult self,
     SseSerializer serializer,
   );
 
@@ -457,8 +915,56 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_bridge_player_choice(
+    BridgePlayerChoice self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_player_delta(
+    BridgePlayerDelta self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_player_effect(
+    BridgePlayerEffect self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_player_event(
+    BridgePlayerEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_player_history_entry(
+    BridgePlayerHistoryEntry self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_player_history_page(
+    BridgePlayerHistoryPage self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_bridge_project_metadata(
     BridgeProjectMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_runtime_error(
+    BridgeRuntimeError self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_bridge_runtime_limits(
+    BridgeRuntimeLimits self,
     SseSerializer serializer,
   );
 
@@ -496,6 +1002,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_bridge_player_choice(
+    List<BridgePlayerChoice> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_bridge_player_effect(
+    List<BridgePlayerEffect> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_bridge_player_history_entry(
+    List<BridgePlayerHistoryEntry> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_bridge_trust_key(
     List<BridgeTrustKey> self,
     SseSerializer serializer,
@@ -515,6 +1039,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     BridgeOpenedBundle? self,
     SseSerializer serializer,
@@ -525,6 +1056,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     BridgeError? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_box_autoadd_bridge_player_delta(
+    BridgePlayerDelta? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_bridge_player_history_page(
+    BridgePlayerHistoryPage? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_bridge_runtime_error(
+    BridgeRuntimeError? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_list_prim_u_8_strict(
@@ -563,6 +1115,40 @@ class RustLibWire implements BaseWire {
     : _lookup = dynamicLibrary.lookup;
 
   void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpenedPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_storyscript_bundle_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpenedPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpenedPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_storyscript_bundle_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpenedPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     ffi.Pointer<ffi.Void> ptr,
   ) {
@@ -594,6 +1180,40 @@ class RustLibWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundlePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResourcePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_storyscript_bundle_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResourcePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResourcePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_storyscript_bundle_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResourcePtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

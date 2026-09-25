@@ -126,7 +126,8 @@ compiled IR, 1 MiB manifest, and 4,096 entries.
 
 A bundle excludes raw `.StoryScript` source, but it is **not encryption or DRM**.
 Semantic text and assets remain recoverable. Keep private signing keys outside the
-project/repository. The existing player APIs do not open `.storybundle` files.
+project/repository. The separate headless player entrypoint executes only bundles
+that have passed Rust verification.
 
 ### 4) Load a StoryBundle from Flutter
 
@@ -147,6 +148,27 @@ Strict verification is the default. Unsigned development loading requires the
 explicit named constructor and remains visible in verification metadata. Native
 hosts may open a path; Web is bytes-only and requires the documented COOP/COEP
 headers. See `storyscript_bundle/README.md` and run its example Bundle Inspector.
+
+### 5) Drive a headless player and save progress
+
+Source applications use `SourceStoryPlayerLoader` from
+`storyscript_player_core.dart`. Bundle applications import the separate
+`storyscript_bundle_player.dart` entrypoint and use `StoryBundlePlayerLoader`.
+The preferred bundle path verifies and creates the Rust player without sending
+the compiled model to Dart; an existing verified `LoadedStoryBundle` can also
+create multiple child players.
+
+Progress calls return compact semantic events/effects. History, bundle assets,
+and opaque save bytes are fetched explicitly. Restore requires an exact semantic
+source or authenticated bundle origin, has no migration, and does not replay the
+current scene's PREP/STORY. Saves are validated but **not encrypted or
+authenticated**. Hosts own UI, storage, backups, deletion, and cloud authorization.
+
+Documentation: `docs/feature/headless_story_player.md`,
+`docs/contracts/storyplayer_save_v1.md`,
+`docs/onboarding/headless_player_integration_checklist.md`,
+`docs/playbook/player_save_recovery.md`, and
+`docs/qa-docs/storyplayer_save_v1_qa.md`.
 
 ## Player Controls
 

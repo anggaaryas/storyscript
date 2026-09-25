@@ -5,6 +5,8 @@ on:
     paths:
       - 'parser/rust/**'
       - 'bundle/**'
+      - 'player/**'
+      - 'storyscript_player_core/**'
       - 'storyscript_bundle/**'
       - 'docs/**'
       - '.github/workflows/storybundle-ci.yml'
@@ -12,6 +14,8 @@ on:
     paths:
       - 'parser/rust/**'
       - 'bundle/**'
+      - 'player/**'
+      - 'storyscript_player_core/**'
       - 'storyscript_bundle/**'
       - 'docs/**'
       - '.github/workflows/storybundle-ci.yml'
@@ -33,10 +37,23 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   FLUTTER_RUST_BRIDGE_VERSION: 2.13.0
+  SOURCE_FLUTTER_RUST_BRIDGE_VERSION: 2.12.0
   PROTOC_PLUGIN_VERSION: 25.1.0
   WASM_BINDGEN_VERSION: 0.2.118
 
 jobs:
+  shared-player-runtime:
+    name: Shared player runtime and save owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --manifest-path player/Cargo.toml --no-default-features --features storybundle-runtime
+      - run: cargo test --manifest-path player/Cargo.toml --test cli_help
+      - run: cargo test --manifest-path storyscript_player_core/rust/Cargo.toml
+      - run: test -f player/proto/storyplayer/v1/schema.sha256
+
   parser-safety:
     name: Parser safety owner
     runs-on: ubuntu-latest
@@ -87,6 +104,7 @@ jobs:
       - run: dart pub global activate protoc_plugin "$PROTOC_PLUGIN_VERSION"
       - run: echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
       - run: cargo install flutter_rust_bridge_codegen --version "$FLUTTER_RUST_BRIDGE_VERSION" --locked
+      - run: cargo install flutter_rust_bridge_codegen --version "$SOURCE_FLUTTER_RUST_BRIDGE_VERSION" --locked --root "$RUNNER_TEMP/frb212"
       - run: flutter pub get
         working-directory: storyscript_bundle
       - run: >-
@@ -95,6 +113,10 @@ jobs:
           bundle/proto/storybundle/v1/compiled_story.proto
       - run: flutter_rust_bridge_codegen generate
         working-directory: storyscript_bundle
+      - run: flutter pub get
+        working-directory: storyscript_player_core
+      - run: '"$RUNNER_TEMP/frb212/bin/flutter_rust_bridge_codegen" generate'
+        working-directory: storyscript_player_core
       - run: cargo run --manifest-path bundle/rust/Cargo.toml -- schema check
       - run: >-
           git diff --exit-code --
@@ -102,6 +124,8 @@ jobs:
           storyscript_bundle/lib/src/proto
           storyscript_bundle/lib/src/rust
           storyscript_bundle/rust/src/frb_generated.rs
+          storyscript_player_core/lib/src/rust
+          storyscript_player_core/rust/src/frb_generated.rs
 
   flutter-tests:
     name: Flutter package and inspector owner
@@ -124,6 +148,14 @@ jobs:
         working-directory: storyscript_bundle
       - run: flutter test
         working-directory: storyscript_bundle
+      - run: flutter pub get
+        working-directory: storyscript_player_core
+      - run: dart format --output=none --set-exit-if-changed lib test
+        working-directory: storyscript_player_core
+      - run: flutter analyze
+        working-directory: storyscript_player_core
+      - run: flutter test test/player_save_contract_test.dart
+        working-directory: storyscript_player_core
       - run: flutter pub get
         working-directory: storyscript_bundle/example
       - run: dart format --output=none --set-exit-if-changed lib test integration_test

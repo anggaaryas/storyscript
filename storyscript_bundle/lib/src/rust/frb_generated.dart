@@ -4,6 +4,7 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/bundle.dart';
+import 'api/player.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -66,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1496165417;
+  int get rustContentHash => 845113971;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -78,6 +79,26 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  BridgePlayerDelta
+  crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorGetCurrent({
+    required BridgeBundlePlayerOpened that,
+  });
+
+  BundlePlayerResource
+  crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorGetResource({
+    required BridgeBundlePlayerOpened that,
+  });
+
+  void crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorSetCurrent({
+    required BridgeBundlePlayerOpened that,
+    required BridgePlayerDelta current,
+  });
+
+  void crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorSetResource({
+    required BridgeBundlePlayerOpened that,
+    required BundlePlayerResource resource,
+  });
+
   List<BridgeAssetDescriptor>
   crateApiBundleBridgeOpenedBundleAutoAccessorGetAssets({
     required BridgeOpenedBundle that,
@@ -145,6 +166,88 @@ abstract class RustLibApi extends BaseApi {
     required BridgeLimits limits,
   });
 
+  Future<BridgeBundlePlayerActionResult> crateApiPlayerBundlePlayerAdvance({
+    required BundlePlayerResource resource,
+  });
+
+  Future<BridgeBundlePlayerActionResult> crateApiPlayerBundlePlayerChoose({
+    required BundlePlayerResource resource,
+    required int index,
+  });
+
+  Future<BridgeBundlePlayerActionResult> crateApiPlayerBundlePlayerCurrent({
+    required BundlePlayerResource resource,
+  });
+
+  Future<BridgeBundlePlayerDisposeResult> crateApiPlayerBundlePlayerDispose({
+    required BundlePlayerResource resource,
+  });
+
+  Future<BridgeBundlePlayerSaveResult> crateApiPlayerBundlePlayerExportSave({
+    required BundlePlayerResource resource,
+  });
+
+  Future<BridgeRuntimeLimits> crateApiPlayerBundlePlayerHardLimits();
+
+  Future<BridgeBundlePlayerHistoryResult> crateApiPlayerBundlePlayerHistory({
+    required BundlePlayerResource resource,
+    required BigInt startSequence,
+    required int maximum,
+  });
+
+  Future<BridgeBundlePlayerOpenResult> crateApiPlayerBundlePlayerOpenBytes({
+    required List<int> bytes,
+    required List<BridgeTrustKey> trustKeys,
+    required BridgeVerificationPolicy policy,
+    required BridgeLimits bundleLimits,
+    required BridgeRuntimeLimits playerLimits,
+  });
+
+  Future<BridgeBundlePlayerOpenResult>
+  crateApiPlayerBundlePlayerOpenFromBundle({
+    required BundleResource bundle,
+    required BridgeRuntimeLimits limits,
+  });
+
+  Future<BridgeBundlePlayerOpenResult> crateApiPlayerBundlePlayerOpenPath({
+    required String path,
+    required List<BridgeTrustKey> trustKeys,
+    required BridgeVerificationPolicy policy,
+    required BridgeLimits bundleLimits,
+    required BridgeRuntimeLimits playerLimits,
+  });
+
+  Future<BridgeBundlePlayerAssetResult> crateApiPlayerBundlePlayerReadAsset({
+    required BundlePlayerResource resource,
+    required String logicalPath,
+    required BigInt maximumBytes,
+  });
+
+  Future<BridgeBundlePlayerOpenResult> crateApiPlayerBundlePlayerRestoreBytes({
+    required List<int> bytes,
+    required List<int> save,
+    required List<BridgeTrustKey> trustKeys,
+    required BridgeVerificationPolicy policy,
+    required BridgeLimits bundleLimits,
+    required BridgeRuntimeLimits playerLimits,
+  });
+
+  Future<BridgeBundlePlayerOpenResult>
+  crateApiPlayerBundlePlayerRestoreFromBundle({
+    required BundleResource bundle,
+    required List<int> save,
+    required BridgeRuntimeLimits limits,
+  });
+
+  Future<BridgeBundlePlayerOpenResult> crateApiPlayerBundlePlayerRestorePath({
+    required String path,
+    required List<int> save,
+    required List<BridgeTrustKey> trustKeys,
+    required BridgeVerificationPolicy policy,
+    required BridgeLimits bundleLimits,
+    required BridgeRuntimeLimits playerLimits,
+  });
+
   Future<BridgeAssetReadResult> crateApiBundleBundleReadAsset({
     required BundleResource resource,
     required String logicalPath,
@@ -154,6 +257,15 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiInitInitApp();
 
   RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_BridgeBundlePlayerOpened;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_BridgeBundlePlayerOpened;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_BridgeBundlePlayerOpenedPtr;
+
+  RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_BridgeOpenedBundle;
 
   RustArcDecrementStrongCountFnType
@@ -161,6 +273,15 @@ abstract class RustLibApi extends BaseApi {
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_BridgeOpenedBundlePtr;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_BundlePlayerResource;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_BundlePlayerResource;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_BundlePlayerResourcePtr;
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_BundleResource;
@@ -181,6 +302,148 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
+  BridgePlayerDelta
+  crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorGetCurrent({
+    required BridgeBundlePlayerOpened that,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_player_delta,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiPlayerBridgeBundlePlayerOpenedAutoAccessorGetCurrentConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPlayerBridgeBundlePlayerOpenedAutoAccessorGetCurrentConstMeta =>
+      const TaskConstMeta(
+        debugName: "BridgeBundlePlayerOpened_auto_accessor_get_current",
+        argNames: ["that"],
+      );
+
+  @override
+  BundlePlayerResource
+  crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorGetResource({
+    required BridgeBundlePlayerOpened that,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiPlayerBridgeBundlePlayerOpenedAutoAccessorGetResourceConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPlayerBridgeBundlePlayerOpenedAutoAccessorGetResourceConstMeta =>
+      const TaskConstMeta(
+        debugName: "BridgeBundlePlayerOpened_auto_accessor_get_resource",
+        argNames: ["that"],
+      );
+
+  @override
+  void crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorSetCurrent({
+    required BridgeBundlePlayerOpened that,
+    required BridgePlayerDelta current,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+            that,
+            serializer,
+          );
+          sse_encode_bridge_player_delta(current, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiPlayerBridgeBundlePlayerOpenedAutoAccessorSetCurrentConstMeta,
+        argValues: [that, current],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPlayerBridgeBundlePlayerOpenedAutoAccessorSetCurrentConstMeta =>
+      const TaskConstMeta(
+        debugName: "BridgeBundlePlayerOpened_auto_accessor_set_current",
+        argNames: ["that", "current"],
+      );
+
+  @override
+  void crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorSetResource({
+    required BridgeBundlePlayerOpened that,
+    required BundlePlayerResource resource,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+            that,
+            serializer,
+          );
+          sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+            resource,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiPlayerBridgeBundlePlayerOpenedAutoAccessorSetResourceConstMeta,
+        argValues: [that, resource],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPlayerBridgeBundlePlayerOpenedAutoAccessorSetResourceConstMeta =>
+      const TaskConstMeta(
+        debugName: "BridgeBundlePlayerOpened_auto_accessor_set_resource",
+        argNames: ["that", "resource"],
+      );
+
+  @override
   List<BridgeAssetDescriptor>
   crateApiBundleBridgeOpenedBundleAutoAccessorGetAssets({
     required BridgeOpenedBundle that,
@@ -193,7 +456,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 1)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_bridge_asset_descriptor,
@@ -226,7 +489,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_prim_u_8_strict,
@@ -259,7 +522,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bridge_manifest,
@@ -292,7 +555,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
         },
         codec: SseCodec(
           decodeSuccessData:
@@ -327,7 +590,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bridge_verification_status,
@@ -362,7 +625,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_list_bridge_asset_descriptor(assets, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -397,7 +660,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_list_prim_u_8_strict(compiledStory, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -432,7 +695,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_bridge_manifest(manifest, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -470,7 +733,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             resource,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -505,7 +768,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_bridge_verification_status(verification, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -535,7 +798,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 15,
             port: port_,
           );
         },
@@ -568,7 +831,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 16,
             port: port_,
           );
         },
@@ -604,7 +867,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 17,
             port: port_,
           );
         },
@@ -643,7 +906,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 18,
             port: port_,
           );
         },
@@ -665,6 +928,581 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<BridgeBundlePlayerActionResult> crateApiPlayerBundlePlayerAdvance({
+    required BundlePlayerResource resource,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+            resource,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_action_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerAdvanceConstMeta,
+        argValues: [resource],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerAdvanceConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_advance",
+        argNames: ["resource"],
+      );
+
+  @override
+  Future<BridgeBundlePlayerActionResult> crateApiPlayerBundlePlayerChoose({
+    required BundlePlayerResource resource,
+    required int index,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+            resource,
+            serializer,
+          );
+          sse_encode_u_32(index, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_action_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerChooseConstMeta,
+        argValues: [resource, index],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerChooseConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_choose",
+        argNames: ["resource", "index"],
+      );
+
+  @override
+  Future<BridgeBundlePlayerActionResult> crateApiPlayerBundlePlayerCurrent({
+    required BundlePlayerResource resource,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+            resource,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_action_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerCurrentConstMeta,
+        argValues: [resource],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerCurrentConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_current",
+        argNames: ["resource"],
+      );
+
+  @override
+  Future<BridgeBundlePlayerDisposeResult> crateApiPlayerBundlePlayerDispose({
+    required BundlePlayerResource resource,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+            resource,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 22,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_dispose_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerDisposeConstMeta,
+        argValues: [resource],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerDisposeConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_dispose",
+        argNames: ["resource"],
+      );
+
+  @override
+  Future<BridgeBundlePlayerSaveResult> crateApiPlayerBundlePlayerExportSave({
+    required BundlePlayerResource resource,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+            resource,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 23,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_save_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerExportSaveConstMeta,
+        argValues: [resource],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerExportSaveConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_export_save",
+        argNames: ["resource"],
+      );
+
+  @override
+  Future<BridgeRuntimeLimits> crateApiPlayerBundlePlayerHardLimits() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 24,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_runtime_limits,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerHardLimitsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerHardLimitsConstMeta =>
+      const TaskConstMeta(debugName: "bundle_player_hard_limits", argNames: []);
+
+  @override
+  Future<BridgeBundlePlayerHistoryResult> crateApiPlayerBundlePlayerHistory({
+    required BundlePlayerResource resource,
+    required BigInt startSequence,
+    required int maximum,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+            resource,
+            serializer,
+          );
+          sse_encode_u_64(startSequence, serializer);
+          sse_encode_u_32(maximum, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_history_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerHistoryConstMeta,
+        argValues: [resource, startSequence, maximum],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerHistoryConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_history",
+        argNames: ["resource", "startSequence", "maximum"],
+      );
+
+  @override
+  Future<BridgeBundlePlayerOpenResult> crateApiPlayerBundlePlayerOpenBytes({
+    required List<int> bytes,
+    required List<BridgeTrustKey> trustKeys,
+    required BridgeVerificationPolicy policy,
+    required BridgeLimits bundleLimits,
+    required BridgeRuntimeLimits playerLimits,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(bytes, serializer);
+          sse_encode_list_bridge_trust_key(trustKeys, serializer);
+          sse_encode_bridge_verification_policy(policy, serializer);
+          sse_encode_box_autoadd_bridge_limits(bundleLimits, serializer);
+          sse_encode_box_autoadd_bridge_runtime_limits(
+            playerLimits,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 26,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_open_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerOpenBytesConstMeta,
+        argValues: [bytes, trustKeys, policy, bundleLimits, playerLimits],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerOpenBytesConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_open_bytes",
+        argNames: [
+          "bytes",
+          "trustKeys",
+          "policy",
+          "bundleLimits",
+          "playerLimits",
+        ],
+      );
+
+  @override
+  Future<BridgeBundlePlayerOpenResult>
+  crateApiPlayerBundlePlayerOpenFromBundle({
+    required BundleResource bundle,
+    required BridgeRuntimeLimits limits,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundleResource(
+            bundle,
+            serializer,
+          );
+          sse_encode_box_autoadd_bridge_runtime_limits(limits, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 27,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_open_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerOpenFromBundleConstMeta,
+        argValues: [bundle, limits],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerOpenFromBundleConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_open_from_bundle",
+        argNames: ["bundle", "limits"],
+      );
+
+  @override
+  Future<BridgeBundlePlayerOpenResult> crateApiPlayerBundlePlayerOpenPath({
+    required String path,
+    required List<BridgeTrustKey> trustKeys,
+    required BridgeVerificationPolicy policy,
+    required BridgeLimits bundleLimits,
+    required BridgeRuntimeLimits playerLimits,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          sse_encode_list_bridge_trust_key(trustKeys, serializer);
+          sse_encode_bridge_verification_policy(policy, serializer);
+          sse_encode_box_autoadd_bridge_limits(bundleLimits, serializer);
+          sse_encode_box_autoadd_bridge_runtime_limits(
+            playerLimits,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 28,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_open_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerOpenPathConstMeta,
+        argValues: [path, trustKeys, policy, bundleLimits, playerLimits],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerOpenPathConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_open_path",
+        argNames: [
+          "path",
+          "trustKeys",
+          "policy",
+          "bundleLimits",
+          "playerLimits",
+        ],
+      );
+
+  @override
+  Future<BridgeBundlePlayerAssetResult> crateApiPlayerBundlePlayerReadAsset({
+    required BundlePlayerResource resource,
+    required String logicalPath,
+    required BigInt maximumBytes,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+            resource,
+            serializer,
+          );
+          sse_encode_String(logicalPath, serializer);
+          sse_encode_u_64(maximumBytes, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 29,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_asset_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerReadAssetConstMeta,
+        argValues: [resource, logicalPath, maximumBytes],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerReadAssetConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_read_asset",
+        argNames: ["resource", "logicalPath", "maximumBytes"],
+      );
+
+  @override
+  Future<BridgeBundlePlayerOpenResult> crateApiPlayerBundlePlayerRestoreBytes({
+    required List<int> bytes,
+    required List<int> save,
+    required List<BridgeTrustKey> trustKeys,
+    required BridgeVerificationPolicy policy,
+    required BridgeLimits bundleLimits,
+    required BridgeRuntimeLimits playerLimits,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_list_prim_u_8_loose(bytes, serializer);
+          sse_encode_list_prim_u_8_loose(save, serializer);
+          sse_encode_list_bridge_trust_key(trustKeys, serializer);
+          sse_encode_bridge_verification_policy(policy, serializer);
+          sse_encode_box_autoadd_bridge_limits(bundleLimits, serializer);
+          sse_encode_box_autoadd_bridge_runtime_limits(
+            playerLimits,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 30,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_open_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerRestoreBytesConstMeta,
+        argValues: [bytes, save, trustKeys, policy, bundleLimits, playerLimits],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerRestoreBytesConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_restore_bytes",
+        argNames: [
+          "bytes",
+          "save",
+          "trustKeys",
+          "policy",
+          "bundleLimits",
+          "playerLimits",
+        ],
+      );
+
+  @override
+  Future<BridgeBundlePlayerOpenResult>
+  crateApiPlayerBundlePlayerRestoreFromBundle({
+    required BundleResource bundle,
+    required List<int> save,
+    required BridgeRuntimeLimits limits,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundleResource(
+            bundle,
+            serializer,
+          );
+          sse_encode_list_prim_u_8_loose(save, serializer);
+          sse_encode_box_autoadd_bridge_runtime_limits(limits, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 31,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_open_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerRestoreFromBundleConstMeta,
+        argValues: [bundle, save, limits],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerRestoreFromBundleConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_restore_from_bundle",
+        argNames: ["bundle", "save", "limits"],
+      );
+
+  @override
+  Future<BridgeBundlePlayerOpenResult> crateApiPlayerBundlePlayerRestorePath({
+    required String path,
+    required List<int> save,
+    required List<BridgeTrustKey> trustKeys,
+    required BridgeVerificationPolicy policy,
+    required BridgeLimits bundleLimits,
+    required BridgeRuntimeLimits playerLimits,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          sse_encode_list_prim_u_8_loose(save, serializer);
+          sse_encode_list_bridge_trust_key(trustKeys, serializer);
+          sse_encode_bridge_verification_policy(policy, serializer);
+          sse_encode_box_autoadd_bridge_limits(bundleLimits, serializer);
+          sse_encode_box_autoadd_bridge_runtime_limits(
+            playerLimits,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 32,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_bundle_player_open_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerBundlePlayerRestorePathConstMeta,
+        argValues: [path, save, trustKeys, policy, bundleLimits, playerLimits],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerBundlePlayerRestorePathConstMeta =>
+      const TaskConstMeta(
+        debugName: "bundle_player_restore_path",
+        argNames: [
+          "path",
+          "save",
+          "trustKeys",
+          "policy",
+          "bundleLimits",
+          "playerLimits",
+        ],
+      );
+
+  @override
   Future<BridgeAssetReadResult> crateApiBundleBundleReadAsset({
     required BundleResource resource,
     required String logicalPath,
@@ -683,7 +1521,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 33,
             port: port_,
           );
         },
@@ -713,7 +1551,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 34,
             port: port_,
           );
         },
@@ -732,12 +1570,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_BridgeBundlePlayerOpened => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_BridgeBundlePlayerOpened => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened;
+
+  RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_BridgeOpenedBundle => wire
       .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle;
 
   RustArcDecrementStrongCountFnType
   get rust_arc_decrement_strong_count_BridgeOpenedBundle => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_BundlePlayerResource => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_BundlePlayerResource => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource;
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_BundleResource => wire
@@ -748,12 +1602,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundleResource;
 
   @protected
+  BridgeBundlePlayerOpened
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BridgeBundlePlayerOpenedImpl.frbInternalDcoDecode(
+      raw as List<dynamic>,
+    );
+  }
+
+  @protected
   BridgeOpenedBundle
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return BridgeOpenedBundleImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  BundlePlayerResource
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BundlePlayerResourceImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -766,12 +1640,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgeBundlePlayerOpened
+  dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BridgeBundlePlayerOpenedImpl.frbInternalDcoDecode(
+      raw as List<dynamic>,
+    );
+  }
+
+  @protected
   BridgeOpenedBundle
   dco_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return BridgeOpenedBundleImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  BridgeBundlePlayerOpened
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BridgeBundlePlayerOpenedImpl.frbInternalDcoDecode(
+      raw as List<dynamic>,
+    );
   }
 
   @protected
@@ -784,6 +1680,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BundlePlayerResource
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BundlePlayerResourceImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   BundleResource
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundleResource(
     dynamic raw,
@@ -793,12 +1698,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgeBundlePlayerOpened
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BridgeBundlePlayerOpenedImpl.frbInternalDcoDecode(
+      raw as List<dynamic>,
+    );
+  }
+
+  @protected
   BridgeOpenedBundle
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return BridgeOpenedBundleImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  BundlePlayerResource
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BundlePlayerResourceImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -820,6 +1745,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  BridgeBundlePlayerOpened
+  dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+      raw,
+    );
   }
 
   @protected
@@ -846,6 +1782,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgePlayerDelta dco_decode_box_autoadd_bridge_player_delta(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_bridge_player_delta(raw);
+  }
+
+  @protected
+  BridgePlayerHistoryPage dco_decode_box_autoadd_bridge_player_history_page(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_bridge_player_history_page(raw);
+  }
+
+  @protected
+  BridgeRuntimeError dco_decode_box_autoadd_bridge_runtime_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_bridge_runtime_error(raw);
+  }
+
+  @protected
+  BridgeRuntimeLimits dco_decode_box_autoadd_bridge_runtime_limits(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_bridge_runtime_limits(raw);
+  }
+
+  @protected
+  BigInt dco_decode_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_u_64(raw);
+  }
+
+  @protected
   BridgeAssetDescriptor dco_decode_bridge_asset_descriptor(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -867,6 +1837,91 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return BridgeAssetReadResult(
       bytes: dco_decode_opt_list_prim_u_8_strict(arr[0]),
       error: dco_decode_opt_box_autoadd_bridge_error(arr[1]),
+    );
+  }
+
+  @protected
+  BridgeBundlePlayerActionResult dco_decode_bridge_bundle_player_action_result(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return BridgeBundlePlayerActionResult(
+      delta: dco_decode_opt_box_autoadd_bridge_player_delta(arr[0]),
+      error: dco_decode_opt_box_autoadd_bridge_runtime_error(arr[1]),
+    );
+  }
+
+  @protected
+  BridgeBundlePlayerAssetResult dco_decode_bridge_bundle_player_asset_result(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return BridgeBundlePlayerAssetResult(
+      bytes: dco_decode_opt_list_prim_u_8_strict(arr[0]),
+      error: dco_decode_opt_box_autoadd_bridge_runtime_error(arr[1]),
+    );
+  }
+
+  @protected
+  BridgeBundlePlayerDisposeResult
+  dco_decode_bridge_bundle_player_dispose_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return BridgeBundlePlayerDisposeResult(
+      released: dco_decode_bool(arr[0]),
+      error: dco_decode_opt_box_autoadd_bridge_runtime_error(arr[1]),
+    );
+  }
+
+  @protected
+  BridgeBundlePlayerHistoryResult
+  dco_decode_bridge_bundle_player_history_result(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return BridgeBundlePlayerHistoryResult(
+      page: dco_decode_opt_box_autoadd_bridge_player_history_page(arr[0]),
+      error: dco_decode_opt_box_autoadd_bridge_runtime_error(arr[1]),
+    );
+  }
+
+  @protected
+  BridgeBundlePlayerOpenResult dco_decode_bridge_bundle_player_open_result(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return BridgeBundlePlayerOpenResult(
+      opened:
+          dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+            arr[0],
+          ),
+      error: dco_decode_opt_box_autoadd_bridge_runtime_error(arr[1]),
+    );
+  }
+
+  @protected
+  BridgeBundlePlayerSaveResult dco_decode_bridge_bundle_player_save_result(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return BridgeBundlePlayerSaveResult(
+      bytes: dco_decode_opt_list_prim_u_8_strict(arr[0]),
+      error: dco_decode_opt_box_autoadd_bridge_runtime_error(arr[1]),
     );
   }
 
@@ -961,6 +2016,95 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgePlayerChoice dco_decode_bridge_player_choice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return BridgePlayerChoice(
+      text: dco_decode_String(arr[0]),
+      targetScene: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  BridgePlayerDelta dco_decode_bridge_player_delta(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return BridgePlayerDelta(
+      event: dco_decode_bridge_player_event(arr[0]),
+      effects: dco_decode_list_bridge_player_effect(arr[1]),
+      scene: dco_decode_String(arr[2]),
+      status: dco_decode_String(arr[3]),
+      sequence: dco_decode_u_64(arr[4]),
+      firstRetainedSequence: dco_decode_u_64(arr[5]),
+      omittedHistoryCount: dco_decode_u_64(arr[6]),
+    );
+  }
+
+  @protected
+  BridgePlayerEffect dco_decode_bridge_player_effect(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return BridgePlayerEffect(
+      kind: dco_decode_String(arr[0]),
+      path: dco_decode_opt_String(arr[1]),
+    );
+  }
+
+  @protected
+  BridgePlayerEvent dco_decode_bridge_player_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    return BridgePlayerEvent(
+      kind: dco_decode_String(arr[0]),
+      text: dco_decode_opt_String(arr[1]),
+      scene: dco_decode_opt_String(arr[2]),
+      actorId: dco_decode_opt_String(arr[3]),
+      actorName: dco_decode_opt_String(arr[4]),
+      emotion: dco_decode_opt_String(arr[5]),
+      position: dco_decode_opt_String(arr[6]),
+      portraitPath: dco_decode_opt_String(arr[7]),
+      choices: dco_decode_list_bridge_player_choice(arr[8]),
+      error: dco_decode_opt_box_autoadd_bridge_runtime_error(arr[9]),
+    );
+  }
+
+  @protected
+  BridgePlayerHistoryEntry dco_decode_bridge_player_history_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return BridgePlayerHistoryEntry(
+      sequence: dco_decode_u_64(arr[0]),
+      event: dco_decode_bridge_player_event(arr[1]),
+      effects: dco_decode_list_bridge_player_effect(arr[2]),
+      scene: dco_decode_String(arr[3]),
+    );
+  }
+
+  @protected
+  BridgePlayerHistoryPage dco_decode_bridge_player_history_page(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return BridgePlayerHistoryPage(
+      entries: dco_decode_list_bridge_player_history_entry(arr[0]),
+      nextSequence: dco_decode_u_64(arr[1]),
+      firstRetainedSequence: dco_decode_u_64(arr[2]),
+      omittedHistoryCount: dco_decode_u_64(arr[3]),
+    );
+  }
+
+  @protected
   BridgeProjectMetadata dco_decode_bridge_project_metadata(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -970,6 +2114,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       id: dco_decode_String(arr[0]),
       name: dco_decode_String(arr[1]),
       version: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  BridgeRuntimeError dco_decode_bridge_runtime_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return BridgeRuntimeError(
+      code: dco_decode_String(arr[0]),
+      scene: dco_decode_String(arr[1]),
+      message: dco_decode_String(arr[2]),
+      resource: dco_decode_opt_String(arr[3]),
+      actual: dco_decode_opt_box_autoadd_u_64(arr[4]),
+      limit: dco_decode_opt_box_autoadd_u_64(arr[5]),
+    );
+  }
+
+  @protected
+  BridgeRuntimeLimits dco_decode_bridge_runtime_limits(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return BridgeRuntimeLimits(
+      operationsPerInteraction: dco_decode_u_64(arr[0]),
+      logicDepth: dco_decode_u_64(arr[1]),
+      pendingEventsPerScene: dco_decode_u_64(arr[2]),
+      arrayElements: dco_decode_u_64(arr[3]),
+      renderedBytes: dco_decode_u_64(arr[4]),
+      historyEntries: dco_decode_u_64(arr[5]),
+      historyBytes: dco_decode_u_64(arr[6]),
+      saveBytes: dco_decode_u_64(arr[7]),
     );
   }
 
@@ -1028,6 +2206,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<BridgePlayerChoice> dco_decode_list_bridge_player_choice(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_bridge_player_choice).toList();
+  }
+
+  @protected
+  List<BridgePlayerEffect> dco_decode_list_bridge_player_effect(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_bridge_player_effect).toList();
+  }
+
+  @protected
+  List<BridgePlayerHistoryEntry> dco_decode_list_bridge_player_history_entry(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_bridge_player_history_entry)
+        .toList();
+  }
+
+  @protected
   List<BridgeTrustKey> dco_decode_list_bridge_trust_key(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_bridge_trust_key).toList();
@@ -1052,6 +2252,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgeBundlePlayerOpened?
+  dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+            raw,
+          );
+  }
+
+  @protected
   BridgeOpenedBundle?
   dco_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     dynamic raw,
@@ -1068,6 +2281,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BridgeError? dco_decode_opt_box_autoadd_bridge_error(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_bridge_error(raw);
+  }
+
+  @protected
+  BridgePlayerDelta? dco_decode_opt_box_autoadd_bridge_player_delta(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_bridge_player_delta(raw);
+  }
+
+  @protected
+  BridgePlayerHistoryPage?
+  dco_decode_opt_box_autoadd_bridge_player_history_page(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_bridge_player_history_page(raw);
+  }
+
+  @protected
+  BridgeRuntimeError? dco_decode_opt_box_autoadd_bridge_runtime_error(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_bridge_runtime_error(raw);
+  }
+
+  @protected
+  BigInt? dco_decode_opt_box_autoadd_u_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_64(raw);
   }
 
   @protected
@@ -1107,12 +2353,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgeBundlePlayerOpened
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return BridgeBundlePlayerOpenedImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   BridgeOpenedBundle
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return BridgeOpenedBundleImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  BundlePlayerResource
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return BundlePlayerResourceImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -1131,12 +2401,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgeBundlePlayerOpened
+  sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return BridgeBundlePlayerOpenedImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   BridgeOpenedBundle
   sse_decode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return BridgeOpenedBundleImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  BridgeBundlePlayerOpened
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return BridgeBundlePlayerOpenedImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -1155,6 +2449,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BundlePlayerResource
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return BundlePlayerResourceImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   BundleResource
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundleResource(
     SseDeserializer deserializer,
@@ -1167,12 +2473,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgeBundlePlayerOpened
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return BridgeBundlePlayerOpenedImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   BridgeOpenedBundle
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return BridgeOpenedBundleImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  BundlePlayerResource
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return BundlePlayerResourceImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -1204,6 +2534,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgeBundlePlayerOpened
+  sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+      deserializer,
+    ));
+  }
+
+  @protected
   BridgeOpenedBundle
   sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     SseDeserializer deserializer,
@@ -1231,6 +2572,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgePlayerDelta sse_decode_box_autoadd_bridge_player_delta(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_bridge_player_delta(deserializer));
+  }
+
+  @protected
+  BridgePlayerHistoryPage sse_decode_box_autoadd_bridge_player_history_page(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_bridge_player_history_page(deserializer));
+  }
+
+  @protected
+  BridgeRuntimeError sse_decode_box_autoadd_bridge_runtime_error(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_bridge_runtime_error(deserializer));
+  }
+
+  @protected
+  BridgeRuntimeLimits sse_decode_box_autoadd_bridge_runtime_limits(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_bridge_runtime_limits(deserializer));
+  }
+
+  @protected
+  BigInt sse_decode_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_64(deserializer));
+  }
+
+  @protected
   BridgeAssetDescriptor sse_decode_bridge_asset_descriptor(
     SseDeserializer deserializer,
   ) {
@@ -1253,6 +2632,86 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_bytes = sse_decode_opt_list_prim_u_8_strict(deserializer);
     var var_error = sse_decode_opt_box_autoadd_bridge_error(deserializer);
     return BridgeAssetReadResult(bytes: var_bytes, error: var_error);
+  }
+
+  @protected
+  BridgeBundlePlayerActionResult sse_decode_bridge_bundle_player_action_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_delta = sse_decode_opt_box_autoadd_bridge_player_delta(
+      deserializer,
+    );
+    var var_error = sse_decode_opt_box_autoadd_bridge_runtime_error(
+      deserializer,
+    );
+    return BridgeBundlePlayerActionResult(delta: var_delta, error: var_error);
+  }
+
+  @protected
+  BridgeBundlePlayerAssetResult sse_decode_bridge_bundle_player_asset_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_bytes = sse_decode_opt_list_prim_u_8_strict(deserializer);
+    var var_error = sse_decode_opt_box_autoadd_bridge_runtime_error(
+      deserializer,
+    );
+    return BridgeBundlePlayerAssetResult(bytes: var_bytes, error: var_error);
+  }
+
+  @protected
+  BridgeBundlePlayerDisposeResult
+  sse_decode_bridge_bundle_player_dispose_result(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_released = sse_decode_bool(deserializer);
+    var var_error = sse_decode_opt_box_autoadd_bridge_runtime_error(
+      deserializer,
+    );
+    return BridgeBundlePlayerDisposeResult(
+      released: var_released,
+      error: var_error,
+    );
+  }
+
+  @protected
+  BridgeBundlePlayerHistoryResult
+  sse_decode_bridge_bundle_player_history_result(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_page = sse_decode_opt_box_autoadd_bridge_player_history_page(
+      deserializer,
+    );
+    var var_error = sse_decode_opt_box_autoadd_bridge_runtime_error(
+      deserializer,
+    );
+    return BridgeBundlePlayerHistoryResult(page: var_page, error: var_error);
+  }
+
+  @protected
+  BridgeBundlePlayerOpenResult sse_decode_bridge_bundle_player_open_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_opened =
+        sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+          deserializer,
+        );
+    var var_error = sse_decode_opt_box_autoadd_bridge_runtime_error(
+      deserializer,
+    );
+    return BridgeBundlePlayerOpenResult(opened: var_opened, error: var_error);
+  }
+
+  @protected
+  BridgeBundlePlayerSaveResult sse_decode_bridge_bundle_player_save_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_bytes = sse_decode_opt_list_prim_u_8_strict(deserializer);
+    var var_error = sse_decode_opt_box_autoadd_bridge_runtime_error(
+      deserializer,
+    );
+    return BridgeBundlePlayerSaveResult(bytes: var_bytes, error: var_error);
   }
 
   @protected
@@ -1350,6 +2809,114 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgePlayerChoice sse_decode_bridge_player_choice(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_text = sse_decode_String(deserializer);
+    var var_targetScene = sse_decode_String(deserializer);
+    return BridgePlayerChoice(text: var_text, targetScene: var_targetScene);
+  }
+
+  @protected
+  BridgePlayerDelta sse_decode_bridge_player_delta(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_event = sse_decode_bridge_player_event(deserializer);
+    var var_effects = sse_decode_list_bridge_player_effect(deserializer);
+    var var_scene = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_sequence = sse_decode_u_64(deserializer);
+    var var_firstRetainedSequence = sse_decode_u_64(deserializer);
+    var var_omittedHistoryCount = sse_decode_u_64(deserializer);
+    return BridgePlayerDelta(
+      event: var_event,
+      effects: var_effects,
+      scene: var_scene,
+      status: var_status,
+      sequence: var_sequence,
+      firstRetainedSequence: var_firstRetainedSequence,
+      omittedHistoryCount: var_omittedHistoryCount,
+    );
+  }
+
+  @protected
+  BridgePlayerEffect sse_decode_bridge_player_effect(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_String(deserializer);
+    var var_path = sse_decode_opt_String(deserializer);
+    return BridgePlayerEffect(kind: var_kind, path: var_path);
+  }
+
+  @protected
+  BridgePlayerEvent sse_decode_bridge_player_event(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_String(deserializer);
+    var var_text = sse_decode_opt_String(deserializer);
+    var var_scene = sse_decode_opt_String(deserializer);
+    var var_actorId = sse_decode_opt_String(deserializer);
+    var var_actorName = sse_decode_opt_String(deserializer);
+    var var_emotion = sse_decode_opt_String(deserializer);
+    var var_position = sse_decode_opt_String(deserializer);
+    var var_portraitPath = sse_decode_opt_String(deserializer);
+    var var_choices = sse_decode_list_bridge_player_choice(deserializer);
+    var var_error = sse_decode_opt_box_autoadd_bridge_runtime_error(
+      deserializer,
+    );
+    return BridgePlayerEvent(
+      kind: var_kind,
+      text: var_text,
+      scene: var_scene,
+      actorId: var_actorId,
+      actorName: var_actorName,
+      emotion: var_emotion,
+      position: var_position,
+      portraitPath: var_portraitPath,
+      choices: var_choices,
+      error: var_error,
+    );
+  }
+
+  @protected
+  BridgePlayerHistoryEntry sse_decode_bridge_player_history_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sequence = sse_decode_u_64(deserializer);
+    var var_event = sse_decode_bridge_player_event(deserializer);
+    var var_effects = sse_decode_list_bridge_player_effect(deserializer);
+    var var_scene = sse_decode_String(deserializer);
+    return BridgePlayerHistoryEntry(
+      sequence: var_sequence,
+      event: var_event,
+      effects: var_effects,
+      scene: var_scene,
+    );
+  }
+
+  @protected
+  BridgePlayerHistoryPage sse_decode_bridge_player_history_page(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_entries = sse_decode_list_bridge_player_history_entry(deserializer);
+    var var_nextSequence = sse_decode_u_64(deserializer);
+    var var_firstRetainedSequence = sse_decode_u_64(deserializer);
+    var var_omittedHistoryCount = sse_decode_u_64(deserializer);
+    return BridgePlayerHistoryPage(
+      entries: var_entries,
+      nextSequence: var_nextSequence,
+      firstRetainedSequence: var_firstRetainedSequence,
+      omittedHistoryCount: var_omittedHistoryCount,
+    );
+  }
+
+  @protected
   BridgeProjectMetadata sse_decode_bridge_project_metadata(
     SseDeserializer deserializer,
   ) {
@@ -1361,6 +2928,52 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       id: var_id,
       name: var_name,
       version: var_version,
+    );
+  }
+
+  @protected
+  BridgeRuntimeError sse_decode_bridge_runtime_error(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_code = sse_decode_String(deserializer);
+    var var_scene = sse_decode_String(deserializer);
+    var var_message = sse_decode_String(deserializer);
+    var var_resource = sse_decode_opt_String(deserializer);
+    var var_actual = sse_decode_opt_box_autoadd_u_64(deserializer);
+    var var_limit = sse_decode_opt_box_autoadd_u_64(deserializer);
+    return BridgeRuntimeError(
+      code: var_code,
+      scene: var_scene,
+      message: var_message,
+      resource: var_resource,
+      actual: var_actual,
+      limit: var_limit,
+    );
+  }
+
+  @protected
+  BridgeRuntimeLimits sse_decode_bridge_runtime_limits(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_operationsPerInteraction = sse_decode_u_64(deserializer);
+    var var_logicDepth = sse_decode_u_64(deserializer);
+    var var_pendingEventsPerScene = sse_decode_u_64(deserializer);
+    var var_arrayElements = sse_decode_u_64(deserializer);
+    var var_renderedBytes = sse_decode_u_64(deserializer);
+    var var_historyEntries = sse_decode_u_64(deserializer);
+    var var_historyBytes = sse_decode_u_64(deserializer);
+    var var_saveBytes = sse_decode_u_64(deserializer);
+    return BridgeRuntimeLimits(
+      operationsPerInteraction: var_operationsPerInteraction,
+      logicDepth: var_logicDepth,
+      pendingEventsPerScene: var_pendingEventsPerScene,
+      arrayElements: var_arrayElements,
+      renderedBytes: var_renderedBytes,
+      historyEntries: var_historyEntries,
+      historyBytes: var_historyBytes,
+      saveBytes: var_saveBytes,
     );
   }
 
@@ -1432,6 +3045,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<BridgePlayerChoice> sse_decode_list_bridge_player_choice(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BridgePlayerChoice>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_bridge_player_choice(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<BridgePlayerEffect> sse_decode_list_bridge_player_effect(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BridgePlayerEffect>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_bridge_player_effect(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<BridgePlayerHistoryEntry> sse_decode_list_bridge_player_history_entry(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <BridgePlayerHistoryEntry>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_bridge_player_history_entry(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<BridgeTrustKey> sse_decode_list_bridge_trust_key(
     SseDeserializer deserializer,
   ) {
@@ -1471,6 +3126,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  BridgeBundlePlayerOpened?
+  sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+        deserializer,
+      ));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   BridgeOpenedBundle?
   sse_decode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     SseDeserializer deserializer,
@@ -1494,6 +3165,57 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_bridge_error(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BridgePlayerDelta? sse_decode_opt_box_autoadd_bridge_player_delta(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_bridge_player_delta(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BridgePlayerHistoryPage?
+  sse_decode_opt_box_autoadd_bridge_player_history_page(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_bridge_player_history_page(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BridgeRuntimeError? sse_decode_opt_box_autoadd_bridge_runtime_error(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_bridge_runtime_error(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  BigInt? sse_decode_opt_box_autoadd_u_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_64(deserializer));
     } else {
       return null;
     }
@@ -1541,6 +3263,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as BridgeBundlePlayerOpenedImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     BridgeOpenedBundle self,
     SseSerializer serializer,
@@ -1548,6 +3283,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as BridgeOpenedBundleImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    BundlePlayerResource self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as BundlePlayerResourceImpl).frbInternalSseEncode(move: true),
       serializer,
     );
   }
@@ -1567,6 +3315,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as BridgeBundlePlayerOpenedImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     BridgeOpenedBundle self,
     SseSerializer serializer,
@@ -1574,6 +3335,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as BridgeOpenedBundleImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as BridgeBundlePlayerOpenedImpl).frbInternalSseEncode(move: false),
       serializer,
     );
   }
@@ -1593,6 +3367,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    BundlePlayerResource self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as BundlePlayerResourceImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundleResource(
     BundleResource self,
     SseSerializer serializer,
@@ -1606,6 +3393,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as BridgeBundlePlayerOpenedImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     BridgeOpenedBundle self,
     SseSerializer serializer,
@@ -1613,6 +3413,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as BridgeOpenedBundleImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBundlePlayerResource(
+    BundlePlayerResource self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as BundlePlayerResourceImpl).frbInternalSseEncode(move: null),
       serializer,
     );
   }
@@ -1640,6 +3453,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void
+  sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+      self,
+      serializer,
+    );
   }
 
   @protected
@@ -1674,6 +3500,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_bridge_player_delta(
+    BridgePlayerDelta self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bridge_player_delta(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_bridge_player_history_page(
+    BridgePlayerHistoryPage self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bridge_player_history_page(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_bridge_runtime_error(
+    BridgeRuntimeError self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bridge_runtime_error(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_bridge_runtime_limits(
+    BridgeRuntimeLimits self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bridge_runtime_limits(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_u_64(BigInt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self, serializer);
+  }
+
+  @protected
   void sse_encode_bridge_asset_descriptor(
     BridgeAssetDescriptor self,
     SseSerializer serializer,
@@ -1692,6 +3560,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_opt_list_prim_u_8_strict(self.bytes, serializer);
     sse_encode_opt_box_autoadd_bridge_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_bundle_player_action_result(
+    BridgeBundlePlayerActionResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_bridge_player_delta(self.delta, serializer);
+    sse_encode_opt_box_autoadd_bridge_runtime_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_bundle_player_asset_result(
+    BridgeBundlePlayerAssetResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_list_prim_u_8_strict(self.bytes, serializer);
+    sse_encode_opt_box_autoadd_bridge_runtime_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_bundle_player_dispose_result(
+    BridgeBundlePlayerDisposeResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bool(self.released, serializer);
+    sse_encode_opt_box_autoadd_bridge_runtime_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_bundle_player_history_result(
+    BridgeBundlePlayerHistoryResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_bridge_player_history_page(
+      self.page,
+      serializer,
+    );
+    sse_encode_opt_box_autoadd_bridge_runtime_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_bundle_player_open_result(
+    BridgeBundlePlayerOpenResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+      self.opened,
+      serializer,
+    );
+    sse_encode_opt_box_autoadd_bridge_runtime_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_bundle_player_save_result(
+    BridgeBundlePlayerSaveResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_list_prim_u_8_strict(self.bytes, serializer);
+    sse_encode_opt_box_autoadd_bridge_runtime_error(self.error, serializer);
   }
 
   @protected
@@ -1767,6 +3701,83 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_bridge_player_choice(
+    BridgePlayerChoice self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.text, serializer);
+    sse_encode_String(self.targetScene, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_player_delta(
+    BridgePlayerDelta self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_bridge_player_event(self.event, serializer);
+    sse_encode_list_bridge_player_effect(self.effects, serializer);
+    sse_encode_String(self.scene, serializer);
+    sse_encode_String(self.status, serializer);
+    sse_encode_u_64(self.sequence, serializer);
+    sse_encode_u_64(self.firstRetainedSequence, serializer);
+    sse_encode_u_64(self.omittedHistoryCount, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_player_effect(
+    BridgePlayerEffect self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.kind, serializer);
+    sse_encode_opt_String(self.path, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_player_event(
+    BridgePlayerEvent self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.kind, serializer);
+    sse_encode_opt_String(self.text, serializer);
+    sse_encode_opt_String(self.scene, serializer);
+    sse_encode_opt_String(self.actorId, serializer);
+    sse_encode_opt_String(self.actorName, serializer);
+    sse_encode_opt_String(self.emotion, serializer);
+    sse_encode_opt_String(self.position, serializer);
+    sse_encode_opt_String(self.portraitPath, serializer);
+    sse_encode_list_bridge_player_choice(self.choices, serializer);
+    sse_encode_opt_box_autoadd_bridge_runtime_error(self.error, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_player_history_entry(
+    BridgePlayerHistoryEntry self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.sequence, serializer);
+    sse_encode_bridge_player_event(self.event, serializer);
+    sse_encode_list_bridge_player_effect(self.effects, serializer);
+    sse_encode_String(self.scene, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_player_history_page(
+    BridgePlayerHistoryPage self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_list_bridge_player_history_entry(self.entries, serializer);
+    sse_encode_u_64(self.nextSequence, serializer);
+    sse_encode_u_64(self.firstRetainedSequence, serializer);
+    sse_encode_u_64(self.omittedHistoryCount, serializer);
+  }
+
+  @protected
   void sse_encode_bridge_project_metadata(
     BridgeProjectMetadata self,
     SseSerializer serializer,
@@ -1775,6 +3786,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.id, serializer);
     sse_encode_String(self.name, serializer);
     sse_encode_String(self.version, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_runtime_error(
+    BridgeRuntimeError self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.code, serializer);
+    sse_encode_String(self.scene, serializer);
+    sse_encode_String(self.message, serializer);
+    sse_encode_opt_String(self.resource, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.actual, serializer);
+    sse_encode_opt_box_autoadd_u_64(self.limit, serializer);
+  }
+
+  @protected
+  void sse_encode_bridge_runtime_limits(
+    BridgeRuntimeLimits self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_64(self.operationsPerInteraction, serializer);
+    sse_encode_u_64(self.logicDepth, serializer);
+    sse_encode_u_64(self.pendingEventsPerScene, serializer);
+    sse_encode_u_64(self.arrayElements, serializer);
+    sse_encode_u_64(self.renderedBytes, serializer);
+    sse_encode_u_64(self.historyEntries, serializer);
+    sse_encode_u_64(self.historyBytes, serializer);
+    sse_encode_u_64(self.saveBytes, serializer);
   }
 
   @protected
@@ -1837,6 +3878,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_bridge_player_choice(
+    List<BridgePlayerChoice> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_bridge_player_choice(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_bridge_player_effect(
+    List<BridgePlayerEffect> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_bridge_player_effect(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_bridge_player_history_entry(
+    List<BridgePlayerHistoryEntry> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_bridge_player_history_entry(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_bridge_trust_key(
     List<BridgeTrustKey> self,
     SseSerializer serializer,
@@ -1882,6 +3959,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+    BridgeBundlePlayerOpened? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeBundlePlayerOpened(
+        self,
+        serializer,
+      );
+    }
+  }
+
+  @protected
+  void
   sse_encode_opt_box_autoadd_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeOpenedBundle(
     BridgeOpenedBundle? self,
     SseSerializer serializer,
@@ -1907,6 +4001,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_bridge_error(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_bridge_player_delta(
+    BridgePlayerDelta? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_bridge_player_delta(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_bridge_player_history_page(
+    BridgePlayerHistoryPage? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_bridge_player_history_page(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_bridge_runtime_error(
+    BridgeRuntimeError? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_bridge_runtime_error(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_u_64(BigInt? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_64(self, serializer);
     }
   }
 
@@ -1951,6 +4094,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
   }
+}
+
+@sealed
+class BridgeBundlePlayerOpenedImpl extends RustOpaque
+    implements BridgeBundlePlayerOpened {
+  // Not to be used by end users
+  BridgeBundlePlayerOpenedImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  BridgeBundlePlayerOpenedImpl.frbInternalSseDecode(
+    BigInt ptr,
+    int externalSizeOnNative,
+  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount: RustLib
+        .instance
+        .api
+        .rust_arc_increment_strong_count_BridgeBundlePlayerOpened,
+    rustArcDecrementStrongCount: RustLib
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_BridgeBundlePlayerOpened,
+    rustArcDecrementStrongCountPtr: RustLib
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_BridgeBundlePlayerOpenedPtr,
+  );
+
+  BridgePlayerDelta get current => RustLib.instance.api
+      .crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorGetCurrent(that: this);
+
+  BundlePlayerResource get resource => RustLib.instance.api
+      .crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorGetResource(
+        that: this,
+      );
+
+  set current(BridgePlayerDelta current) => RustLib.instance.api
+      .crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorSetCurrent(
+        that: this,
+        current: current,
+      );
+
+  set resource(BundlePlayerResource resource) => RustLib.instance.api
+      .crateApiPlayerBridgeBundlePlayerOpenedAutoAccessorSetResource(
+        that: this,
+        resource: resource,
+      );
 }
 
 @sealed
@@ -2022,6 +4214,35 @@ class BridgeOpenedBundleImpl extends RustOpaque implements BridgeOpenedBundle {
         that: this,
         verification: verification,
       );
+}
+
+@sealed
+class BundlePlayerResourceImpl extends RustOpaque
+    implements BundlePlayerResource {
+  // Not to be used by end users
+  BundlePlayerResourceImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  BundlePlayerResourceImpl.frbInternalSseDecode(
+    BigInt ptr,
+    int externalSizeOnNative,
+  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount: RustLib
+        .instance
+        .api
+        .rust_arc_increment_strong_count_BundlePlayerResource,
+    rustArcDecrementStrongCount: RustLib
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_BundlePlayerResource,
+    rustArcDecrementStrongCountPtr: RustLib
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_BundlePlayerResourcePtr,
+  );
 }
 
 @sealed

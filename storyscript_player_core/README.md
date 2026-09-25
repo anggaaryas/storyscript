@@ -1,92 +1,44 @@
 # storyscript_player_core
 
-A new Flutter FFI plugin project.
+Flutter FFI package for source-based StoryScript playback on native and Web.
+It contains no widgets, routing, state-management integration, or persistence.
 
-## Getting Started
+## Headless API
 
-This project is a starting point for a Flutter
-[FFI plugin](https://flutter.dev/to/ffi-package),
-a specialized package that includes native code directly invoked with Dart FFI.
+```dart
+await RustLib.init();
+final loader = SourceStoryPlayerLoader();
+final player = await loader.openSource(sourceText);
 
-## Project structure
+final delta = await player.advance();
+final page = await player.history(startSequence: 0);
+final save = await player.exportSave(); // opaque Uint8List
+await player.dispose();
 
-This template uses the following structure:
-
-* `src`: Contains the native source code, and a CmakeFile.txt file for building
-  that source code into a dynamic library.
-
-* `lib`: Contains the Dart code that defines the API of the plugin, and which
-  calls into the native code using `dart:ffi`.
-
-* platform folders (`android`, `ios`, `windows`, etc.): Contains the build files
-  for building and bundling the native code library with the platform application.
-
-## Building and bundling native code
-
-The `pubspec.yaml` specifies FFI plugins as follows:
-
-```yaml
-  plugin:
-    platforms:
-      some_platform:
-        ffiPlugin: true
+final restored = await loader.restoreSource(sourceText, save);
 ```
 
-This configuration invokes the native build for the various target platforms
-and bundles the binaries in Flutter applications using these FFI plugins.
+`openPath`/`restorePath` are native filesystem conveniences. Progression returns
+compact semantic events/effects and truncation metadata; transcript pages and
+save bytes are explicit calls. Restore creates a new session and requires the
+exact semantic source identity. The current scene's PREP/STORY is not replayed.
 
-This can be combined with dartPluginClass, such as when FFI is used for the
-implementation of one platform in a federated plugin:
+The generated legacy numeric-session functions remain exported for existing
+consumers. New integrations should use `SourceStoryPlayerLoader` and its
+injectable `SourcePlayerBindings` seam.
 
-```yaml
-  plugin:
-    implements: some_other_plugin
-    platforms:
-      some_platform:
-        dartPluginClass: SomeClass
-        ffiPlugin: true
+## Ownership and limits
+
+`StoryPlayerLimits` can lower the Rust hard profile. Mutations are serialized;
+busy/disposed/errors are structured, and disposal is idempotent. Host apps own
+UI, storage, encryption/authentication, backup, deletion, and cloud/AuthZ.
+Progress saves are not encrypted or authenticated by the SDK.
+
+FRB runtime and generated bindings are pinned to 2.12.0. Regenerate with the
+matching `flutter_rust_bridge_codegen` version, then run:
+
+```sh
+cargo test --manifest-path rust/Cargo.toml
+flutter analyze
+flutter test test/player_save_contract_test.dart
 ```
-
-A plugin can have both FFI and method channels:
-
-```yaml
-  plugin:
-    platforms:
-      some_platform:
-        pluginClass: SomeName
-        ffiPlugin: true
-```
-
-The native build systems that are invoked by FFI (and method channel) plugins are:
-
-* For Android: Gradle, which invokes the Android NDK for native builds.
-  * See the documentation in android/build.gradle.
-* For iOS and MacOS: Xcode, via CocoaPods.
-  * See the documentation in ios/storyscript_player_core.podspec.
-  * See the documentation in macos/storyscript_player_core.podspec.
-* For Linux and Windows: CMake.
-  * See the documentation in linux/CMakeLists.txt.
-  * See the documentation in windows/CMakeLists.txt.
-
-## Binding to native code
-
-To use the native code, bindings in Dart are needed.
-To avoid writing these by hand, they are generated from the header file
-(`src/storyscript_player_core.h`) by `package:ffigen`.
-Regenerate the bindings by running `dart run ffigen --config ffigen.yaml`.
-
-## Invoking native code
-
-Very short-running native functions can be directly invoked from any isolate.
-For example, see `sum` in `lib/storyscript_player_core.dart`.
-
-Longer-running functions should be invoked on a helper isolate to avoid
-dropping frames in Flutter applications.
-For example, see `sumAsync` in `lib/storyscript_player_core.dart`.
-
-## Flutter help
-
-For help getting started with Flutter, view our
-[online documentation](https://docs.flutter.dev), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-

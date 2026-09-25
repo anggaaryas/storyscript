@@ -32,6 +32,13 @@ final class LoadedStoryBundle {
 
   bool get isDisposed => _disposeFuture != null;
 
+  /// Package-internal capability handoff used by the separate player entrypoint.
+  /// It is intentionally not exported as a standalone resource type.
+  Object playerResourceHandoff() {
+    _ensureOpen();
+    return _resource;
+  }
+
   Future<Uint8List> readAsset(String logicalPath, {int? maximumBytes}) async {
     _ensureOpen();
     _validateLogicalPath(logicalPath);

@@ -2,10 +2,12 @@
 name = "storyscript-player"
 version = "0.1.0"
 edition = "2024"
+build = "build.rs"
 
 [features]
 default = ["tui"]
 tui = ["dep:clap", "dep:ratatui", "dep:crossterm"]
+storybundle-runtime = ["dep:storyscript-bundle"]
 
 [dependencies]
 storyscript-parser = { path = "../parser/rust" }
@@ -14,6 +16,17 @@ ratatui = { version = "0.28", optional = true }
 crossterm = { version = "0.28", optional = true }
 rust_decimal = "1.41.0"
 rand = "0.10.1"
+rand_chacha = "=0.10.0"
+prost = "=0.14.1"
+sha2 = "0.10.9"
+storyscript-bundle = { path = "../bundle/rust", optional = true }
+
+[build-dependencies]
+prost-build = "=0.14.1"
+protoc-bin-vendored = "=3.2.0"
+
+[dev-dependencies]
+prost-types = "=0.14.1"
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 getrandom = { version = "0.4.2", features = ["wasm_js"] }
