@@ -13,7 +13,7 @@ This repository includes:
 - A VS Code extension for `.StoryScript` syntax highlighting and language intelligence.
 - A Flutter plugin integration for the Rust runtime.
 - A Rust compiler/exporter and hardened loader for signed `.storybundle` files.
-- An all-platform Flutter package and inspector for verified `.storybundle` files.
+- An all-platform Flutter package with a playable illustrated light-novel chapter and Bundle Inspector example.
 
 Live demo: [web](https://labs.angarsa.com/storyscript/index.html)
 
@@ -51,7 +51,7 @@ Apple Silicon). Windows users can download the `.zip` archive from
 ├── parser/rust/                 # storyscript-parser (lexer/parser/validator)
 ├── bundle/proto/                # Canonical StoryBundle v1 Protobuf contract
 ├── bundle/rust/                 # storyscript-bundle library and CLI
-├── storyscript_bundle/          # Flutter FFI loader and Bundle Inspector
+├── storyscript_bundle/          # Flutter FFI loader, playable example, and Bundle Inspector
 ├── player/                      # storyscript-player (TUI runtime)
 ├── storyscript_player_core/     # Flutter plugin integration and WebAssembly bindings
 └── tool/vscode-storyscript/     # VS Code language extension
@@ -147,7 +147,8 @@ await loaded.dispose();
 Strict verification is the default. Unsigned development loading requires the
 explicit named constructor and remains visible in verification metadata. Native
 hosts may open a path; Web is bytes-only and requires the documented COOP/COEP
-headers. See `storyscript_bundle/README.md` and run its example Bundle Inspector.
+headers. See `storyscript_bundle/README.md` and run its playable example (with
+the original Bundle Inspector available from the toolbar).
 
 ### 5) Drive a headless player and save progress
 

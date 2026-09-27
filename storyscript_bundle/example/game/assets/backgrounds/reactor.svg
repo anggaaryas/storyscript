@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320">
+  <rect width="800" height="320" fill="#152139"/>
+  <path d="M0 80h800M0 255h800M135 0v320M665 0v320" stroke="#375575" stroke-width="12"/>
+  <circle cx="400" cy="165" r="116" fill="#203d62" stroke="#f7a359" stroke-width="10"/>
+  <circle cx="400" cy="165" r="80" fill="#e46f56" stroke="#ffe1a0" stroke-width="8"/>
+  <circle cx="400" cy="165" r="33" fill="#ffedb8"/>
+  <path d="M260 165h-110M540 165h110" stroke="#f7a359" stroke-width="14"/>
+  <text x="22" y="45" fill="white" font-size="25">REACTOR / COOLANT CONTROL</text>
+</svg>

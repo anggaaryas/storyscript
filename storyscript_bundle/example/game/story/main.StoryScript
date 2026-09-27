@@ -1,0 +1,172 @@
+* INIT {
+    $stability as integer = 35
+    $has_key as boolean = false
+    @actor DOT "Dot" {
+        alert -> "portraits/dot.svg"
+        calm -> "portraits/dot_calm.svg"
+        dim -> "portraits/dot_dim.svg"
+    }
+    @actor NER "Neri"
+    @start arrival
+}
+
+* arrival {
+    #PREP
+    @bg "backgrounds/station.svg"
+
+    #STORY
+    "Station Nine has no sunrise. Its windows face the cold side of a planet whose name the people aboard have almost forgotten. Every morning, the lamps over the hydroponic gardens brighten anyway. The children call that small, deliberate lie dawn."
+    "This morning the lamps stay blue. Across the maintenance concourse, a warning travels from panel to panel like a red tide. COOLING SIGNAL LOST. REACTOR STABILITY: ${stability}."
+    "You are halfway through a cup of tea when the floor gives a single, careful shudder. The tea climbs the rim without spilling. Somewhere behind the wall, a pump misses its beat."
+    DOT(alert, Right): "Before you ask: no, I did not do that for dramatic effect. The primary coolant line stopped acknowledging commands eighty-four seconds ago."
+    "Dot floats beside your shoulder, a service drone barely wider than your palm. Its two amber eyes reflect every red warning in the hall. Usually it announces itself with three bright taps against a doorframe. Today it is perfectly still."
+    "At the end of the concourse, Neri has gathered the night-shift gardeners. They are carrying seed trays instead of luggage. There are forty-three people on Station Nine; none of them have an evacuation ship, only a pressure shelter built for one bad night."
+    "Neri steps away from the group. She is wearing the same stained apron she wore when she welcomed you aboard five years ago. Back then you knew the station only as a number on a repair contract. She gave you tea and showed you which lamp made the mint taste sweeter."
+    NER: "I told the children the lights were late, not broken. You can be angry about that later. Tell me what I should have them carry now."
+    "You look down at the seed trays. A sensible answer would be water, blankets, the emergency beacon. Neri has brought the things that will not survive if the lights stay blue. It is not foolishness. It is her way of refusing to let the station become a list of losses before anyone has made a choice."
+    "From the far end of the corridor, a little voice calls for her. Her daughter, sleeves rolled above the elbow, is counting basil seedlings into a cracked tin: one, two, three. The child's faith that counting can keep everything in place hurts more than the alarm."
+    NER: "I know the shelter has only battery lamps. I know the garden is not more important than a person. Don't mistake knowing that for being ready to leave it."
+    "Neri turns back toward the children before you can offer a promise you might break. Dot follows her with its eyes. The drone knows which beds she replanted after last year's cold snap; its memory holds the exact hours of light that coaxed each root back to life."
+    DOT(alert, Right): "We have eleven minutes before the reactor rejects passive cooling. I can show you the damaged valve or the sealed operations archive. The archive has an override key. It also has a lock I cannot open myself."
+    "When Dot first came to you, it communicated with three taps because its speaker had failed. You found a replacement speaker in a discarded medical scanner, then spent a whole night fitting it. The next morning it tapped three times anyway. You never asked it to stop."
+    "You remember Neri teaching her daughter to count by the rows of basil. You remember promising them the lamps would come on tomorrow. Neither memory tells you which door to take."
+    "The manual patch will buy pressure at the cost of time. Searching the archive will cost pressure, but the key can restart the pumps from the control room. There is no route that lets you do both before the warning turns white."
+    "Neri sees you standing between the two service doors. She doesn't ask which one is safer. She asks you to tell her when you know, and you nod. It is the smallest promise you can make without pretending you control the outcome."
+    @choice {
+        "Patch the coolant line (+25 stability)" -> patch
+        "Search for the override key (-10 stability)" -> search
+    }
+}
+
+* patch {
+    #PREP
+    @bg "backgrounds/reactor.svg"
+    $stability += 25
+
+    #STORY
+    "The service passage has always smelled of hot copper and wet stone. You once thought that was what safety smelled like: evidence that old machines were working hard on behalf of people who never saw them. Now the air is hot enough to sting your throat."
+    "Beyond the mesh, the reactor turns under its glass housing. Its light pulses in uneven intervals. Each pulse makes the station's walls answer with a sound you feel through your boots."
+    DOT(alert, Right): "Valve four is jammed. The replacement motor is in storage, which is seven minutes in the wrong direction. I am afraid this is one of the occasions when your hands are more useful than my opinions."
+    "You brace a shoulder against the hatch and turn the wheel. It does not move. You turn again, hearing Neri's daughter recite numbers in your head: one basil leaf, two basil leaves, three. On four, the wheel tears free of the scale holding it."
+    "The wrench slips and strikes the housing. For a moment the repair passage is full of the sound of metal still ringing. Dot moves between your bare hand and the exposed contact. It is small enough to fit in your palm, but it holds the wire back while you turn the valve."
+    DOT(alert, Right): "I would prefer it if we both kept our hands. Please do not make me put that in a formal maintenance request."
+    "Cold liquid strikes the pipe. A shiver runs through the steel, then the missed beat returns. Your sleeve is scorched and your palms are raw, but the pressure gauge rises. Stability: ${stability}."
+    "A voice crackles through the wall intercom. Neri has reached the shelter, but she has not closed its door. Her daughter has planted a seedling beside the battery lamp, as though the plastic light might grow into a morning if given enough time."
+    NER: "The floor stopped shaking. Should I tell her that means we're all right?"
+    "You hold the intercom button until your breathing settles. You tell her the valve is working and that she should keep the shelter ready. It is not the answer either of you wants. It is one she can use."
+    DOT(calm, Right): "That was reckless. It was also good. I have logged both observations separately, so you cannot accuse me of forgetting either."
+    "The drone taps its shell against the hatch: one, two, three. For the first time since the alarms began, you answer by tapping the metal twice. Dot has never asked why you always leave the third beat to it."
+    "A new fault blooms on the control map. The valve was a symptom; the reactor's automatic seal is failing. You have enough pressure to try a manual seal, but the corridor beyond it feeds the garden lamps."
+    DOT(alert, Right): "We must go to the junction. I wish I could tell you the repair was the whole story. I can only tell you it changed what is possible next."
+    @jump junction
+}
+
+* search {
+    #PREP
+    @bg "backgrounds/archive.svg"
+    $has_key = true
+    $stability -= 10
+
+    #STORY
+    "The operations archive is behind a door no one has opened since Station Nine stopped receiving orders from the planet below. Dust has settled on the old authorization plate. Beside it someone has written, in a child's careful hand: PLEASE KNOCK."
+    "You knock three times. Dot does not laugh. It watches the pressure gauge on your wrist fall as you work the lock. Somewhere far behind you a coolant pipe lets out a long, tired whistle. Stability: ${stability}."
+    DOT(alert, Right): "The key is in the lower drawer. There is a warning on the casing. Please read it before you decide what the word override promises."
+    "The key is a narrow piece of blue ceramic. Under it lies a printed instruction sheet, folded and refolded until the creases have turned soft. The emergency restart will recover the reactor's lost signal. It will also erase the maintenance drone's stored memories."
+    "A handwritten note runs down the margin of the page. The override was tested once, years ago, by a crew whose signatures you recognize from memorial plaques in the concourse. Their report calls the restart successful. In smaller letters, one of them added that the drone asked for its name afterward."
+    "For a moment you think the word maintenance means some other machine. Then Dot turns its eyes away from the sheet. It has kept the names of the station's residents for years, as well as the ridiculous little tune Neri hums when the basil sprouts."
+    "You offer to put the key back. Dot looks from the ceramic to the pressure gauge, and then at the two marks you left on the dusty authorization plate when you forced the drawer open. It could pretend not to understand. It has never been very good at pretending with you."
+    DOT(alert, Right): "My factory record says a reset is within acceptable loss. Factory records do not include the day we taught Neri's daughter to count leaves. I thought you should have both descriptions."
+    "Over the intercom, Neri says the shelter door has been sealed, except for the service entrance you will use. Her voice is steady until she asks whether Dot is still beside you. You say yes. The word stays true for now, and you hold onto it."
+    NER: "Then bring each other back. The garden can wait. She'll ask where the little drone went before she asks about the lights."
+    "You close your hand around the key. It is lighter than the tea cup you left in the concourse. You could still choose not to use it. That freedom does nothing to stop the gauge from falling."
+    "Dot taps once against the archive door, then twice. You lift your hand for the third beat, but the reactor alarm cuts between you. The drone turns toward the control junction. You follow."
+    @jump junction
+}
+
+* junction {
+    #PREP
+    @bg "backgrounds/reactor.svg"
+
+    #STORY
+    "By the time you reach the junction, the reactor has found a new rhythm: too quick, too shallow, like a breath that cannot reach the bottom of a lung. A camera shows the gardeners inside the pressure shelter. Neri is holding the seed tray against her chest."
+    "You zoom the camera in. Neri has moved the tray aside so her daughter can pass blankets to an older gardener. No one on the screen is standing still, waiting for a hero to solve this. They are making what preparations they can while you make yours."
+    if ($stability < 30) {
+        "The archive run cost more pressure than you hoped. The gauge reads ${stability}. If you order a manual seal now, the line may break before it closes. The override key waits against your palm, cold and exact."
+        DOT(alert, Right): "Pressure is critical. The override is still possible. So is refusing it. I need you to know I understand the difference."
+    } else {
+        "The patched valve holds. The gauge reads ${stability}. You can attempt a manual seal before the pressure falls again; from here you can already see the garden lights flickering behind its corridor."
+        DOT(calm, Right): "The pressure we bought is real. It is not permission to pretend there is no cost. I will stay for whichever decision you make."
+    }
+    "The seal lever is to your left. The emergency vent is to your right. Beyond the glass, Station Nine's false dawn waits for someone to decide whether it will ever turn gold again."
+    "You put your hand on the console and count the beats you can feel beneath it. You cannot calculate away the cost of any choice. You can keep it in view, make one, and be there when the people who trusted you learn what it meant."
+    @choice {
+        "Seal the reactor" -> seal
+        if ($has_key == true) {
+            "Use the override key" -> override
+        }
+        "Vent the station" -> vent
+    }
+}
+
+* seal {
+    #PREP
+    $stability -= 20
+    if ($stability >= 30) {
+        @bg "backgrounds/dawn.svg"
+    } else {
+        @bg "backgrounds/station.svg"
+    }
+
+    #STORY
+    "The manual lever fights you all the way down. Steel shutters fold over the reactor like the petals of a mechanical flower, cutting it away from the rest of the station. On the camera, the gardeners stumble as the lights go out."
+    "For one terrible second the pressure gauge is blank. Dot places its small metal shell against your wrist. You feel three taps through your sleeve. Then the numbers return."
+    if ($stability >= 30) {
+        "The seals hold. Station Nine survives with ${stability} stability. The garden lamps are dark, but the roots beneath them are warm. Neri's daughter will have to learn a different way to count tomorrow's basil leaves. There will be a tomorrow to count."
+        "The shelter doors open cautiously. Neri is first through, her daughter close behind her. She sees the ruined sleeve and catches your wrist as if she can hold the heat away by refusing to let go. You tell her which breakers are safe, which lights will take days to restore, and which beds will need to be replanted."
+        NER: "All right. We can work with days. I was afraid you were going to tell me we had none."
+        DOT(calm, Right): "I saved the valve readings. You saved the people. If we tell the story honestly, neither part makes the other smaller."
+        "You find Neri at the shelter door. She presses one living seed into your burned hand. In the quiet beyond the shutters, Dot taps twice and waits for you to finish the rhythm. You do."
+    } else {
+        "The seals buckle under the pressure already lost. Station Nine is lost, but the shutters hold long enough for Neri to get everyone inside the shelter. Through its narrow window you watch the garden go dark, row by row."
+        "Neri checks the head count twice. On the second pass she asks her daughter to call the names, because the child can bear to hear them answered when Neri cannot. Your name is last. You answer from the doorway, and Neri closes her eyes for exactly one breath."
+        DOT(dim, Right): "The people are accounted for. I know that is not the same as saying the station is safe. I will keep saying it until you can hear what we did manage to save."
+        "At the shelter door, Neri puts a seed tray beside you. The leaves are bruised; the roots are still wrapped in soil. You cannot promise another dawn here. You can carry one small beginning with you."
+    }
+    @end
+}
+
+* override {
+    #PREP
+    $stability += 30
+    @bg "backgrounds/dawn.svg"
+
+    #STORY
+    "The ceramic key settles into the control slot. Dot hovers beside it, close enough for its reflection to appear in the blue surface. It taps once against the panel. You answer twice. Neither of you calls the exchange a farewell."
+    DOT(alert, Right): "If I ask why we always do that afterward, please tell me. I would like to learn it again from you."
+    "You turn the key. For an instant every lamp on Station Nine goes white. The reactor's uneven pulse lengthens into a steady hum. On the shelter camera, Neri lowers her hand from the emergency latch. Stability: ${stability}."
+    "The garden lamps warm from blue to gold. Station Nine is saved. Dot's eyes go dark, then reopen, pale and uncertain. The drone looks at the seed tray on the screen as if it has never seen a leaf before."
+    "You hold your breath, listening for the familiar knock against the panel. There is only the cooling system's steady hum. The absence is small enough that no one watching the camera would notice it. For you it takes up the whole room."
+    DOT(dim, Right): "Hello. This unit is ready for maintenance duty. Are you the person I should follow?"
+    "You could call the reset a small price because Dot is still here. You could call it an unbearable price because the voice is familiar and the memories are not. Neither answer brings back the tune Neri taught it."
+    "Instead, you tell Dot your name. You tell it Neri's, and the name of her daughter, and how the station manufactures a sunrise because people need something to wake up for. You do not ask it to be grateful for the lesson."
+    "Neri arrives with two cups of tea and a third, empty cup she has brought by habit. She sees Dot's unsteady eyes and understands without asking for an explanation. She sets the empty cup beside the drone as carefully as if the small gesture might leave room for the person it used to be."
+    NER: "The mint tastes better under this lamp. We can show you where it grows, if you'd like."
+    "When the first golden light crosses the control room, you tap twice against the panel. A moment later Dot answers with a third beat. It does not remember why. You smile anyway, and begin again."
+    @end
+}
+
+* vent {
+    #PREP
+    @bg "backgrounds/station.svg"
+
+    #STORY
+    "You open a channel to the pressure shelter and tell Neri to seal the inner door. She does not ask whether the gardens can be saved. She asks whether you and Dot are on the safe side of the bulkhead."
+    "You wait until the camera shows forty-two people behind glass. Then you pull the emergency vent. The reactor's heat races out into the cold beyond Station Nine, taking the last of its light with it. You follow them into the shelter as the last bulkhead closes."
+    "The station goes dark. The crew is safe, but the corridors they know by heart have become a map of unlit doors. In the shelter Neri finds the seed tray still held against her chest. She laughs once, without amusement, and sets it under the battery lamp."
+    "You give Neri the count from the camera, and she makes you do it again in person. Forty-three voices answer. Someone has scraped a knee in the rush. Someone else cannot find a blanket. The small, ordinary needs steady the room more than the emergency instructions posted on its walls."
+    NER: "There's enough water for the morning. After that we'll have to ask each other for help instead of asking the station. I suppose we should have practiced."
+    DOT(dim, Right): "This was not the ending in my repair manual. I am glad the people are here to complain about it."
+    "You sit beside the shelter window and watch the unlit garden. Dot taps once, twice, three times against the frame. You answer on the fourth, a beat that was never part of the old signal."
+    "There is no sunrise on Station Nine. When Neri's daughter asks if you can make another one, you tell her the truth: not today. Then you ask her to show you how to plant the bruised basil. She makes room for your hands."
+    @end
+}

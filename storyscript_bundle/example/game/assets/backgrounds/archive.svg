@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320">
+  <rect width="800" height="320" fill="#111c30"/>
+  <rect x="90" y="35" width="620" height="250" rx="12" fill="#2e415d" stroke="#849cb2" stroke-width="8"/>
+  <path d="M310 35v250M500 35v250M90 125h620" stroke="#849cb2" stroke-width="6"/>
+  <rect x="355" y="166" width="90" height="75" rx="8" fill="#478cb6"/>
+  <circle cx="400" cy="195" r="12" fill="#f6df9e"/>
+  <text x="22" y="45" fill="white" font-size="25">OPERATIONS ARCHIVE</text>
+</svg>

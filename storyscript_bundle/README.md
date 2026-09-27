@@ -68,9 +68,12 @@ Starting or cancelling a newer load prevents stale results from being exposed.
 - Canonical schema: `../bundle/proto/storybundle/v1/compiled_story.proto`
 - Descriptor SHA-256: `aee45aee882cacdfeb6d320808ed0ac72805da27c87b5486289e6a9b6be9d70a`
 
-Regenerate FRB with `flutter_rust_bridge_codegen generate`. Build Web bindings
-into the example with `flutter_rust_bridge_codegen build-web --output
-../example/web`; FRB supplies the complete threaded-Wasm flags. Regenerate
+Regenerate FRB with `flutter_rust_bridge_codegen generate`. From this package
+directory, build Web bindings into the Flutter example with
+`flutter_rust_bridge_codegen build-web --output ../example/web` (the output is
+resolved from the `rust/` crate directory); FRB supplies the complete
+threaded-Wasm flags. Rebuild Wasm after regenerating the bridge;
+otherwise the example may load an older Rust content hash. Regenerate
 Protobuf from the repository root:
 
 ```bash
@@ -81,5 +84,5 @@ protoc --proto_path=bundle/proto \
 ```
 
 Web Wasm builds require COOP/COEP headers; see the repository playbook and the
-example inspector. This package is version `0.1.0`, licensed LGPL-2.1-only, and
-is package-ready but not published to pub.dev.
+playable example with its separate inspector. This package is version `0.1.0`,
+licensed LGPL-2.1-only, and is package-ready but not published to pub.dev.

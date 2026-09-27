@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320">
+  <rect width="800" height="320" fill="#0b1830"/>
+  <circle cx="400" cy="165" r="100" fill="#174472" stroke="#45b5db" stroke-width="10"/>
+  <circle cx="400" cy="165" r="60" fill="#ffb454"/>
+  <path d="M0 250h800M140 0v320M660 0v320" stroke="#45b5db" stroke-width="8"/>
+  <text x="25" y="45" fill="white" font-size="28">STATION NINE</text>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320">
+  <rect width="800" height="320" fill="#283957"/>
+  <rect x="45" y="55" width="710" height="210" rx="18" fill="#e9b877"/>
+  <circle cx="400" cy="158" r="95" fill="#ffe3a2"/>
+  <path d="M45 238q180-105 355 0t355 0v27H45" fill="#527e69"/>
+  <path d="M110 264v-100m580 100V164" stroke="#334e48" stroke-width="16"/>
+  <text x="27" y="43" fill="white" font-size="25">THE GARDEN LAMPS / DAWN</text>
+</svg>

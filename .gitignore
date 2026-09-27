@@ -48,6 +48,7 @@ dist/
 # StoryBundle author outputs and private signing material
 *.storybundle
 !storyscript_bundle/example/assets/demo.storybundle
+!storyscript_bundle/example/assets/station_nine.storybundle
 projects/*
 *private*.pem
 *signing*.pem

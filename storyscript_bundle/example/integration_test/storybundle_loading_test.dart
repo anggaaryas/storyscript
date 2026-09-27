@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:storyscript_bundle/storyscript_bundle.dart';
+import 'package:storyscript_bundle/storyscript_bundle_player.dart';
 import 'package:storyscript_bundle/src/rust/api/bundle.dart' as rust;
 
 void main() {
@@ -50,6 +51,62 @@ void main() {
     await expectLater(
       loader.openBytes(bytes),
       throwsA(isA<StoryBundleException>()),
+    );
+  });
+
+  testWidgets('signed Station Nine game reaches a choice-dependent ending', (
+    tester,
+  ) async {
+    final keyHex = (await rootBundle.loadString(
+      'assets/station_nine_public_key.txt',
+    )).trim();
+    final bytes = await rootBundle.load('assets/station_nine.storybundle');
+    final archive = Uint8List.fromList(
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+    );
+    final loader = StoryBundlePlayerLoader(
+      trustStore: StoryBundleTrustStore([
+        StoryBundleTrustKey(_decodeHex(keyHex)),
+      ]),
+    );
+    final player = await loader.openBytes(archive);
+    try {
+      expect(player.current.event.kind, StoryBundlePlayerEventKind.scene);
+      expect(player.current.effects.single.kind, 'background');
+      expect(await player.readAsset('backgrounds/station.svg'), isNotEmpty);
+      expect(await player.readAsset('backgrounds/archive.svg'), isNotEmpty);
+      expect(await player.readAsset('portraits/dot_dim.svg'), isNotEmpty);
+      var choices = 0;
+      var saved = false;
+      var pages = 0;
+      for (var step = 0; step < 160; step++) {
+        final delta = player.current;
+        if (delta.event.kind == StoryBundlePlayerEventKind.end) break;
+        pages++;
+        if (delta.event.kind == StoryBundlePlayerEventKind.narration &&
+            (delta.event.text ?? '').contains('Station Nine is saved')) {
+          saved = true;
+        }
+        if (delta.event.kind == StoryBundlePlayerEventKind.choices) {
+          expect(delta.event.choices.length, choices == 0 ? 2 : 3);
+          choices++;
+          await player.choose(1); // Search for the key, then use it.
+        } else {
+          await player.advance();
+        }
+      }
+      expect(choices, 2);
+      expect(pages, greaterThan(20));
+      expect(saved, isTrue);
+      expect(player.current.event.kind, StoryBundlePlayerEventKind.end);
+    } finally {
+      await player.dispose();
+    }
+    await expectLater(
+      StoryBundlePlayerLoader(
+        trustStore: StoryBundleTrustStore.empty(),
+      ).openBytes(archive),
+      throwsA(isA<StoryBundlePlayerException>()),
     );
   });
 }
