@@ -3,6 +3,22 @@ use storyscript_parser::interpolation::{ESCAPED_DOLLAR_MARKER, scan_placeholders
 use crate::proto::storybundle::v1 as pb;
 use crate::{BundleError, Result};
 
+pub fn compile_text(input: &storyscript_parser::ast::StoryText) -> Result<pb::StoryText> {
+    Ok(pb::StoryText {
+        value: Some(match input {
+            storyscript_parser::ast::StoryText::Plain(text) => {
+                pb::story_text::Value::Plain(compile(text)?)
+            }
+            storyscript_parser::ast::StoryText::Localized(text) => {
+                pb::story_text::Value::Message(pb::MessageReference {
+                    id: text.id.clone(),
+                    arguments: Vec::new(),
+                })
+            }
+        }),
+    })
+}
+
 pub fn compile(input: &str) -> Result<pb::InterpolatedString> {
     scan_placeholders(input).map_err(|error| {
         BundleError::Contract(format!("invalid interpolation: {}", error.message))

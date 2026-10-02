@@ -92,6 +92,16 @@ pub fn validate_manifest_contract(
         match entry.entry_type {
             EntryType::CompiledStory if entry.path == COMPILED_PATH => compiled_count += 1,
             EntryType::Asset if entry.path.starts_with("assets/") => {}
+            EntryType::Catalog if crate::localization::catalog_locale(&entry.path).is_ok() => {
+                if entry.uncompressed_size
+                    > crate::limits::MAX_CATALOG_BYTES.min(limits.max_entry_bytes)
+                {
+                    return Err(BundleError::Limit(format!(
+                        "catalog '{}' exceeds 16 MiB or lowered entry limit",
+                        entry.path
+                    )));
+                }
+            }
             _ => {
                 return Err(BundleError::Manifest(format!(
                     "entry '{}' has an invalid type/path pairing",
@@ -210,7 +220,9 @@ pub fn read_and_verify_entries(
         let envelope_entry = envelope.entry(&listed.path).ok_or_else(|| {
             BundleError::Manifest(format!("listed entry '{}' is missing", listed.path))
         })?;
-        let maximum = if listed.path == COMPILED_PATH {
+        let maximum = if listed.entry_type == EntryType::Catalog {
+            crate::limits::MAX_CATALOG_BYTES.min(limits.max_entry_bytes)
+        } else if listed.path == COMPILED_PATH {
             limits.max_compiled_ir_bytes
         } else {
             limits.max_entry_bytes

@@ -8,6 +8,7 @@ pub mod init;
 pub mod ir;
 pub mod limits;
 pub mod loader;
+pub mod localization;
 pub mod manifest;
 pub mod project;
 pub mod schema;

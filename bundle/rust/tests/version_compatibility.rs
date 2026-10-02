@@ -6,6 +6,30 @@ use storyscript_bundle::loader::{VerificationPolicy, load};
 use common::TestBundle;
 
 #[test]
+fn prior_v1_descriptor_and_compiler_have_no_migration_path() {
+    let bundle = TestBundle::localized();
+    let old = bundle.rewrite_manifest(
+        |manifest| {
+            manifest.schema_sha256 =
+                "aee45aee882cacdfeb6d320808ed0ac72805da27c87b5486289e6a9b6be9d70a".into()
+        },
+        true,
+    );
+    assert_eq!(
+        load(
+            &old,
+            &bundle.trust_store(),
+            VerificationPolicy::Strict,
+            ResourceLimits::HARD
+        )
+        .unwrap_err()
+        .code()
+        .to_string(),
+        "B_SCHEMA_MISMATCH"
+    );
+}
+
+#[test]
 fn authenticated_format_compiler_and_schema_mismatches_are_distinct() {
     let bundle = TestBundle::new();
     let cases = [

@@ -33,6 +33,7 @@ pub fn convert(script: &ast::Script, project: &Project) -> Result<pb::CompiledSt
             .map(logic_block)
             .collect::<Result<_>>()?,
         scenes: script.scenes.iter().map(scene).collect::<Result<_>>()?,
+        localization: None,
     })
 }
 
@@ -195,7 +196,7 @@ fn story_statement(value: &ast::StoryStatement) -> Result<pb::StoryStatement> {
     use pb::story_statement::Value;
     let value = match value {
         A::Narration { text, .. } => Value::Narration(pb::Narration {
-            text: Some(template::compile(text)?),
+            text: Some(template::compile_text(text)?),
         }),
         A::VarOutput { name, .. } => {
             Value::VariableOutput(pb::VariableOutput { name: name.clone() })
@@ -216,7 +217,7 @@ fn story_statement(value: &ast::StoryStatement) -> Result<pb::StoryStatement> {
                     })
                 }
             }),
-            text: Some(template::compile(&dialogue.text)?),
+            text: Some(template::compile_text(&dialogue.text)?),
         }),
         A::IfElse(branch) => Value::IfElse(pb::StoryIfElse {
             condition: Some(expression(&branch.condition)?),
@@ -282,7 +283,7 @@ fn choice_entry(value: &ast::ChoiceEntry) -> Result<pb::ChoiceEntry> {
     use pb::choice_entry::Value;
     let value = match value {
         A::Option(option) => Value::Option(pb::ChoiceOption {
-            text: Some(template::compile(&option.text)?),
+            text: Some(template::compile_text(&option.text)?),
             target: option.target.clone(),
         }),
         A::If(branch) => Value::IfEntry(pb::ChoiceIf {

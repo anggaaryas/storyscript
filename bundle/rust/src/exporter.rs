@@ -22,13 +22,50 @@ pub fn export(project_root: &Path, signer: &dyn BundleSigner) -> Result<Vec<u8>>
         .iter()
         .map(|asset| (asset.logical_path.clone(), asset.bytes.clone()))
         .collect::<Vec<_>>();
-    let manifest = BundleManifest::new(
+    let mut manifest = BundleManifest::new(
         &compiled.config.project,
         signer.key_id(),
         &story_bytes,
         &assets,
         limits,
     );
+    let catalogs: Vec<_> = compiled
+        .catalogs
+        .iter()
+        .map(|catalog| {
+            (
+                format!(
+                    "{}{locale}.ftl",
+                    crate::manifest::CATALOG_PREFIX,
+                    locale = catalog.locale
+                ),
+                catalog.canonical.as_bytes(),
+            )
+        })
+        .collect();
+    let catalog_total: u64 = catalogs.iter().map(|(_, bytes)| bytes.len() as u64).sum();
+    let asset_total: u64 = assets.iter().map(|(_, bytes)| bytes.len() as u64).sum();
+    if catalogs.len() + assets.len() + 3 > limits.max_entries
+        || catalog_total + asset_total + story_bytes.len() as u64
+            > limits.max_total_uncompressed_bytes
+    {
+        return Err(BundleError::Limit(
+            "localized payload exceeds archive limits".into(),
+        ));
+    }
+    for (path, bytes) in &catalogs {
+        if bytes.len() as u64 > crate::limits::MAX_CATALOG_BYTES.min(limits.max_entry_bytes) {
+            return Err(BundleError::Limit(
+                "canonical catalog exceeds entry limit".into(),
+            ));
+        }
+        manifest.entries.push(crate::manifest::ManifestEntry::new(
+            path.clone(),
+            crate::manifest::EntryType::Catalog,
+            bytes,
+        ));
+    }
+    manifest.entries.sort_by(|a, b| a.path.cmp(&b.path));
     let manifest_bytes = manifest.canonical_bytes()?;
     if manifest_bytes.len() as u64 > limits.max_manifest_bytes {
         return Err(BundleError::Limit("manifest exceeds 1 MiB".to_string()));
@@ -42,6 +79,7 @@ pub fn export(project_root: &Path, signer: &dyn BundleSigner) -> Result<Vec<u8>>
             .iter()
             .map(|(path, bytes)| (format!("assets/{path}"), bytes.as_slice())),
     );
+    owned_entries.extend(catalogs.iter().map(|(path, bytes)| (path.clone(), *bytes)));
     let mut archive_entries = owned_entries
         .iter()
         .map(|(path, bytes)| ArchiveEntry {

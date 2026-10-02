@@ -16,6 +16,9 @@ pub fn validate_story(story: &pb::CompiledStory) -> Result<()> {
     if project.id.is_empty() || project.name.is_empty() || project.version.is_empty() {
         return contract_error("project id, name, and version are required");
     }
+    if let Some(localization) = &story.localization {
+        validate_localization(localization)?;
+    }
     let initialization = story
         .initialization
         .as_ref()
@@ -85,6 +88,65 @@ fn validate_variable(variable: &pb::VariableDefinition, depth: usize) -> Result<
     }
     validate_variable_type(variable.r#type)?;
     validate_expression(variable.value.as_ref(), depth)
+}
+
+pub fn valid_message_id(id: &str) -> bool {
+    id.len() <= crate::limits::MAX_MESSAGE_ID_BYTES
+        && id.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
+pub fn validate_localization(value: &pb::LocalizationMetadata) -> Result<()> {
+    if value.supported_locales.is_empty()
+        || value.supported_locales.len() > crate::limits::MAX_LOCALES
+    {
+        return contract_error("localization locale count is out of bounds");
+    }
+    let mut seen = HashSet::new();
+    for locale in &value.supported_locales {
+        let tag = locale
+            .parse::<icu_locale_core::Locale>()
+            .map_err(|_| BundleError::Contract("invalid locale tag".into()))?;
+        if tag.to_string() != *locale || !seen.insert(locale) {
+            return contract_error("locales must be canonical and unique");
+        }
+    }
+    if !seen.contains(&value.default_locale) {
+        return contract_error("default locale must be supported");
+    }
+    Ok(())
+}
+
+fn validate_text(value: Option<&pb::StoryText>, depth: usize) -> Result<()> {
+    check_depth(depth)?;
+    match value.and_then(|v| v.value.as_ref()) {
+        Some(pb::story_text::Value::Plain(v)) => validate_interpolated(Some(v), depth + 1),
+        Some(pb::story_text::Value::Message(v)) => {
+            if !valid_message_id(&v.id) {
+                return contract_error("invalid message ID");
+            }
+            let mut previous = None;
+            for arg in &v.arguments {
+                if arg.name.is_empty()
+                    || previous.is_some_and(|name: &str| name >= arg.name.as_str())
+                    || !matches!(
+                        pb::VariableType::try_from(arg.r#type),
+                        Ok(pb::VariableType::Integer
+                            | pb::VariableType::String
+                            | pb::VariableType::Boolean
+                            | pb::VariableType::Decimal)
+                    )
+                {
+                    return contract_error("message arguments must be name-sorted unique scalars");
+                }
+                previous = Some(arg.name.as_str());
+            }
+            Ok(())
+        }
+        None => contract_error("story text variant is required"),
+    }
 }
 
 fn validate_variable_type(value: i32) -> Result<()> {
@@ -233,7 +295,7 @@ fn validate_story_statement(statement: &pb::StoryStatement, depth: usize) -> Res
     check_depth(depth)?;
     use pb::story_statement::Value;
     match statement.value.as_ref() {
-        Some(Value::Narration(value)) => validate_interpolated(value.text.as_ref(), depth + 1),
+        Some(Value::Narration(value)) => validate_text(value.text.as_ref(), depth + 1),
         Some(Value::VariableOutput(value)) if !value.name.is_empty() => Ok(()),
         Some(Value::Dialogue(value)) => {
             if value.actor_id.is_empty() || value.form.is_none() {
@@ -248,7 +310,7 @@ fn validate_story_statement(statement: &pb::StoryStatement, depth: usize) -> Res
             {
                 return contract_error("portrait dialogue emotion and position are required");
             }
-            validate_interpolated(value.text.as_ref(), depth + 1)
+            validate_text(value.text.as_ref(), depth + 1)
         }
         Some(Value::IfElse(value)) => {
             validate_expression(value.condition.as_ref(), depth + 1)?;
@@ -304,7 +366,7 @@ fn validate_choice(entry: &pb::ChoiceEntry, depth: usize) -> Result<()> {
             if value.target.is_empty() {
                 return contract_error("choice target is required");
             }
-            validate_interpolated(value.text.as_ref(), depth + 1)
+            validate_text(value.text.as_ref(), depth + 1)
         }
         Some(Value::IfEntry(value)) => {
             validate_expression(value.condition.as_ref(), depth + 1)?;

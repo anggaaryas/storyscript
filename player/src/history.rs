@@ -55,6 +55,7 @@ impl HistoryBuffer {
         let size = effects.iter().fold(
             64usize
                 .saturating_add(event_bytes)
+                .saturating_add(snapshot_bytes(&event))
                 .saturating_add(scene.len()),
             |total, effect| total.saturating_add(effect_bytes(effect)),
         );
@@ -184,6 +185,7 @@ fn entry_size(entry: &HistoryEntry, limits: PlayerLimits) -> Result<usize, &'sta
     Ok(entry.effects.iter().fold(
         64usize
             .saturating_add(event_size)
+            .saturating_add(snapshot_bytes(&entry.event))
             .saturating_add(entry.scene.len()),
         |total, effect| total.saturating_add(effect_bytes(effect)),
     ))
@@ -200,9 +202,8 @@ fn effect_bytes(effect: &MediaEffect) -> usize {
 
 fn event_bytes(event: &SemanticEvent) -> usize {
     match event {
-        SemanticEvent::SceneTransition(scene) | SemanticEvent::Narration(scene) => {
-            scene.len().saturating_add(8)
-        }
+        SemanticEvent::SceneTransition(scene) => scene.len().saturating_add(8),
+        SemanticEvent::Narration(text) => text.len().saturating_add(8),
         SemanticEvent::Dialogue {
             actor_id,
             actor_name,
@@ -238,5 +239,15 @@ fn event_bytes(event: &SemanticEvent) -> usize {
         ]
         .into_iter()
         .fold(0usize, usize::saturating_add),
+    }
+}
+
+fn snapshot_bytes(event: &SemanticEvent) -> usize {
+    let text_bytes =
+        |text: &crate::contract::EventText| text.retained_bytes().saturating_sub(text.len());
+    match event {
+        SemanticEvent::Narration(text) | SemanticEvent::Dialogue { text, .. } => text_bytes(text),
+        SemanticEvent::Choices(items) => items.iter().map(|v| text_bytes(&v.text)).sum(),
+        _ => 0,
     }
 }

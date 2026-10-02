@@ -66,7 +66,7 @@ Starting or cancelling a newer load prevents stale results from being exposed.
 - Dart Protobuf runtime: `6.1.0`
 - Dart Protobuf generator: `protoc_plugin 25.1.0`
 - Canonical schema: `../bundle/proto/storybundle/v1/compiled_story.proto`
-- Descriptor SHA-256: `aee45aee882cacdfeb6d320808ed0ac72805da27c87b5486289e6a9b6be9d70a`
+- Descriptor SHA-256: `0c1bacf81cbe7b4b2cafb68c7d1305f383efda9b3548e7ebfd2b0a5f158d2810`
 
 Regenerate FRB with `flutter_rust_bridge_codegen generate`. From this package
 directory, build Web bindings into the Flutter example with

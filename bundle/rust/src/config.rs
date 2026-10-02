@@ -12,6 +12,23 @@ pub struct ProjectConfig {
     pub project: Project,
     #[serde(default)]
     pub assets: Assets,
+    pub localization: Option<Localization>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Localization {
+    pub default_locale: String,
+    pub supported_locales: Vec<String>,
+    pub root: String,
+}
+impl Localization {
+    pub fn metadata(&self) -> crate::proto::storybundle::v1::LocalizationMetadata {
+        crate::proto::storybundle::v1::LocalizationMetadata {
+            default_locale: self.default_locale.clone(),
+            supported_locales: self.supported_locales.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -92,6 +109,16 @@ impl ProjectConfig {
 
         validate_relative_path("project entry", &self.project.entry)?;
         validate_relative_path("asset root", &self.assets.root)?;
+        if let Some(localization) = &self.localization {
+            validate_relative_path("localization root", &localization.root)?;
+            let normalized = crate::assets::normalize_logical(&localization.root)?;
+            if normalized != localization.root {
+                return Err(BundleError::Config(
+                    "localization root must be canonical NFC".into(),
+                ));
+            }
+            crate::contract::validate_localization(&localization.metadata())?;
+        }
         for path in &self.assets.dynamic_files {
             validate_relative_path("dynamic asset file", path)?;
         }

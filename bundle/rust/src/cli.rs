@@ -26,6 +26,13 @@ enum Command {
         name: String,
         #[arg(long)]
         json: bool,
+        #[arg(long)]
+        localized: bool,
+    },
+    /// Extract, synchronize, or strictly check project Fluent catalogs.
+    Localize {
+        #[command(subcommand)]
+        command: LocalizeCommand,
     },
     /// Validate the checked-in Protobuf descriptor fingerprint.
     Schema {
@@ -64,6 +71,28 @@ enum SchemaCommand {
     Check,
 }
 
+#[derive(Debug, Subcommand)]
+enum LocalizeCommand {
+    Extract {
+        #[arg(long, default_value = ".")]
+        project: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+    Sync {
+        #[arg(long, default_value = ".")]
+        project: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+    Check {
+        #[arg(long, default_value = ".")]
+        project: PathBuf,
+        #[arg(long)]
+        json: bool,
+    },
+}
+
 pub fn run() -> Result<()> {
     match Cli::parse().command {
         Command::Init {
@@ -71,8 +100,9 @@ pub fn run() -> Result<()> {
             id,
             name,
             json,
+            localized,
         } => {
-            init::create(&path, &id, &name)?;
+            init::create_with_localization(&path, &id, &name, localized)?;
             if json {
                 println!(
                     "{}",
@@ -83,6 +113,23 @@ pub fn run() -> Result<()> {
                 );
             } else {
                 println!("Initialized {}", path.display());
+            }
+            Ok(())
+        }
+        Command::Localize { command } => {
+            let (project, action, json) = match command {
+                LocalizeCommand::Extract { project, json } => (project, "extract", json),
+                LocalizeCommand::Sync { project, json } => (project, "sync", json),
+                LocalizeCommand::Check { project, json } => (project, "check", json),
+            };
+            let report = storyscript_bundle::localization::author_command(&project, action)?;
+            if json {
+                println!("{report}");
+            } else {
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&report).expect("JSON report")
+                );
             }
             Ok(())
         }

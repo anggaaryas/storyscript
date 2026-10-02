@@ -6,6 +6,23 @@ use storyscript_player::contract::SemanticEvent;
 use storyscript_player::engine::Engine;
 use storyscript_player::{SemanticPlayer, StepResult, StoryPlayer};
 
+mod localization_support;
+#[test]
+fn raw_keyed_file_does_not_implicitly_discover_neighboring_project_catalogs() {
+    let root = localization_support::project();
+    let path = root.path().join("story/main.StoryScript");
+    let mut player = SemanticPlayer::from_file(&path, HARD_LIMITS).unwrap();
+    assert_eq!(player.resolved_locale(), None);
+    assert!(player.has_unresolved_localization());
+    player.advance().unwrap();
+    assert!(
+        matches!(&player.current().current, SemanticEvent::Narration(text) if text == "greeting")
+    );
+    let mut legacy = StoryPlayer::from_file(&path).unwrap();
+    legacy.advance();
+    assert!(matches!(legacy.current(), Some(StepResult::Narration(text)) if text == "greeting"));
+}
+
 const SOURCE: &str = r#"
 * INIT { @start first }
 * first {
@@ -19,6 +36,31 @@ const SOURCE: &str = r#"
     @end
 }
 "#;
+
+#[test]
+fn raw_keyed_source_displays_ids_without_claiming_a_locale() {
+    let source = r#"* INIT { @actor A "Actor"; @start s } * s { #STORY @"narration-id"; A: @"dialogue-id"; @choice { @"choice-id" -> s; } }"#;
+    let mut player = SemanticPlayer::from_source(source, HARD_LIMITS).unwrap();
+    assert!(player.has_unresolved_localization());
+    assert_eq!(player.resolved_locale(), None);
+    player.advance().unwrap();
+    assert!(
+        matches!(&player.current().current, SemanticEvent::Narration(v) if v.rendered == "narration-id" && v.message.as_ref().unwrap().id == "narration-id")
+    );
+    player.advance().unwrap();
+    assert!(
+        matches!(&player.current().current, SemanticEvent::Dialogue { text, actor_name, .. } if text == "dialogue-id" && actor_name == "Actor")
+    );
+    player.advance().unwrap();
+    assert!(
+        matches!(&player.current().current, SemanticEvent::Choices(v) if v[0].text == "choice-id")
+    );
+    let mut legacy = StoryPlayer::from_source("raw", source).unwrap();
+    assert!(legacy.has_unresolved_localization());
+    assert_eq!(legacy.resolved_locale(), None);
+    legacy.advance();
+    assert!(matches!(legacy.current(), Some(StepResult::Narration(v)) if v == "narration-id"));
+}
 
 #[test]
 fn scene_headers_choice_markers_history_and_end_are_still_legacy_events() {

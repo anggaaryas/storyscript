@@ -384,6 +384,7 @@ impl From<&BundleManifest> for BridgeManifest {
                     entry_type: match entry.entry_type {
                         EntryType::CompiledStory => "compiled_story",
                         EntryType::Asset => "asset",
+                        EntryType::Catalog => "catalog",
                     }
                     .to_string(),
                     compression: match entry.compression {

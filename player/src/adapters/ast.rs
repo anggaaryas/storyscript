@@ -7,8 +7,19 @@ fn span(line: usize, column: usize) -> m::SourceSpan {
     m::SourceSpan { line, column }
 }
 
+fn story_text(value: &a::StoryText) -> m::StoryText {
+    match value {
+        a::StoryText::Plain(v) => m::StoryText::Plain(v.clone()),
+        a::StoryText::Localized(v) => m::StoryText::Message {
+            id: v.id.clone(),
+            arguments: Vec::new(),
+        },
+    }
+}
+
 pub fn adapt(script: &a::Script) -> m::StoryModel {
     m::StoryModel {
+        localization: None,
         init: m::InitBlock {
             variables: script.init.variables.iter().map(var_decl).collect(),
             actors: script.init.actors.iter().map(actor).collect(),
@@ -172,7 +183,7 @@ fn prep(value: &a::PrepStatement) -> m::PrepStatement {
 fn story(value: &a::StoryStatement) -> m::StoryStatement {
     match value {
         a::StoryStatement::Narration { text, line, column } => m::StoryStatement::Narration {
-            text: text.clone(),
+            text: story_text(text),
             span: span(*line, *column),
         },
         a::StoryStatement::VarOutput { name, line, column } => m::StoryStatement::VarOutput {
@@ -192,7 +203,7 @@ fn story(value: &a::StoryStatement) -> m::StoryStatement {
                     },
                 },
             },
-            text: value.text.clone(),
+            text: story_text(&value.text),
             span: span(value.line, value.column),
         }),
         a::StoryStatement::IfElse(value) => m::StoryStatement::IfElse(m::StoryIfElse {
@@ -248,7 +259,7 @@ fn story(value: &a::StoryStatement) -> m::StoryStatement {
 fn choice(value: &a::ChoiceEntry) -> m::ChoiceEntry {
     match value {
         a::ChoiceEntry::Option(value) => m::ChoiceEntry::Option(m::ChoiceOption {
-            text: value.text.clone(),
+            text: story_text(&value.text),
             target: value.target.clone(),
             span: span(value.line, value.column),
         }),

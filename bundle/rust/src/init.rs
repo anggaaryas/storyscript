@@ -43,10 +43,22 @@ struct StarterAssets {
 
 /// Creates a minimal StoryScript project at a path that does not yet exist.
 pub fn create(target: &Path, project_id: &str, project_name: &str) -> Result<()> {
+    create_with_localization(target, project_id, project_name, false)
+}
+
+pub fn create_with_localization(
+    target: &Path,
+    project_id: &str,
+    project_name: &str,
+    localized: bool,
+) -> Result<()> {
     validate_metadata(project_id, project_name)?;
     reject_existing_target(target)?;
 
-    let manifest = render_manifest(project_id, project_name)?;
+    let mut manifest = render_manifest(project_id, project_name)?;
+    if localized {
+        manifest.push_str("\n[localization]\ndefault-locale = \"en\"\nsupported-locales = [\"en\"]\nroot = \"localization\"\n");
+    }
     // Keep the generated descriptor and the parser's actual config contract in lockstep.
     ProjectConfig::parse(&manifest)?;
 
@@ -62,9 +74,21 @@ pub fn create(target: &Path, project_id: &str, project_name: &str) -> Result<()>
     partial.write_file(target.join("StoryScript.toml"), manifest.as_bytes())?;
     partial.write_file(
         target.join("story/main.StoryScript"),
-        STARTER_STORY.as_bytes(),
+        if localized {
+            STARTER_STORY.replace("\"Welcome to StoryScript.\"", "@\"welcome\"")
+        } else {
+            STARTER_STORY.into()
+        }
+        .as_bytes(),
     )?;
     partial.write_file(target.join("assets/.gitkeep"), b"")?;
+    if localized {
+        partial.create_directory(target.join("localization"))?;
+        partial.write_file(
+            target.join("localization/en.ftl"),
+            b"welcome = Welcome to StoryScript.\n",
+        )?;
+    }
     partial.commit();
 
     Ok(())

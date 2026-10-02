@@ -211,7 +211,7 @@ fn resolve_file(asset_root: &Path, logical: &str) -> Result<PathBuf> {
     Ok(canonical)
 }
 
-fn normalize_logical(value: &str) -> Result<String> {
+pub(crate) fn normalize_logical(value: &str) -> Result<String> {
     if value.is_empty() || value.contains('\\') {
         return Err(BundleError::Asset(
             "asset paths must be non-empty and use POSIX separators".to_string(),

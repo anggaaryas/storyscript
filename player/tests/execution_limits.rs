@@ -17,7 +17,7 @@ fn history_retains_a_bounded_suffix_with_absolute_sequences_and_pages() {
     for n in 0..6 {
         history
             .append(
-                SemanticEvent::Narration(format!("event {n}")),
+                SemanticEvent::Narration(format!("event {n}").into()),
                 vec![],
                 "scene".into(),
             )
@@ -47,7 +47,7 @@ fn oversized_entry_evicts_prior_entries_without_creating_holes() {
         .unwrap();
     history
         .append(
-            SemanticEvent::Narration("x".repeat(100)),
+            SemanticEvent::Narration("x".repeat(100).into()),
             vec![],
             "scene".into(),
         )
@@ -77,7 +77,7 @@ fn invalid_limits_and_oversized_rendered_event_leave_history_unchanged() {
     assert!(
         history
             .append(
-                SemanticEvent::Narration("a".repeat(20)),
+                SemanticEvent::Narration("a".repeat(20).into()),
                 vec![],
                 "scene".into()
             )
@@ -296,7 +296,7 @@ fn pending_and_render_limits_reject_unbounded_scene_output() {
         vec![],
         vec![
             StoryStatement::Narration {
-                text: "x".repeat(100),
+                text: "x".repeat(100).into(),
                 line: 0,
                 column: 0,
             },
@@ -380,4 +380,188 @@ fn recursion_and_array_expansion_obey_lowered_limits() {
         Err(error) => error,
     };
     assert_eq!(error.resource.as_deref(), Some("array_elements"));
+}
+mod localization_support;
+
+#[test]
+fn unsafe_numbers_and_localized_output_fail_transactionally() {
+    use localization_support::{append, prefs, project, replace};
+    for unsafe_value in [
+        "0.1",
+        "0.0000000000000000000000000001",
+        "9007199254740993.0",
+    ] {
+        let root = project();
+        replace(
+            root.path(),
+            "story/main.StoryScript",
+            "$count += 1;",
+            &format!("$count += 1; $ratio = {unsafe_value};"),
+        );
+        replace(
+            root.path(),
+            "story/main.StoryScript",
+            "\"Plain ${count}\";",
+            "@\"numeric-line\";",
+        );
+        for locale in ["en", "id"] {
+            append(
+                root.path(),
+                &format!("localization/{locale}.ftl"),
+                "numeric-line = { $ratio }\n",
+            );
+        }
+        let mut player = storyscript_player::SemanticPlayer::from_project(
+            root.path(),
+            &prefs(&["en"]),
+            HARD_LIMITS,
+        )
+        .unwrap();
+        for _ in 0..3 {
+            player.advance().unwrap();
+        }
+        let before = player.export_save().unwrap();
+        assert_eq!(player.choose(0).unwrap_err().code, "R_LOCALIZATION_NUMBER");
+        assert_eq!(player.export_save().unwrap(), before);
+    }
+    for unsafe_integer in ["9007199254740993", "9223372036854775807"] {
+        let root = project();
+        replace(
+            root.path(),
+            "story/main.StoryScript",
+            "$count as integer = 2",
+            &format!("$count as integer = {unsafe_integer}"),
+        );
+        assert_eq!(
+            storyscript_player::SemanticPlayer::from_project(
+                root.path(),
+                &prefs(&["en"]),
+                HARD_LIMITS
+            )
+            .unwrap_err()
+            .code,
+            "R_LOCALIZATION_NUMBER"
+        );
+    }
+    // A later translated scene exceeds a lower-only output cap. The previous
+    // player's variables, RNG, pending state, current event and history survive.
+    let root = project();
+    replace(
+        root.path(),
+        "story/main.StoryScript",
+        "\"Plain ${count}\";",
+        "@\"long-line\";",
+    );
+    for locale in ["en", "id"] {
+        append(
+            root.path(),
+            &format!("localization/{locale}.ftl"),
+            &format!("long-line = {}\n", "x".repeat(300)),
+        );
+    }
+    let limits = PlayerLimits {
+        rendered_bytes: 200,
+        ..HARD_LIMITS
+    };
+    let mut player =
+        storyscript_player::SemanticPlayer::from_project(root.path(), &prefs(&["id"]), limits)
+            .unwrap();
+    for _ in 0..3 {
+        player.advance().unwrap();
+    }
+    let before = player.export_save().unwrap();
+    assert_eq!(player.choose(0).unwrap_err().code, "R_EXECUTION_LIMIT");
+    assert_eq!(player.export_save().unwrap(), before);
+}
+
+#[test]
+fn resolver_errors_and_formatting_work_are_atomic() {
+    use localization_support::{append, prefs, project, replace};
+    let root = project();
+    replace(
+        root.path(),
+        "story/main.StoryScript",
+        "\"Plain ${count}\";",
+        "@\"resolver-line\";",
+    );
+    // Fluent's internal placeable guard is stricter than the profile's total
+    // interaction work bound. Reject the resolver error, never publish partial text.
+    for locale in ["en", "id"] {
+        append(
+            root.path(),
+            &format!("localization/{locale}.ftl"),
+            &format!("resolver-line = {}\n", "{ $name } ".repeat(110)),
+        );
+    }
+    let mut player =
+        storyscript_player::SemanticPlayer::from_project(root.path(), &prefs(&["en"]), HARD_LIMITS)
+            .unwrap();
+    for _ in 0..3 {
+        player.advance().unwrap();
+    }
+    let before = player.export_save().unwrap();
+    assert_eq!(player.choose(0).unwrap_err().code, "R_LOCALIZATION_FORMAT");
+    assert_eq!(player.export_save().unwrap(), before);
+
+    let root = project();
+    replace(
+        root.path(),
+        "story/main.StoryScript",
+        "\"Plain ${count}\";",
+        "@\"work-line\";",
+    );
+    for locale in ["en", "id"] {
+        append(
+            root.path(),
+            &format!("localization/{locale}.ftl"),
+            &format!("work-line = {}\n", "{ $name } ".repeat(80)),
+        );
+    }
+    let limits = PlayerLimits {
+        operations_per_interaction: 2_000,
+        ..HARD_LIMITS
+    };
+    let mut player =
+        storyscript_player::SemanticPlayer::from_project(root.path(), &prefs(&["en"]), limits)
+            .unwrap();
+    for _ in 0..3 {
+        player.advance().unwrap();
+    }
+    let before = player.export_save().unwrap();
+    assert_eq!(player.choose(0).unwrap_err().code, "R_EXECUTION_LIMIT");
+    assert_eq!(player.export_save().unwrap(), before);
+}
+
+#[test]
+fn small_saved_references_cannot_expand_thousands_of_large_translations() {
+    use localization_support::{prefs, project};
+    let root = project();
+    std::fs::write(
+        root.path().join("story/main.StoryScript"),
+        r#"* INIT { @start s } * s { #STORY repeat(1000) { @"line"; } @end }"#,
+    )
+    .unwrap();
+    std::fs::write(root.path().join("localization/en.ftl"), "line = Short\n").unwrap();
+    std::fs::write(
+        root.path().join("localization/id.ftl"),
+        format!("line = {}\n", "x".repeat(200_000)),
+    )
+    .unwrap();
+    let player =
+        storyscript_player::SemanticPlayer::from_project(root.path(), &prefs(&["en"]), HARD_LIMITS)
+            .unwrap();
+    let before = player.export_save().unwrap();
+    assert!(before.len() < 32_000);
+    assert_eq!(
+        storyscript_player::SemanticPlayer::restore_project(
+            root.path(),
+            &before,
+            &prefs(&["id"]),
+            HARD_LIMITS
+        )
+        .unwrap_err()
+        .code,
+        "R_EXECUTION_LIMIT"
+    );
+    assert_eq!(player.export_save().unwrap(), before);
 }

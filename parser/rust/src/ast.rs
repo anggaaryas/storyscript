@@ -246,6 +246,26 @@ pub struct PrepRepeat {
 // #STORY
 // ---------------------------------------------------------------------------
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StoryText { Plain(String), Localized(LocalizedText) }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocalizedText {
+    pub id: String,
+    pub source: String,
+    pub line: usize,
+    pub column: usize,
+}
+impl StoryText {
+    pub fn raw_text(&self) -> &str { match self { Self::Plain(s) => s, Self::Localized(s) => &s.id } }
+}
+impl std::ops::Deref for StoryText {
+    type Target = str;
+    fn deref(&self) -> &str { self.raw_text() }
+}
+impl From<String> for StoryText { fn from(s: String) -> Self { Self::Plain(s) } }
+impl From<&str> for StoryText { fn from(s: &str) -> Self { Self::Plain(s.into()) } }
+
 #[derive(Debug, Clone)]
 pub struct StoryBlock {
     pub statements: Vec<StoryStatement>,
@@ -256,7 +276,7 @@ pub struct StoryBlock {
 #[derive(Debug, Clone)]
 pub enum StoryStatement {
     Narration {
-        text: String,
+        text: StoryText,
         line: usize,
         column: usize,
     },
@@ -298,7 +318,7 @@ pub enum StoryStatement {
 pub struct Dialogue {
     pub actor_id: String,
     pub form: DialogueForm,
-    pub text: String,
+    pub text: StoryText,
     pub line: usize,
     pub column: usize,
 }
@@ -353,7 +373,7 @@ pub enum ChoiceEntry {
 
 #[derive(Debug, Clone)]
 pub struct ChoiceOption {
-    pub text: String,
+    pub text: StoryText,
     pub target: String,
     pub line: usize,
     pub column: usize,

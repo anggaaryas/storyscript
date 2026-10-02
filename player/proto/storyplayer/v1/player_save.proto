@@ -110,7 +110,7 @@ message SessionRng {
 message SemanticEvent {
   oneof kind {
     SceneTransition scene = 1;
-    string narration = 2;
+    StoryText narration = 2;
     Dialogue dialogue = 3;
     Choices choices = 4;
     MediaEffect media = 5;
@@ -127,10 +127,28 @@ message Dialogue {
   optional string emotion = 3;
   optional string position = 4;
   optional string portrait_path = 5;
-  string text = 6;
+  StoryText text = 6;
 }
 message Choices { repeated Choice items = 1; }
-message Choice { string text = 1; string target_scene = 2; }
+message Choice { StoryText text = 1; string target_scene = 2; }
+
+// No rendered keyed text or selected locale is persisted.
+message StoryText {
+  oneof value {
+    string plain = 1;
+    MessageSnapshot message = 2;
+  }
+}
+message MessageSnapshot {
+  string id = 1;
+  // Strictly name-sorted exact scalar snapshots, never arrays.
+  repeated MessageArgument arguments = 2;
+}
+message MessageArgument {
+  string name = 1;
+  ValueType type = 2;
+  Value value = 3;
+}
 
 message MediaEffect {
   oneof kind {

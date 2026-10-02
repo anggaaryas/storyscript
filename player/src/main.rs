@@ -431,7 +431,7 @@ fn append_step_lines(lines: &mut Vec<Line<'static>>, result: &StepResult, dimmed
                             .add_modifier(Modifier::BOLD | dim),
                     ),
                     Span::styled(
-                        choice.text.clone(),
+                        choice.text.rendered.clone(),
                         Style::default().fg(Color::White).add_modifier(dim),
                     ),
                 ]));

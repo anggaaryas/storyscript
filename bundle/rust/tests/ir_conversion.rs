@@ -7,6 +7,34 @@ use storyscript_bundle::project;
 use storyscript_bundle::proto::storybundle::v1 as pb;
 use storyscript_bundle::template;
 
+mod localization_support;
+#[test]
+fn keyed_ir_has_sorted_types_not_catalog_bodies_or_source_spans() {
+    let root = localization_support::project();
+    let compiled = project::compile(root.path()).unwrap();
+    let narration = compiled.story.scenes[0].story.as_ref().unwrap().statements[0]
+        .value
+        .as_ref()
+        .unwrap();
+    let pb::story_statement::Value::Narration(n) = narration else {
+        panic!("narration")
+    };
+    let pb::story_text::Value::Message(m) = n.text.as_ref().unwrap().value.as_ref().unwrap() else {
+        panic!("message")
+    };
+    assert_eq!(m.id, "greeting");
+    assert_eq!(
+        m.arguments,
+        [pb::MessageArgument {
+            name: "name".into(),
+            r#type: pb::VariableType::String as i32
+        }]
+    );
+    let bytes = compiled.story.encode_to_vec();
+    assert!(!String::from_utf8_lossy(&bytes).contains("Hello"));
+    assert!(!String::from_utf8_lossy(&bytes).contains("main.StoryScript"));
+}
+
 fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/demo_project")
 }

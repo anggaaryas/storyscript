@@ -184,7 +184,7 @@ fn step_to_bridge(step: &StepResult) -> BridgeStep {
             choices: options
                 .iter()
                 .map(|choice| BridgeChoice {
-                    text: choice.text.clone(),
+                    text: choice.text.rendered.clone(),
                     target: choice.target.clone(),
                 })
                 .collect(),

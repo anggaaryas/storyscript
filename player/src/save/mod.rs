@@ -9,8 +9,9 @@ use sha2::{Digest, Sha256};
 
 use crate::contract::proto::storyplayer::v1 as w;
 use crate::contract::{
-    BundleSigner, Choice, HistoryEntry, MediaEffect, Origin, PlayerLimits, RuntimeError,
-    SAVE_RUNTIME_VERSION, SAVE_SCHEMA_VERSION, SemanticEvent, SessionStatus, decode_save_contract,
+    BundleSigner, Choice, EventText, HistoryEntry, MediaEffect, MessageArgumentSnapshot,
+    MessageSnapshot, Origin, PlayerLimits, RuntimeError, SAVE_RUNTIME_VERSION, SAVE_SCHEMA_VERSION,
+    SemanticEvent, SessionStatus, decode_save_contract,
 };
 use crate::engine::{ChoiceDisplay, Engine, EngineState, PendingEvent, Value};
 use crate::history::HistoryBuffer;
@@ -18,9 +19,9 @@ use crate::model::{PrepStatement, StoryModel, VarType};
 use crate::runtime::SemanticPlayer;
 use crate::session_rng::RngState;
 
-pub const RUNTIME_IDENTITY: &str = "storyscript-player/0.1.0:model-v1";
+pub const RUNTIME_IDENTITY: &str = "storyscript-player/0.1.0:model-v1-localization";
 pub const PARSER_IDENTITY: &str = "storyscript-parser/0.1.0";
-pub const COMPILER_IDENTITY: &str = "storyscript-compiler/0.1.0";
+pub const COMPILER_IDENTITY: &str = "storyscript-compiler/0.1.0-localization.1";
 
 pub fn semantic_sha256(model: &StoryModel) -> String {
     // Every SourceSpan has a location-independent Debug implementation. The
@@ -147,6 +148,16 @@ pub(crate) fn restore_model(
     bytes: &[u8],
     limits: PlayerLimits,
 ) -> Result<SemanticPlayer, RuntimeError> {
+    restore_localized_model(model, origin, bytes, limits, None)
+}
+
+pub(crate) fn restore_localized_model(
+    model: StoryModel,
+    origin: Origin,
+    bytes: &[u8],
+    limits: PlayerLimits,
+    localization: Option<std::sync::Arc<crate::localization::LocaleRuntime>>,
+) -> Result<SemanticPlayer, RuntimeError> {
     let limits = limits.lowered().map_err(|invalid| RuntimeError {
         code: "R_LIMIT_CONFIGURATION".into(),
         scene: model.init.start.clone(),
@@ -175,9 +186,19 @@ pub(crate) fn restore_model(
         .iter()
         .map(|item| Ok((item.name.clone(), type_from_wire(item.declared_type)?)))
         .collect::<Result<HashMap<_, _>, RuntimeError>>()?;
-    let current = event_from_wire(
+    let contracts = crate::localization::contracts(&model);
+    let mut work = 0;
+    let mut current = event_from_wire(
         save.current.as_ref().expect("contract requires current"),
         false,
+    )?;
+    rerender_event(
+        &mut current,
+        &contracts,
+        localization.as_deref(),
+        limits,
+        &save.current_scene,
+        &mut work,
     )?;
     let current_effects = save
         .current_effects
@@ -197,16 +218,38 @@ pub(crate) fn restore_model(
         ),
         _ => None,
     };
-    let pending = save
+    let mut pending: Vec<PendingEvent> = save
         .pending
         .iter()
         .map(pending_from_wire)
         .collect::<Result<Vec<_>, _>>()?;
-    let history_entries = save
+    for event in &mut pending {
+        if let PendingEvent::Event(event, _) = event {
+            rerender_event(
+                event,
+                &contracts,
+                localization.as_deref(),
+                limits,
+                &save.current_scene,
+                &mut work,
+            )?;
+        }
+    }
+    let mut history_entries = save
         .history
         .iter()
         .map(history_from_wire)
         .collect::<Result<Vec<_>, _>>()?;
+    for entry in &mut history_entries {
+        rerender_event(
+            &mut entry.event,
+            &contracts,
+            localization.as_deref(),
+            limits,
+            &entry.scene,
+            &mut work,
+        )?;
+    }
     let history = HistoryBuffer::restore(
         limits,
         history_entries,
@@ -241,7 +284,8 @@ pub(crate) fn restore_model(
         rng: rng_from_wire(save.rng.as_ref().expect("contract requires rng")),
         active_choices,
     };
-    let engine = Engine::restore_model(&model, state, limits)?;
+    let mut engine = Engine::restore_model(&model, state, limits)?;
+    engine.set_locale_runtime(localization);
     Ok(SemanticPlayer {
         engine,
         current: crate::contract::EventDelta {
@@ -315,6 +359,13 @@ fn validate_story_state(
         validate_effect_path(effect, &save.current_scene)?;
     }
     for entry in &save.history {
+        validate_event_targets(
+            entry.event.as_ref().expect("validated history event"),
+            &scenes,
+            false,
+            limits,
+            &entry.scene,
+        )?;
         for effect in &entry.effects {
             validate_effect_path(effect, &save.current_scene)?;
         }
@@ -631,7 +682,7 @@ fn event_to_wire(event: &SemanticEvent, pending: bool) -> Result<w::SemanticEven
         SemanticEvent::SceneTransition(scene) => Kind::Scene(w::SceneTransition {
             scene: scene.clone(),
         }),
-        SemanticEvent::Narration(value) => Kind::Narration(value.clone()),
+        SemanticEvent::Narration(value) => Kind::Narration(text_to_wire(value)),
         SemanticEvent::Dialogue {
             actor_id,
             actor_name,
@@ -645,13 +696,13 @@ fn event_to_wire(event: &SemanticEvent, pending: bool) -> Result<w::SemanticEven
             emotion: emotion.clone(),
             position: position.clone(),
             portrait_path: portrait_path.clone(),
-            text: text.clone(),
+            text: Some(text_to_wire(text)),
         }),
         SemanticEvent::Choices(items) => Kind::Choices(w::Choices {
             items: items
                 .iter()
                 .map(|item| w::Choice {
-                    text: item.text.clone(),
+                    text: Some(text_to_wire(&item.text)),
                     target_scene: item.target_scene.clone(),
                 })
                 .collect(),
@@ -670,28 +721,138 @@ fn event_to_wire(event: &SemanticEvent, pending: bool) -> Result<w::SemanticEven
     Ok(w::SemanticEvent { kind: Some(kind) })
 }
 
+fn text_to_wire(value: &EventText) -> w::StoryText {
+    w::StoryText {
+        value: Some(match &value.message {
+            None => w::story_text::Value::Plain(value.rendered.clone()),
+            Some(message) => w::story_text::Value::Message(w::MessageSnapshot {
+                id: message.id.clone(),
+                arguments: message
+                    .arguments
+                    .iter()
+                    .map(|a| w::MessageArgument {
+                        name: a.name.clone(),
+                        r#type: type_to_wire(a.var_type) as i32,
+                        value: Some(value_to_wire(&a.value)),
+                    })
+                    .collect(),
+            }),
+        }),
+    }
+}
+
+fn plain_text(value: &w::StoryText) -> Result<EventText, RuntimeError> {
+    match value.value.as_ref() {
+        Some(w::story_text::Value::Plain(text)) => Ok(text.clone().into()),
+        Some(w::story_text::Value::Message(message)) => Ok(EventText {
+            rendered: String::new(),
+            message: Some(MessageSnapshot {
+                id: message.id.clone(),
+                arguments: message
+                    .arguments
+                    .iter()
+                    .map(|a| {
+                        let var_type = type_from_wire(a.r#type)?;
+                        Ok(MessageArgumentSnapshot {
+                            name: a.name.clone(),
+                            var_type,
+                            value: value_from_wire(
+                                a.value.as_ref().expect("validated argument value"),
+                                var_type,
+                            )?,
+                        })
+                    })
+                    .collect::<Result<_, RuntimeError>>()?,
+            }),
+        }),
+        None => Err(save_error(
+            "R_SAVE_STATE_CORRUPT",
+            "",
+            "missing story text variant",
+        )),
+    }
+}
+
+fn rerender_event(
+    event: &mut SemanticEvent,
+    contracts: &std::collections::BTreeMap<String, Vec<(String, VarType)>>,
+    runtime: Option<&crate::localization::LocaleRuntime>,
+    limits: PlayerLimits,
+    scene: &str,
+    work: &mut usize,
+) -> Result<(), RuntimeError> {
+    let mut render = |text: &mut EventText| -> Result<(), RuntimeError> {
+        if let Some(message) = &text.message {
+            let expected = contracts.get(&message.id).ok_or_else(|| {
+                save_error("R_SAVE_STATE_CORRUPT", scene, "unknown saved message ID")
+            })?;
+            let actual: Vec<_> = message
+                .arguments
+                .iter()
+                .map(|a| (a.name.clone(), a.var_type))
+                .collect();
+            if *expected != actual {
+                return Err(save_error(
+                    "R_SAVE_STATE_CORRUPT",
+                    scene,
+                    "saved argument contract differs from story",
+                ));
+            }
+            *work = work.saturating_add(runtime.map_or(1, |r| r.snapshot_work(message)));
+            if *work > limits.operations_per_interaction {
+                return Err(save_error(
+                    "R_EXECUTION_LIMIT",
+                    scene,
+                    "restore localization work exceeds interaction limit",
+                ));
+            }
+            *text = crate::localization::render_snapshot(runtime, message.clone(), limits, scene)?;
+        }
+        Ok(())
+    };
+    match event {
+        SemanticEvent::Narration(v) => render(v)?,
+        SemanticEvent::Dialogue { text, .. } => render(text)?,
+        SemanticEvent::Choices(items) => {
+            for item in items {
+                render(&mut item.text)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 fn event_from_wire(event: &w::SemanticEvent, pending: bool) -> Result<SemanticEvent, RuntimeError> {
     use w::semantic_event::Kind;
     match event.kind.as_ref().expect("contract requires event kind") {
         Kind::Scene(value) => Ok(SemanticEvent::SceneTransition(value.scene.clone())),
-        Kind::Narration(value) => Ok(SemanticEvent::Narration(value.clone())),
-        Kind::Dialogue(value) => Ok(SemanticEvent::Dialogue {
-            actor_id: value.actor_id.clone(),
-            actor_name: value.actor_name.clone(),
-            emotion: value.emotion.clone(),
-            position: value.position.clone(),
-            portrait_path: value.portrait_path.clone(),
-            text: value.text.clone(),
-        }),
+        Kind::Narration(value) => Ok(SemanticEvent::Narration(plain_text(value)?)),
+        Kind::Dialogue(value) => {
+            Ok(SemanticEvent::Dialogue {
+                actor_id: value.actor_id.clone(),
+                actor_name: value.actor_name.clone(),
+                emotion: value.emotion.clone(),
+                position: value.position.clone(),
+                portrait_path: value.portrait_path.clone(),
+                text: plain_text(value.text.as_ref().ok_or_else(|| {
+                    save_error("R_SAVE_STATE_CORRUPT", "", "missing dialogue text")
+                })?)?,
+            })
+        }
         Kind::Choices(value) => Ok(SemanticEvent::Choices(
             value
                 .items
                 .iter()
-                .map(|item| Choice {
-                    text: item.text.clone(),
-                    target_scene: item.target_scene.clone(),
+                .map(|item| {
+                    Ok(Choice {
+                        text: plain_text(item.text.as_ref().ok_or_else(|| {
+                            save_error("R_SAVE_STATE_CORRUPT", "", "missing choice text")
+                        })?)?,
+                        target_scene: item.target_scene.clone(),
+                    })
                 })
-                .collect(),
+                .collect::<Result<_, RuntimeError>>()?,
         )),
         Kind::Media(value) => Ok(SemanticEvent::Media(effect_from_wire(value)?)),
         Kind::End(_) => Ok(SemanticEvent::End),

@@ -11,6 +11,31 @@ message CompiledStory {
   Initialization initialization = 3;
   repeated LogicBlock logic_blocks = 4;
   repeated Scene scenes = 5;
+  optional LocalizationMetadata localization = 6;
+}
+
+// Catalog bodies are separate signed archive entries, never embedded here.
+message LocalizationMetadata {
+  string default_locale = 1;
+  repeated string supported_locales = 2;
+}
+
+message StoryText {
+  oneof value {
+    InterpolatedString plain = 1;
+    MessageReference message = 2;
+  }
+}
+
+message MessageReference {
+  string id = 1;
+  // Strictly name-sorted, scalar-only immutable type contract.
+  repeated MessageArgument arguments = 2;
+}
+
+message MessageArgument {
+  string name = 1;
+  VariableType type = 2;
 }
 
 message ProjectMetadata {
@@ -179,7 +204,7 @@ message StoryStatement {
 }
 
 message Narration {
-  InterpolatedString text = 1;
+  StoryText text = 1;
 }
 
 message VariableOutput {
@@ -192,7 +217,7 @@ message Dialogue {
     google.protobuf.Empty name_only = 2;
     PortraitDialogue portrait = 3;
   }
-  InterpolatedString text = 4;
+  StoryText text = 4;
 }
 
 enum Position {
@@ -231,7 +256,7 @@ message ChoiceEntry {
 }
 
 message ChoiceOption {
-  InterpolatedString text = 1;
+  StoryText text = 1;
   string target = 2;
 }
 

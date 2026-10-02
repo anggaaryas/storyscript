@@ -10,6 +10,43 @@ use storyscript_bundle::manifest::{BundleManifest, MANIFEST_PATH, SIGNATURE_PATH
 use storyscript_bundle::signing::Ed25519Signer;
 use zip::ZipArchive;
 
+mod localization_support;
+#[test]
+fn catalogs_are_canonical_comment_free_signed_and_deterministic() {
+    let root = localization_support::project();
+    let signer = signer();
+    let first = exporter::export(root.path(), &signer).unwrap();
+    let path = root.path().join("localization/en.ftl");
+    let source = std::fs::read_to_string(&path).unwrap();
+    std::fs::write(&path, format!("# /private/host/translator/path\n{source}")).unwrap();
+    assert_eq!(first, exporter::export(root.path(), &signer).unwrap());
+    let mut archive = ZipArchive::new(Cursor::new(first)).unwrap();
+    let mut bytes = Vec::new();
+    archive
+        .by_name("localization/en.ftl")
+        .unwrap()
+        .read_to_end(&mut bytes)
+        .unwrap();
+    let text = String::from_utf8(bytes).unwrap();
+    assert!(!text.contains('#'));
+    assert!(!text.contains("/private/host"));
+    let mut manifest = String::new();
+    archive
+        .by_name(MANIFEST_PATH)
+        .unwrap()
+        .read_to_string(&mut manifest)
+        .unwrap();
+    let manifest: BundleManifest = serde_json::from_str(&manifest).unwrap();
+    assert_eq!(
+        manifest
+            .entries
+            .iter()
+            .filter(|e| e.entry_type == storyscript_bundle::manifest::EntryType::Catalog)
+            .count(),
+        2
+    );
+}
+
 fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/demo_project")
 }

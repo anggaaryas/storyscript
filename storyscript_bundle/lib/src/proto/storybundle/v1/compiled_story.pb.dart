@@ -30,6 +30,7 @@ class CompiledStory extends $pb.GeneratedMessage {
     Initialization? initialization,
     $core.Iterable<LogicBlock>? logicBlocks,
     $core.Iterable<Scene>? scenes,
+    LocalizationMetadata? localization,
   }) {
     final result = CompiledStory._();
     if (formatVersion != null) result.formatVersion = formatVersion;
@@ -37,6 +38,7 @@ class CompiledStory extends $pb.GeneratedMessage {
     if (initialization != null) result.initialization = initialization;
     if (logicBlocks != null) result.logicBlocks.addAll(logicBlocks);
     if (scenes != null) result.scenes.addAll(scenes);
+    if (localization != null) result.localization = localization;
     return result;
   }
 
@@ -63,6 +65,8 @@ class CompiledStory extends $pb.GeneratedMessage {
         subBuilder: LogicBlock.$_createMessage)
     ..pPM<Scene>(5, _omitFieldNames ? '' : 'scenes',
         subBuilder: Scene.$_createMessage)
+    ..aOM<LocalizationMetadata>(6, _omitFieldNames ? '' : 'localization',
+        subBuilder: LocalizationMetadata.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -123,6 +127,306 @@ class CompiledStory extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(5)
   $pb.PbList<Scene> get scenes => $_getList(4);
+
+  @$pb.TagNumber(6)
+  LocalizationMetadata get localization => $_getN(5);
+  @$pb.TagNumber(6)
+  set localization(LocalizationMetadata value) => $_setField(6, value);
+  @$pb.TagNumber(6)
+  $core.bool hasLocalization() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearLocalization() => $_clearField(6);
+  @$pb.TagNumber(6)
+  LocalizationMetadata ensureLocalization() => $_ensure(5);
+}
+
+/// Catalog bodies are separate signed archive entries, never embedded here.
+class LocalizationMetadata extends $pb.GeneratedMessage {
+  factory LocalizationMetadata({
+    $core.String? defaultLocale,
+    $core.Iterable<$core.String>? supportedLocales,
+  }) {
+    final result = LocalizationMetadata._();
+    if (defaultLocale != null) result.defaultLocale = defaultLocale;
+    if (supportedLocales != null)
+      result.supportedLocales.addAll(supportedLocales);
+    return result;
+  }
+
+  LocalizationMetadata._();
+
+  factory LocalizationMetadata.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      LocalizationMetadata()..mergeFromBuffer(data, registry);
+  factory LocalizationMetadata.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      LocalizationMetadata()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'LocalizationMetadata',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'storybundle.v1'),
+      createEmptyInstance: LocalizationMetadata.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'defaultLocale')
+    ..pPS(2, _omitFieldNames ? '' : 'supportedLocales')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  LocalizationMetadata clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  LocalizationMetadata copyWith(void Function(LocalizationMetadata) updates) =>
+      super.copyWith((message) => updates(message as LocalizationMetadata))
+          as LocalizationMetadata;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use LocalizationMetadata() / LocalizationMetadata.new instead')
+  static LocalizationMetadata create() => LocalizationMetadata._();
+  static $pb.GeneratedMessage $_createMessage() => LocalizationMetadata._();
+  @$core.override
+  LocalizationMetadata createEmptyInstance() => LocalizationMetadata._();
+  @$core.pragma('dart2js:noInline')
+  static LocalizationMetadata getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<LocalizationMetadata>(
+          LocalizationMetadata.$_createMessage);
+  static LocalizationMetadata? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get defaultLocale => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set defaultLocale($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDefaultLocale() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDefaultLocale() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<$core.String> get supportedLocales => $_getList(1);
+}
+
+enum StoryText_Value { plain, message, notSet }
+
+class StoryText extends $pb.GeneratedMessage {
+  factory StoryText({
+    InterpolatedString? plain,
+    MessageReference? message,
+  }) {
+    final result = StoryText._();
+    if (plain != null) result.plain = plain;
+    if (message != null) result.message = message;
+    return result;
+  }
+
+  StoryText._();
+
+  factory StoryText.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      StoryText()..mergeFromBuffer(data, registry);
+  factory StoryText.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      StoryText()..mergeFromJson(json, registry);
+
+  static const $core.Map<$core.int, StoryText_Value> _StoryText_ValueByTag = {
+    1: StoryText_Value.plain,
+    2: StoryText_Value.message,
+    0: StoryText_Value.notSet
+  };
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'StoryText',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'storybundle.v1'),
+      createEmptyInstance: StoryText.$_createMessage)
+    ..oo(0, [1, 2])
+    ..aOM<InterpolatedString>(1, _omitFieldNames ? '' : 'plain',
+        subBuilder: InterpolatedString.$_createMessage)
+    ..aOM<MessageReference>(2, _omitFieldNames ? '' : 'message',
+        subBuilder: MessageReference.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  StoryText clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  StoryText copyWith(void Function(StoryText) updates) =>
+      super.copyWith((message) => updates(message as StoryText)) as StoryText;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use StoryText() / StoryText.new instead')
+  static StoryText create() => StoryText._();
+  static $pb.GeneratedMessage $_createMessage() => StoryText._();
+  @$core.override
+  StoryText createEmptyInstance() => StoryText._();
+  @$core.pragma('dart2js:noInline')
+  static StoryText getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<StoryText>(StoryText.$_createMessage);
+  static StoryText? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  @$pb.TagNumber(2)
+  StoryText_Value whichValue() => _StoryText_ValueByTag[$_whichOneof(0)]!;
+  @$pb.TagNumber(1)
+  @$pb.TagNumber(2)
+  void clearValue() => $_clearField($_whichOneof(0));
+
+  @$pb.TagNumber(1)
+  InterpolatedString get plain => $_getN(0);
+  @$pb.TagNumber(1)
+  set plain(InterpolatedString value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPlain() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPlain() => $_clearField(1);
+  @$pb.TagNumber(1)
+  InterpolatedString ensurePlain() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  MessageReference get message => $_getN(1);
+  @$pb.TagNumber(2)
+  set message(MessageReference value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMessage() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMessage() => $_clearField(2);
+  @$pb.TagNumber(2)
+  MessageReference ensureMessage() => $_ensure(1);
+}
+
+class MessageReference extends $pb.GeneratedMessage {
+  factory MessageReference({
+    $core.String? id,
+    $core.Iterable<MessageArgument>? arguments,
+  }) {
+    final result = MessageReference._();
+    if (id != null) result.id = id;
+    if (arguments != null) result.arguments.addAll(arguments);
+    return result;
+  }
+
+  MessageReference._();
+
+  factory MessageReference.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      MessageReference()..mergeFromBuffer(data, registry);
+  factory MessageReference.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      MessageReference()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'MessageReference',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'storybundle.v1'),
+      createEmptyInstance: MessageReference.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..pPM<MessageArgument>(2, _omitFieldNames ? '' : 'arguments',
+        subBuilder: MessageArgument.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MessageReference clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MessageReference copyWith(void Function(MessageReference) updates) =>
+      super.copyWith((message) => updates(message as MessageReference))
+          as MessageReference;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use MessageReference() / MessageReference.new instead')
+  static MessageReference create() => MessageReference._();
+  static $pb.GeneratedMessage $_createMessage() => MessageReference._();
+  @$core.override
+  MessageReference createEmptyInstance() => MessageReference._();
+  @$core.pragma('dart2js:noInline')
+  static MessageReference getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<MessageReference>(
+          MessageReference.$_createMessage);
+  static MessageReference? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  /// Strictly name-sorted, scalar-only immutable type contract.
+  @$pb.TagNumber(2)
+  $pb.PbList<MessageArgument> get arguments => $_getList(1);
+}
+
+class MessageArgument extends $pb.GeneratedMessage {
+  factory MessageArgument({
+    $core.String? name,
+    VariableType? type,
+  }) {
+    final result = MessageArgument._();
+    if (name != null) result.name = name;
+    if (type != null) result.type = type;
+    return result;
+  }
+
+  MessageArgument._();
+
+  factory MessageArgument.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      MessageArgument()..mergeFromBuffer(data, registry);
+  factory MessageArgument.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      MessageArgument()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'MessageArgument',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'storybundle.v1'),
+      createEmptyInstance: MessageArgument.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'name')
+    ..aE<VariableType>(2, _omitFieldNames ? '' : 'type',
+        enumValues: VariableType.values)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MessageArgument clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MessageArgument copyWith(void Function(MessageArgument) updates) =>
+      super.copyWith((message) => updates(message as MessageArgument))
+          as MessageArgument;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use MessageArgument() / MessageArgument.new instead')
+  static MessageArgument create() => MessageArgument._();
+  static $pb.GeneratedMessage $_createMessage() => MessageArgument._();
+  @$core.override
+  MessageArgument createEmptyInstance() => MessageArgument._();
+  @$core.pragma('dart2js:noInline')
+  static MessageArgument getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<MessageArgument>(
+          MessageArgument.$_createMessage);
+  static MessageArgument? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get name => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set name($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasName() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearName() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  VariableType get type => $_getN(1);
+  @$pb.TagNumber(2)
+  set type(VariableType value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasType() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearType() => $_clearField(2);
 }
 
 class ProjectMetadata extends $pb.GeneratedMessage {
@@ -2198,7 +2502,7 @@ class StoryStatement extends $pb.GeneratedMessage {
 
 class Narration extends $pb.GeneratedMessage {
   factory Narration({
-    InterpolatedString? text,
+    StoryText? text,
   }) {
     final result = Narration._();
     if (text != null) result.text = text;
@@ -2218,8 +2522,8 @@ class Narration extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'Narration',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'storybundle.v1'),
       createEmptyInstance: Narration.$_createMessage)
-    ..aOM<InterpolatedString>(1, _omitFieldNames ? '' : 'text',
-        subBuilder: InterpolatedString.$_createMessage)
+    ..aOM<StoryText>(1, _omitFieldNames ? '' : 'text',
+        subBuilder: StoryText.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2243,15 +2547,15 @@ class Narration extends $pb.GeneratedMessage {
   static Narration? _defaultInstance;
 
   @$pb.TagNumber(1)
-  InterpolatedString get text => $_getN(0);
+  StoryText get text => $_getN(0);
   @$pb.TagNumber(1)
-  set text(InterpolatedString value) => $_setField(1, value);
+  set text(StoryText value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasText() => $_has(0);
   @$pb.TagNumber(1)
   void clearText() => $_clearField(1);
   @$pb.TagNumber(1)
-  InterpolatedString ensureText() => $_ensure(0);
+  StoryText ensureText() => $_ensure(0);
 }
 
 class VariableOutput extends $pb.GeneratedMessage {
@@ -2318,7 +2622,7 @@ class Dialogue extends $pb.GeneratedMessage {
     $core.String? actorId,
     $0.Empty? nameOnly,
     PortraitDialogue? portrait,
-    InterpolatedString? text,
+    StoryText? text,
   }) {
     final result = Dialogue._();
     if (actorId != null) result.actorId = actorId;
@@ -2352,8 +2656,8 @@ class Dialogue extends $pb.GeneratedMessage {
         subBuilder: $0.Empty.$_createMessage)
     ..aOM<PortraitDialogue>(3, _omitFieldNames ? '' : 'portrait',
         subBuilder: PortraitDialogue.$_createMessage)
-    ..aOM<InterpolatedString>(4, _omitFieldNames ? '' : 'text',
-        subBuilder: InterpolatedString.$_createMessage)
+    ..aOM<StoryText>(4, _omitFieldNames ? '' : 'text',
+        subBuilder: StoryText.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2415,15 +2719,15 @@ class Dialogue extends $pb.GeneratedMessage {
   PortraitDialogue ensurePortrait() => $_ensure(2);
 
   @$pb.TagNumber(4)
-  InterpolatedString get text => $_getN(3);
+  StoryText get text => $_getN(3);
   @$pb.TagNumber(4)
-  set text(InterpolatedString value) => $_setField(4, value);
+  set text(StoryText value) => $_setField(4, value);
   @$pb.TagNumber(4)
   $core.bool hasText() => $_has(3);
   @$pb.TagNumber(4)
   void clearText() => $_clearField(4);
   @$pb.TagNumber(4)
-  InterpolatedString ensureText() => $_ensure(3);
+  StoryText ensureText() => $_ensure(3);
 }
 
 class PortraitDialogue extends $pb.GeneratedMessage {
@@ -2819,7 +3123,7 @@ class ChoiceEntry extends $pb.GeneratedMessage {
 
 class ChoiceOption extends $pb.GeneratedMessage {
   factory ChoiceOption({
-    InterpolatedString? text,
+    StoryText? text,
     $core.String? target,
   }) {
     final result = ChoiceOption._();
@@ -2841,8 +3145,8 @@ class ChoiceOption extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'ChoiceOption',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'storybundle.v1'),
       createEmptyInstance: ChoiceOption.$_createMessage)
-    ..aOM<InterpolatedString>(1, _omitFieldNames ? '' : 'text',
-        subBuilder: InterpolatedString.$_createMessage)
+    ..aOM<StoryText>(1, _omitFieldNames ? '' : 'text',
+        subBuilder: StoryText.$_createMessage)
     ..aOS(2, _omitFieldNames ? '' : 'target')
     ..hasRequiredFields = false;
 
@@ -2869,15 +3173,15 @@ class ChoiceOption extends $pb.GeneratedMessage {
   static ChoiceOption? _defaultInstance;
 
   @$pb.TagNumber(1)
-  InterpolatedString get text => $_getN(0);
+  StoryText get text => $_getN(0);
   @$pb.TagNumber(1)
-  set text(InterpolatedString value) => $_setField(1, value);
+  set text(StoryText value) => $_setField(1, value);
   @$pb.TagNumber(1)
   $core.bool hasText() => $_has(0);
   @$pb.TagNumber(1)
   void clearText() => $_clearField(1);
   @$pb.TagNumber(1)
-  InterpolatedString ensureText() => $_ensure(0);
+  StoryText ensureText() => $_ensure(0);
 
   @$pb.TagNumber(2)
   $core.String get target => $_getSZ(1);

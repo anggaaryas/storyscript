@@ -8,6 +8,183 @@ use storyscript_player::engine::{Engine, StepResult, Value};
 use storyscript_player::runtime::{SemanticPlayer, StoryPlayer};
 use storyscript_player::session_rng::{ALGORITHM_VERSION, SessionRng};
 
+mod localization_support;
+#[test]
+fn project_locale_negotiation_is_ordered_immutable_and_renders_all_keyed_sites() {
+    use localization_support::{prefs, project};
+    let root = project();
+    for (requests, locale, hello, count, choice) in [
+        (vec![], "en", "Hello", "items", "Continue"),
+        (vec!["id-ID"], "id", "Halo", "barang", "Lanjutkan"),
+        (vec!["fr", "id"], "id", "Halo", "barang", "Lanjutkan"),
+        (vec!["en-GB", "id"], "en", "Hello", "items", "Continue"),
+        (vec!["fr"], "en", "Hello", "items", "Continue"),
+        (vec!["en-US-u-nu-latn"], "en", "Hello", "items", "Continue"),
+    ] {
+        let mut player = SemanticPlayer::from_project_seeded(
+            root.path(),
+            &prefs(&requests),
+            [3; 32],
+            HARD_LIMITS,
+        )
+        .unwrap();
+        assert_eq!(player.resolved_locale(), Some(locale));
+        assert!(!player.has_unresolved_localization());
+        player.advance().unwrap();
+        assert!(
+            matches!(&player.current().current, SemanticEvent::Narration(v) if v.starts_with(hello) && v.contains("\u{2068}Ada\u{2069}") && v.contains("StoryScript"))
+        );
+        player.advance().unwrap();
+        assert!(
+            matches!(&player.current().current, SemanticEvent::Dialogue { text, actor_name, .. } if text.contains(count) && text.contains('2') && actor_name == "Actor")
+        );
+        player.advance().unwrap();
+        assert!(
+            matches!(&player.current().current, SemanticEvent::Choices(v) if v[0].text == choice)
+        );
+        assert_eq!(player.resolved_locale(), Some(locale));
+    }
+    assert!(
+        SemanticPlayer::from_project(root.path(), &prefs(&["not a locale"]), HARD_LIMITS).is_err()
+    );
+}
+
+#[test]
+fn canonical_bcp47_extension_tags_can_select_a_catalog_exactly() {
+    use localization_support::{prefs, project, replace};
+    let root = project();
+    replace(
+        root.path(),
+        "StoryScript.toml",
+        "default-locale = \"en\"",
+        "default-locale = \"en-US-u-nu-latn\"",
+    );
+    replace(
+        root.path(),
+        "StoryScript.toml",
+        "[\"en\", \"id\"]",
+        "[\"en-US-u-nu-latn\", \"id\"]",
+    );
+    std::fs::rename(
+        root.path().join("localization/en.ftl"),
+        root.path().join("localization/en-US-u-nu-latn.ftl"),
+    )
+    .unwrap();
+    let mut requests = prefs(&["EN-us-u-nu-latn"]);
+    let mut player = SemanticPlayer::from_project(root.path(), &requests, HARD_LIMITS).unwrap();
+    requests.clear();
+    requests.push("id".into());
+    assert_eq!(player.resolved_locale(), Some("en-US-u-nu-latn"));
+    player.advance().unwrap();
+    assert!(
+        matches!(&player.current().current, SemanticEvent::Narration(text) if text.starts_with("Hello"))
+    );
+}
+
+#[test]
+fn plurals_booleans_terms_and_exact_safe_numeric_arguments_work() {
+    use localization_support::{append, prefs, project, replace};
+    let root = project();
+    replace(
+        root.path(),
+        "story/main.StoryScript",
+        "$count as integer = 2",
+        "$count as integer = 1",
+    );
+    replace(
+        root.path(),
+        "story/main.StoryScript",
+        "$ready as boolean = true",
+        "$ready as boolean = false",
+    );
+    replace(
+        root.path(),
+        "story/main.StoryScript",
+        "@\"greeting\";",
+        "@\"greeting\"; @\"numeric-line\";",
+    );
+    for locale in ["en", "id"] {
+        append(
+            root.path(),
+            &format!("localization/{locale}.ftl"),
+            "numeric-line = Ratio { NUMBER($ratio) }\n",
+        );
+    }
+    let mut player =
+        SemanticPlayer::from_project(root.path(), &prefs(&["en"]), HARD_LIMITS).unwrap();
+    player.advance().unwrap();
+    player.advance().unwrap();
+    assert!(matches!(&player.current().current, SemanticEvent::Narration(v) if v.contains("0.5")));
+    player.advance().unwrap();
+    assert!(
+        matches!(&player.current().current, SemanticEvent::Dialogue { text, .. } if text == "One item")
+    );
+    player.advance().unwrap();
+    assert!(matches!(&player.current().current, SemanticEvent::Choices(v) if v[0].text == "Wait"));
+}
+
+#[test]
+fn exact_binary_numeric_guard_accepts_boundaries_and_rejects_decimal_rounding() {
+    use rust_decimal::Decimal;
+    use storyscript_bundle::localization::exact_decimal_number;
+    for safe in [
+        "0",
+        "0.5",
+        "0.1250",
+        "9007199254740992",
+        "-9223372036854775808",
+    ] {
+        assert!(
+            exact_decimal_number(Decimal::from_str_exact(safe).unwrap()).is_some(),
+            "{safe}"
+        );
+    }
+    for unsafe_value in [
+        "0.1",
+        "0.0000000000000000000000000001",
+        "9007199254740993",
+        "9223372036854775807",
+    ] {
+        assert!(
+            exact_decimal_number(Decimal::from_str_exact(unsafe_value).unwrap()).is_none(),
+            "{unsafe_value}"
+        );
+    }
+}
+
+#[test]
+fn term_parameters_are_literal_bound_and_story_string_arguments_are_opaque() {
+    use localization_support::{prefs, project, replace};
+    let root = project();
+    replace(
+        root.path(),
+        "story/main.StoryScript",
+        "\"Ada\"",
+        "\"{ NUMBER(99) }\"",
+    );
+    for locale in ["en", "id"] {
+        let path = format!("localization/{locale}.ftl");
+        replace(
+            root.path(),
+            &path,
+            "-brand = StoryScript",
+            "-brand = { $style }",
+        );
+        replace(
+            root.path(),
+            &path,
+            "{ -brand }",
+            "{ -brand(style: \"StoryScript\") }",
+        );
+    }
+    let mut player =
+        SemanticPlayer::from_project(root.path(), &prefs(&["en"]), HARD_LIMITS).unwrap();
+    player.advance().unwrap();
+    assert!(
+        matches!(&player.current().current, SemanticEvent::Narration(v) if v.contains("{ NUMBER(99) }") && v.contains("StoryScript"))
+    );
+}
+
 fn random_story() -> Script {
     Script {
         init: InitBlock {

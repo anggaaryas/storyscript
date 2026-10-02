@@ -13,6 +13,47 @@ use storyscript_bundle::trust::TrustStore;
 use common::TestBundle;
 
 #[test]
+fn catalog_trust_checks_apply_equally_to_strict_and_unsigned_development() {
+    let bundle = TestBundle::localized();
+    let unsigned = bundle.rewrite(|path, _| path != SIGNATURE_PATH);
+    assert!(
+        load(
+            &unsigned,
+            &TrustStore::new(),
+            VerificationPolicy::Strict,
+            ResourceLimits::HARD
+        )
+        .is_err()
+    );
+    let loaded = load(
+        &unsigned,
+        &TrustStore::new(),
+        VerificationPolicy::UnsignedDevelopment,
+        ResourceLimits::HARD,
+    )
+    .unwrap();
+    assert_eq!(loaded.catalogs().len(), 2);
+    let tampered = bundle.rewrite(|path, bytes| {
+        if path == "localization/en.ftl" {
+            bytes[0] ^= 1;
+        }
+        path != SIGNATURE_PATH
+    });
+    assert_eq!(
+        load(
+            &tampered,
+            &TrustStore::new(),
+            VerificationPolicy::UnsignedDevelopment,
+            ResourceLimits::HARD
+        )
+        .unwrap_err()
+        .code()
+        .to_string(),
+        "B_DIGEST_MISMATCH"
+    );
+}
+
+#[test]
 fn strict_policy_rejects_unknown_and_wrong_signatures() {
     let bundle = TestBundle::new();
     let error = load(

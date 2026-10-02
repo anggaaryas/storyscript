@@ -22,10 +22,20 @@ pub struct TestBundle {
 
 impl TestBundle {
     pub fn new() -> Self {
+        Self::from_project(&fixture())
+    }
+
+    pub fn localized() -> Self {
+        Self::from_project(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/localized_project"),
+        )
+    }
+
+    pub fn from_project(project: &Path) -> Self {
         let signing_key = SigningKey::generate(&mut OsRng);
         let pem = signing_key.to_pkcs8_pem(LineEnding::LF).expect("PKCS#8");
         let signer = Ed25519Signer::from_pkcs8_pem(pem.as_str()).expect("signer");
-        let bytes = exporter::export(&fixture(), &signer).expect("export");
+        let bytes = exporter::export(project, &signer).expect("export");
         Self { bytes, signing_key }
     }
 

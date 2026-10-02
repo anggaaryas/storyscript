@@ -36,6 +36,15 @@ const SECOND_CHILD: &str = r#"
 }
 "#;
 
+#[test]
+fn keyed_sites_share_immutable_scope_frames_instead_of_copying_globals() {
+    let output = compile_source(r#"* INIT { $count as integer = 1; @start s } * s { #STORY @"first-id"; @"second-id"; @end }"#);
+    assert!(output.diagnostics.iter().all(|d| !d.is_error()));
+    let sites = output.message_sites();
+    assert!(std::sync::Arc::ptr_eq(&sites[0].visible_variables, &sites[1].visible_variables));
+    assert_eq!(sites[0].visible_variables["count"], storyscript_parser::ast::VarType::Integer);
+}
+
 fn write_project() -> TempDir {
     let project = tempfile::tempdir().expect("temporary project");
     fs::create_dir(project.path().join("modules")).expect("modules directory");
@@ -51,6 +60,30 @@ fn write_project() -> TempDir {
     )
     .expect("second child");
     project
+}
+
+#[test]
+fn keyed_inventory_preserves_include_paths_spans_and_scope_and_rejects_duplicates() {
+    let project = write_project();
+    fs::write(project.path().join("root.StoryScript"), ROOT_PREFIX.replace("\"root\"", "@\"root-line\"" )).unwrap();
+    fs::write(project.path().join("modules/first.StoryScript"), FIRST_CHILD.replace("\"first\"", "@\"child-line\"" )).unwrap();
+    let output = compile_project(project.path(), Path::new("root.StoryScript")).unwrap();
+    assert!(output.diagnostics.iter().all(|d| !d.is_error()));
+    let sites = output.message_sites();
+    assert_eq!(sites[0].text.source, "root.StoryScript");
+    assert_eq!(sites[1].text.source, "modules/first.StoryScript");
+    assert!(sites.iter().all(|s| s.text.line > 0 && s.text.column > 0));
+    fs::write(project.path().join("modules/first.StoryScript"), FIRST_CHILD.replace("\"first\"", "@\"root-line\"" )).unwrap();
+    assert_has_code(&compile_project(project.path(), Path::new("root.StoryScript")).unwrap(), DiagnosticCode::ELocalizationIdDuplicate);
+
+    let source = r#"* INIT { $names as array<string> = ["Ada"]; $count as integer = 2; @start s }
+* s { #PREP $local as boolean = true; #STORY for ($name in snapshot $names) { @"loop-line"; } @end }"#;
+    let output = compile_source(source);
+    assert!(output.diagnostics.iter().all(|d| !d.is_error()), "{:?}", output.diagnostics);
+    let sites = output.message_sites();
+    assert_eq!(sites[0].visible_variables["count"], storyscript_parser::ast::VarType::Integer);
+    assert_eq!(sites[0].visible_variables["local"], storyscript_parser::ast::VarType::Boolean);
+    assert_eq!(sites[0].visible_variables["name"], storyscript_parser::ast::VarType::String);
 }
 
 fn assert_has_code(output: &storyscript_parser::compiler::CompileOutput, code: DiagnosticCode) {

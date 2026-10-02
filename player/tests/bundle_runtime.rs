@@ -17,6 +17,60 @@ const GAME_BUNDLE: &[u8] =
 const GAME_KEY_HEX: &str =
     include_str!("../../storyscript_bundle/example/assets/station_nine_public_key.txt");
 
+mod localization_support;
+#[test]
+fn signed_localized_bundle_and_source_project_are_equivalent_and_restore_cross_locale() {
+    use localization_support::{prefs, project, signed};
+    let root = project();
+    let (bytes, trust) = signed(root.path());
+    let bundle = load(
+        &bytes,
+        &trust,
+        VerificationPolicy::Strict,
+        ResourceLimits::HARD,
+    )
+    .unwrap();
+    for locale in ["en", "id", "fr"] {
+        let prefs = prefs(&[locale]);
+        let mut source =
+            SemanticPlayer::from_project_seeded(root.path(), &prefs, [17; 32], HARD_LIMITS)
+                .unwrap();
+        let mut bundled =
+            SemanticPlayer::from_loaded_bundle_with_locales(&bundle, &prefs, HARD_LIMITS).unwrap();
+        assert_eq!(source.resolved_locale(), bundled.resolved_locale());
+        assert_eq!(source.current().current, bundled.current().current);
+        for _ in 0..3 {
+            assert_eq!(
+                source.advance().unwrap().current,
+                bundled.advance().unwrap().current
+            );
+        }
+        let save = bundled.export_save().unwrap();
+        let mut restored = SemanticPlayer::restore_loaded_bundle_with_locales(
+            &bundle,
+            &save,
+            &localization_support::prefs(&["id"]),
+            HARD_LIMITS,
+        )
+        .unwrap();
+        assert_eq!(restored.resolved_locale(), Some("id"));
+        assert!(
+            matches!(&restored.current().current, SemanticEvent::Choices(v) if v[0].text == "Lanjutkan")
+        );
+        restored.choose(0).unwrap();
+        restored.advance().unwrap();
+        assert!(
+            matches!(&restored.current().current, SemanticEvent::Narration(v) if v == "Plain 3")
+        );
+        source.choose(0).unwrap();
+        bundled.choose(0).unwrap();
+        assert_eq!(
+            source.advance().unwrap().current,
+            bundled.advance().unwrap().current
+        );
+    }
+}
+
 fn loaded() -> storyscript_bundle::loader::LoadedBundle {
     load_signed(BUNDLE, KEY_HEX)
 }

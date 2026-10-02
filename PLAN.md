@@ -1,5 +1,28 @@
 # .StoryScript Language Specification
 
+## Story-content localization (rewritten v1)
+
+Ordinary quoted strings retain `${variable}` interpolation and their existing
+semantics. A dedicated keyed literal `@"fluent-message-id"` contains only a native
+Fluent message ID (`[A-Za-z][A-Za-z0-9_-]*`, at most 256 UTF-8 bytes). It is allowed
+only for narration, dialogue bodies, and choice labels, never expressions, stored
+string data, actor/project names, identifiers, scene labels, assets, or diagnostics.
+Each ID has exactly one source declaration across root and included modules.
+
+Localized projects use complete Fluent 0.17 catalogs for the default and every
+supported canonical locale. Catalog variables resolve to visible scalar variables
+with immutable StoryScript types. Session locale negotiation uses ordered requests:
+exact supported tag, supported language-only tag, then project default. A session's
+locale is immutable. Raw source/path playback without project catalogs displays the
+ID verbatim and has no resolved locale; this is not translated output.
+
+Compiled text is a plain-interpolation/message-reference union. Saves preserve
+locale-neutral message IDs and exact scalar argument snapshots, not rendered keyed
+text or a selected locale. Restore rerenders without replaying PREP/STORY. Both v1
+descriptors are deliberately replaced: old bundles/saves are rejected, with no
+migration. See `docs/contracts/storyscript_localization_v1.md` for the normative
+profile and limits; implementation status is recorded in the localization plan.
+
 ## 1. Global Initialization
 Before any scenes are parsed, the engine must define global variables, load actor assets into memory, and explicitly define the game's entry point. This is strictly handled in the reserved `* INIT` block.
 

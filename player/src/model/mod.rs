@@ -28,6 +28,13 @@ pub struct StoryModel {
     pub init: InitBlock,
     pub logic_blocks: Vec<LogicBlock>,
     pub scenes: Vec<Scene>,
+    pub localization: Option<LocalizationMetadata>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LocalizationMetadata {
+    pub default_locale: String,
+    pub supported_locales: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -179,7 +186,7 @@ pub struct PrepRepeat {
 
 #[derive(Debug, Clone)]
 pub enum StoryStatement {
-    Narration { text: String, span: SourceSpan },
+    Narration { text: StoryText, span: SourceSpan },
     VarOutput { name: String, span: SourceSpan },
     Dialogue(Dialogue),
     IfElse(StoryIfElse),
@@ -194,10 +201,56 @@ pub enum StoryStatement {
 }
 
 #[derive(Debug, Clone)]
+pub enum StoryText {
+    Plain(String),
+    Message {
+        id: String,
+        arguments: Vec<(String, VarType)>,
+    },
+}
+impl From<String> for StoryText {
+    fn from(s: String) -> Self {
+        Self::Plain(s)
+    }
+}
+impl From<&str> for StoryText {
+    fn from(s: &str) -> Self {
+        Self::Plain(s.into())
+    }
+}
+
+impl StoryModel {
+    pub fn has_keyed_text(&self) -> bool {
+        fn choices(entries: &[ChoiceEntry]) -> bool {
+            entries.iter().any(|v| match v {
+                ChoiceEntry::Option(v) => matches!(v.text, StoryText::Message { .. }),
+                ChoiceEntry::If(v) => choices(&v.body),
+                ChoiceEntry::Repeat(v) => choices(&v.body),
+                ChoiceEntry::ForSnapshot(v) => choices(&v.body),
+            })
+        }
+        fn story(stmts: &[StoryStatement]) -> bool {
+            stmts.iter().any(|v| match v {
+                StoryStatement::Narration { text, .. } => matches!(text, StoryText::Message { .. }),
+                StoryStatement::Dialogue(v) => matches!(v.text, StoryText::Message { .. }),
+                StoryStatement::Choice(v) => choices(&v.entries),
+                StoryStatement::IfElse(v) => {
+                    story(&v.then_branch) || v.else_branch.as_ref().is_some_and(|v| story(v))
+                }
+                StoryStatement::Repeat(v) => story(&v.body),
+                StoryStatement::ForSnapshot(v) => story(&v.body),
+                _ => false,
+            })
+        }
+        self.scenes.iter().any(|v| story(&v.story))
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Dialogue {
     pub actor_id: String,
     pub form: DialogueForm,
-    pub text: String,
+    pub text: StoryText,
     pub span: SourceSpan,
 }
 
@@ -238,7 +291,7 @@ pub enum ChoiceEntry {
 
 #[derive(Debug, Clone)]
 pub struct ChoiceOption {
-    pub text: String,
+    pub text: StoryText,
     pub target: String,
     pub span: SourceSpan,
 }

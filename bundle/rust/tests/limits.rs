@@ -9,6 +9,47 @@ use storyscript_bundle::proto::storybundle::v1 as pb;
 use common::TestBundle;
 
 #[test]
+fn catalog_locale_id_and_independent_entry_limits_are_enforced() {
+    let bundle = TestBundle::localized();
+    let over = bundle.rewrite_payload("localization/en.ftl", vec![b'a'; (16 << 20) + 1]);
+    assert_eq!(
+        load(
+            &over,
+            &bundle.trust_store(),
+            VerificationPolicy::Strict,
+            ResourceLimits::HARD
+        )
+        .unwrap_err()
+        .code()
+        .to_string(),
+        "B_RESOURCE_LIMIT"
+    );
+    let mut metadata = pb::LocalizationMetadata {
+        default_locale: "en".into(),
+        supported_locales: vec!["en".into(); 65],
+    };
+    assert!(storyscript_bundle::contract::validate_localization(&metadata).is_err());
+    metadata.supported_locales.truncate(1);
+    assert!(storyscript_bundle::contract::validate_localization(&metadata).is_ok());
+    assert!(!storyscript_bundle::contract::valid_message_id(
+        &"a".repeat(257)
+    ));
+    assert!(
+        storyscript_bundle::localization::parse_catalog(
+            "en",
+            &"a".repeat((16 << 20) + 1),
+            "en.ftl"
+        )
+        .is_err()
+    );
+    let mut source = String::new();
+    for n in 0..=100_000 {
+        source.push_str(&format!("m{n} = Text\n"));
+    }
+    assert!(storyscript_bundle::localization::parse_catalog("en", &source, "en.ftl").is_err());
+}
+
+#[test]
 fn hosts_can_lower_but_never_raise_hard_limits() {
     let hard = ResourceLimits::HARD;
     let requested = ResourceLimits {

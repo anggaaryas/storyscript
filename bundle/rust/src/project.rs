@@ -13,6 +13,7 @@ pub struct CompiledProject {
     pub config: ProjectConfig,
     pub story: CompiledStory,
     pub assets: Vec<Asset>,
+    pub catalogs: Vec<crate::localization::CatalogResource>,
 }
 
 pub fn compile(project_root: &Path) -> Result<CompiledProject> {
@@ -50,7 +51,20 @@ pub fn compile(project_root: &Path) -> Result<CompiledProject> {
     let script = compile
         .script
         .ok_or_else(|| BundleError::Compile("compiler produced no script".to_string()))?;
-    let story = v1::convert(&script, &config.project)?;
+    let sites = storyscript_parser::localization::inventory(&script);
+    let mut story = v1::convert(&script, &config.project)?;
+    let catalogs = if let Some(localization) = &config.localization {
+        let catalogs = crate::localization::project_catalogs(&root, localization, &sites)?;
+        crate::localization::bind_story(&mut story, &sites, &catalogs, localization.metadata())?;
+        catalogs.resources
+    } else {
+        if !sites.is_empty() {
+            return Err(BundleError::Config(
+                "keyed project text requires localization config and complete catalogs".into(),
+            ));
+        }
+        Vec::new()
+    };
     contract::validate_story(&story)?;
     let assets = discover(&root, &config.assets, &story)?;
 
@@ -59,5 +73,6 @@ pub fn compile(project_root: &Path) -> Result<CompiledProject> {
         config,
         story,
         assets,
+        catalogs,
     })
 }

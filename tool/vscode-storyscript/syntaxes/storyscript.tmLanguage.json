@@ -15,6 +15,7 @@
     { "include": "#control-flow" },
     { "include": "#type-annotation" },
     { "include": "#variable" },
+    { "include": "#localized-text" },
     { "include": "#string" },
     { "include": "#number" },
     { "include": "#boolean" },
@@ -23,6 +24,12 @@
     { "include": "#punctuation" }
   ],
   "repository": {
+    "localized-text": {
+      "name": "string.quoted.double.localized.storyscript",
+      "begin": "@\"",
+      "end": "\"",
+      "patterns": [{ "match": "[A-Za-z][A-Za-z0-9_-]*", "name": "entity.name.message.storyscript" }]
+    },
     "comment": {
       "name": "comment.line.double-slash.storyscript",
       "match": "//.*$"
@@ -196,7 +203,7 @@
     },
 
     "dialogue-simple": {
-      "match": "([A-Z_][A-Z0-9_]*)\\s*(:)\\s*(?=\")",
+      "match": "([A-Z_][A-Z0-9_]*)\\s*(:)\\s*(?=@?\")",
       "captures": {
         "1": { "name": "entity.name.type.actor-id.storyscript" },
         "2": { "name": "punctuation.separator.dialogue.storyscript" }
@@ -204,9 +211,10 @@
     },
 
     "choice-block": {
-      "begin": "(?=\\s*\"(?:[^\"\\\\]|\\\\.)*\"\\s*->\\s*[a-zA-Z_][a-zA-Z0-9_]*)",
+      "begin": "(?=\\s*@?\"(?:[^\"\\\\]|\\\\.)*\"\\s*->\\s*[a-zA-Z_][a-zA-Z0-9_]*)",
       "end": "(?=;|$)",
       "patterns": [
+        { "include": "#localized-text" },
         { "include": "#string-choice-label" },
         {
           "match": "(->)\\s*([a-zA-Z_][a-zA-Z0-9_]*)",

@@ -1,3 +1,9 @@
+// Independent localization ceilings also remain subject to archive/entry limits.
+pub const MAX_LOCALES: usize = 64;
+pub const MAX_MESSAGE_IDS: usize = 100_000;
+pub const MAX_CATALOG_BYTES: u64 = 16 * 1024 * 1024;
+pub const MAX_MESSAGE_ID_BYTES: usize = 256;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResourceLimits {
     pub max_archive_bytes: u64,

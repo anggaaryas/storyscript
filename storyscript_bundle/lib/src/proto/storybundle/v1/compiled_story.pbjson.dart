@@ -139,6 +139,19 @@ const CompiledStory$json = {
       '6': '.storybundle.v1.Scene',
       '10': 'scenes'
     },
+    {
+      '1': 'localization',
+      '3': 6,
+      '4': 1,
+      '5': 11,
+      '6': '.storybundle.v1.LocalizationMetadata',
+      '9': 0,
+      '10': 'localization',
+      '17': true
+    },
+  ],
+  '8': [
+    {'1': '_localization'},
   ],
 };
 
@@ -149,7 +162,105 @@ final $typed_data.Uint8List compiledStoryDescriptor = $convert.base64Decode(
     'Y3QSRgoOaW5pdGlhbGl6YXRpb24YAyABKAsyHi5zdG9yeWJ1bmRsZS52MS5Jbml0aWFsaXphdG'
     'lvblIOaW5pdGlhbGl6YXRpb24SPQoMbG9naWNfYmxvY2tzGAQgAygLMhouc3RvcnlidW5kbGUu'
     'djEuTG9naWNCbG9ja1ILbG9naWNCbG9ja3MSLQoGc2NlbmVzGAUgAygLMhUuc3RvcnlidW5kbG'
-    'UudjEuU2NlbmVSBnNjZW5lcw==');
+    'UudjEuU2NlbmVSBnNjZW5lcxJNCgxsb2NhbGl6YXRpb24YBiABKAsyJC5zdG9yeWJ1bmRsZS52'
+    'MS5Mb2NhbGl6YXRpb25NZXRhZGF0YUgAUgxsb2NhbGl6YXRpb26IAQFCDwoNX2xvY2FsaXphdG'
+    'lvbg==');
+
+@$core.Deprecated('Use localizationMetadataDescriptor instead')
+const LocalizationMetadata$json = {
+  '1': 'LocalizationMetadata',
+  '2': [
+    {'1': 'default_locale', '3': 1, '4': 1, '5': 9, '10': 'defaultLocale'},
+    {
+      '1': 'supported_locales',
+      '3': 2,
+      '4': 3,
+      '5': 9,
+      '10': 'supportedLocales'
+    },
+  ],
+};
+
+/// Descriptor for `LocalizationMetadata`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List localizationMetadataDescriptor = $convert.base64Decode(
+    'ChRMb2NhbGl6YXRpb25NZXRhZGF0YRIlCg5kZWZhdWx0X2xvY2FsZRgBIAEoCVINZGVmYXVsdE'
+    'xvY2FsZRIrChFzdXBwb3J0ZWRfbG9jYWxlcxgCIAMoCVIQc3VwcG9ydGVkTG9jYWxlcw==');
+
+@$core.Deprecated('Use storyTextDescriptor instead')
+const StoryText$json = {
+  '1': 'StoryText',
+  '2': [
+    {
+      '1': 'plain',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.storybundle.v1.InterpolatedString',
+      '9': 0,
+      '10': 'plain'
+    },
+    {
+      '1': 'message',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.storybundle.v1.MessageReference',
+      '9': 0,
+      '10': 'message'
+    },
+  ],
+  '8': [
+    {'1': 'value'},
+  ],
+};
+
+/// Descriptor for `StoryText`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List storyTextDescriptor = $convert.base64Decode(
+    'CglTdG9yeVRleHQSOgoFcGxhaW4YASABKAsyIi5zdG9yeWJ1bmRsZS52MS5JbnRlcnBvbGF0ZW'
+    'RTdHJpbmdIAFIFcGxhaW4SPAoHbWVzc2FnZRgCIAEoCzIgLnN0b3J5YnVuZGxlLnYxLk1lc3Nh'
+    'Z2VSZWZlcmVuY2VIAFIHbWVzc2FnZUIHCgV2YWx1ZQ==');
+
+@$core.Deprecated('Use messageReferenceDescriptor instead')
+const MessageReference$json = {
+  '1': 'MessageReference',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {
+      '1': 'arguments',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.storybundle.v1.MessageArgument',
+      '10': 'arguments'
+    },
+  ],
+};
+
+/// Descriptor for `MessageReference`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List messageReferenceDescriptor = $convert.base64Decode(
+    'ChBNZXNzYWdlUmVmZXJlbmNlEg4KAmlkGAEgASgJUgJpZBI9Cglhcmd1bWVudHMYAiADKAsyHy'
+    '5zdG9yeWJ1bmRsZS52MS5NZXNzYWdlQXJndW1lbnRSCWFyZ3VtZW50cw==');
+
+@$core.Deprecated('Use messageArgumentDescriptor instead')
+const MessageArgument$json = {
+  '1': 'MessageArgument',
+  '2': [
+    {'1': 'name', '3': 1, '4': 1, '5': 9, '10': 'name'},
+    {
+      '1': 'type',
+      '3': 2,
+      '4': 1,
+      '5': 14,
+      '6': '.storybundle.v1.VariableType',
+      '10': 'type'
+    },
+  ],
+};
+
+/// Descriptor for `MessageArgument`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List messageArgumentDescriptor = $convert.base64Decode(
+    'Cg9NZXNzYWdlQXJndW1lbnQSEgoEbmFtZRgBIAEoCVIEbmFtZRIwCgR0eXBlGAIgASgOMhwuc3'
+    'RvcnlidW5kbGUudjEuVmFyaWFibGVUeXBlUgR0eXBl');
 
 @$core.Deprecated('Use projectMetadataDescriptor instead')
 const ProjectMetadata$json = {
@@ -979,7 +1090,7 @@ const Narration$json = {
       '3': 1,
       '4': 1,
       '5': 11,
-      '6': '.storybundle.v1.InterpolatedString',
+      '6': '.storybundle.v1.StoryText',
       '10': 'text'
     },
   ],
@@ -987,8 +1098,8 @@ const Narration$json = {
 
 /// Descriptor for `Narration`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List narrationDescriptor = $convert.base64Decode(
-    'CglOYXJyYXRpb24SNgoEdGV4dBgBIAEoCzIiLnN0b3J5YnVuZGxlLnYxLkludGVycG9sYXRlZF'
-    'N0cmluZ1IEdGV4dA==');
+    'CglOYXJyYXRpb24SLQoEdGV4dBgBIAEoCzIZLnN0b3J5YnVuZGxlLnYxLlN0b3J5VGV4dFIEdG'
+    'V4dA==');
 
 @$core.Deprecated('Use variableOutputDescriptor instead')
 const VariableOutput$json = {
@@ -1030,7 +1141,7 @@ const Dialogue$json = {
       '3': 4,
       '4': 1,
       '5': 11,
-      '6': '.storybundle.v1.InterpolatedString',
+      '6': '.storybundle.v1.StoryText',
       '10': 'text'
     },
   ],
@@ -1043,8 +1154,8 @@ const Dialogue$json = {
 final $typed_data.Uint8List dialogueDescriptor = $convert.base64Decode(
     'CghEaWFsb2d1ZRIZCghhY3Rvcl9pZBgBIAEoCVIHYWN0b3JJZBI1CgluYW1lX29ubHkYAiABKA'
     'syFi5nb29nbGUucHJvdG9idWYuRW1wdHlIAFIIbmFtZU9ubHkSPgoIcG9ydHJhaXQYAyABKAsy'
-    'IC5zdG9yeWJ1bmRsZS52MS5Qb3J0cmFpdERpYWxvZ3VlSABSCHBvcnRyYWl0EjYKBHRleHQYBC'
-    'ABKAsyIi5zdG9yeWJ1bmRsZS52MS5JbnRlcnBvbGF0ZWRTdHJpbmdSBHRleHRCBgoEZm9ybQ==');
+    'IC5zdG9yeWJ1bmRsZS52MS5Qb3J0cmFpdERpYWxvZ3VlSABSCHBvcnRyYWl0Ei0KBHRleHQYBC'
+    'ABKAsyGS5zdG9yeWJ1bmRsZS52MS5TdG9yeVRleHRSBHRleHRCBgoEZm9ybQ==');
 
 @$core.Deprecated('Use portraitDialogueDescriptor instead')
 const PortraitDialogue$json = {
@@ -1214,7 +1325,7 @@ const ChoiceOption$json = {
       '3': 1,
       '4': 1,
       '5': 11,
-      '6': '.storybundle.v1.InterpolatedString',
+      '6': '.storybundle.v1.StoryText',
       '10': 'text'
     },
     {'1': 'target', '3': 2, '4': 1, '5': 9, '10': 'target'},
@@ -1223,8 +1334,8 @@ const ChoiceOption$json = {
 
 /// Descriptor for `ChoiceOption`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List choiceOptionDescriptor = $convert.base64Decode(
-    'CgxDaG9pY2VPcHRpb24SNgoEdGV4dBgBIAEoCzIiLnN0b3J5YnVuZGxlLnYxLkludGVycG9sYX'
-    'RlZFN0cmluZ1IEdGV4dBIWCgZ0YXJnZXQYAiABKAlSBnRhcmdldA==');
+    'CgxDaG9pY2VPcHRpb24SLQoEdGV4dBgBIAEoCzIZLnN0b3J5YnVuZGxlLnYxLlN0b3J5VGV4dF'
+    'IEdGV4dBIWCgZ0YXJnZXQYAiABKAlSBnRhcmdldA==');
 
 @$core.Deprecated('Use choiceEntryListDescriptor instead')
 const ChoiceEntryList$json = {

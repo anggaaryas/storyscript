@@ -8,6 +8,7 @@ use crate::{BundleError, COMPILER_VERSION, FORMAT_VERSION, Result, schema};
 pub const MANIFEST_PATH: &str = "META-INF/storybundle/manifest.json";
 pub const SIGNATURE_PATH: &str = "META-INF/storybundle/signature.ed25519";
 pub const COMPILED_PATH: &str = "compiled/story.pb";
+pub const CATALOG_PREFIX: &str = "localization/";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -58,6 +59,7 @@ pub struct ManifestEntry {
 pub enum EntryType {
     CompiledStory,
     Asset,
+    Catalog,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -109,7 +111,7 @@ impl BundleManifest {
 }
 
 impl ManifestEntry {
-    fn new(path: String, entry_type: EntryType, bytes: &[u8]) -> Self {
+    pub(crate) fn new(path: String, entry_type: EntryType, bytes: &[u8]) -> Self {
         let size = bytes.len() as u64;
         Self {
             path,

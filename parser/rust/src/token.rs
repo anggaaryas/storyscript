@@ -20,6 +20,7 @@ pub enum Token {
 
     // Literals
     StringLit(String), // "..."
+    LocalizedText(String), // @"fluent-id"
     IntLit(i64),
     DecimalLit(Decimal),
     BoolLit(bool),
@@ -96,6 +97,7 @@ impl Token {
             Token::Comma => "','",
             Token::Dollar => "'$'",
             Token::StringLit(_) => "string",
+            Token::LocalizedText(_) => "keyed text",
             Token::IntLit(_) => "integer",
             Token::DecimalLit(_) => "decimal",
             Token::BoolLit(_) => "boolean",

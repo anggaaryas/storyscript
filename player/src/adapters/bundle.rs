@@ -32,9 +32,16 @@ pub fn adapt_verified(bundle: &LoadedBundle) -> Result<(m::StoryModel, Origin), 
     Ok((model, origin))
 }
 
-fn adapt_story(story: &b::CompiledStory) -> Result<m::StoryModel, RuntimeError> {
+pub(crate) fn adapt_story(story: &b::CompiledStory) -> Result<m::StoryModel, RuntimeError> {
     let init = required(story.initialization.as_ref(), "initialization")?;
     Ok(m::StoryModel {
+        localization: story
+            .localization
+            .as_ref()
+            .map(|v| m::LocalizationMetadata {
+                default_locale: v.default_locale.clone(),
+                supported_locales: v.supported_locales.clone(),
+            }),
         init: m::InitBlock {
             variables: init
                 .variables
@@ -196,7 +203,7 @@ fn story(value: &b::StoryStatement) -> Result<m::StoryStatement, RuntimeError> {
     use b::story_statement::Value;
     Ok(match required(value.value.as_ref(), "STORY statement")? {
         Value::Narration(value) => m::StoryStatement::Narration {
-            text: template(required(value.text.as_ref(), "narration text")?)?,
+            text: story_text(required(value.text.as_ref(), "narration text")?)?,
             span: m::SourceSpan::UNKNOWN,
         },
         Value::VariableOutput(value) => m::StoryStatement::VarOutput {
@@ -212,7 +219,7 @@ fn story(value: &b::StoryStatement) -> Result<m::StoryStatement, RuntimeError> {
                     position: position(value.position)?,
                 },
             },
-            text: template(required(value.text.as_ref(), "dialogue text")?)?,
+            text: story_text(required(value.text.as_ref(), "dialogue text")?)?,
             span: m::SourceSpan::UNKNOWN,
         }),
         Value::IfElse(value) => m::StoryStatement::IfElse(m::StoryIfElse {
@@ -268,7 +275,7 @@ fn choice(value: &b::ChoiceEntry) -> Result<m::ChoiceEntry, RuntimeError> {
     use b::choice_entry::Value;
     Ok(match required(value.value.as_ref(), "choice entry")? {
         Value::Option(value) => m::ChoiceEntry::Option(m::ChoiceOption {
-            text: template(required(value.text.as_ref(), "choice text")?)?,
+            text: story_text(required(value.text.as_ref(), "choice text")?)?,
             target: value.target.clone(),
             span: m::SourceSpan::UNKNOWN,
         }),
@@ -381,6 +388,20 @@ fn template(value: &b::InterpolatedString) -> Result<String, RuntimeError> {
         }
     }
     Ok(output)
+}
+
+fn story_text(value: &b::StoryText) -> Result<m::StoryText, RuntimeError> {
+    match required(value.value.as_ref(), "story text variant")? {
+        b::story_text::Value::Plain(value) => Ok(m::StoryText::Plain(template(value)?)),
+        b::story_text::Value::Message(value) => Ok(m::StoryText::Message {
+            id: value.id.clone(),
+            arguments: value
+                .arguments
+                .iter()
+                .map(|arg| Ok((arg.name.clone(), var_type(arg.r#type)?)))
+                .collect::<Result<_, RuntimeError>>()?,
+        }),
+    }
 }
 
 fn var_type(value: i32) -> Result<m::VarType, RuntimeError> {

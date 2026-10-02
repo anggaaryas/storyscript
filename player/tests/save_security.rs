@@ -3,6 +3,65 @@ use storyscript_player::SemanticPlayer;
 use storyscript_player::contract::proto::storyplayer::v1 as wire;
 use storyscript_player::contract::{HARD_LIMITS, PlayerLimits};
 
+mod localization_support;
+#[test]
+fn hostile_message_ids_names_types_values_and_old_runtime_identity_are_rejected() {
+    use localization_support::{prefs, project};
+    let root = project();
+    let mut player =
+        SemanticPlayer::from_project(root.path(), &prefs(&["en"]), HARD_LIMITS).unwrap();
+    player.advance().unwrap();
+    let save = wire::PlayerSave::decode(player.export_save().unwrap().as_slice()).unwrap();
+    for case in ["id", "name", "type", "array", "duplicate", "old"] {
+        let mut hostile = save.clone();
+        if case == "old" {
+            if let Some(wire::origin::Kind::Source(origin)) =
+                hostile.origin.as_mut().unwrap().kind.as_mut()
+            {
+                origin.runtime_identity = "storyscript-player/0.1.0:model-v1".into();
+            }
+        } else {
+            let Some(wire::semantic_event::Kind::Narration(text)) =
+                hostile.current.as_mut().unwrap().kind.as_mut()
+            else {
+                panic!("narration")
+            };
+            let Some(wire::story_text::Value::Message(message)) = text.value.as_mut() else {
+                panic!("message")
+            };
+            match case {
+                "id" => message.id = "unknown-id".into(),
+                "name" => message.arguments[0].name = "unknown".into(),
+                "type" => {
+                    message.arguments[0].r#type = wire::ValueType::Boolean as i32;
+                    message.arguments[0].value = Some(wire::Value {
+                        kind: Some(wire::value::Kind::Boolean(true)),
+                    });
+                }
+                "array" => message.arguments[0].r#type = wire::ValueType::ArrayString as i32,
+                "duplicate" => message.arguments.push(message.arguments[0].clone()),
+                _ => unreachable!(),
+            }
+        }
+        let error = SemanticPlayer::restore_project(
+            root.path(),
+            &hostile.encode_to_vec(),
+            &prefs(&["id"]),
+            HARD_LIMITS,
+        )
+        .unwrap_err();
+        assert_eq!(
+            error.code,
+            if case == "old" {
+                "R_SAVE_INCOMPATIBLE"
+            } else {
+                "R_SAVE_STATE_CORRUPT"
+            },
+            "{case}"
+        );
+    }
+}
+
 const SOURCE: &str = r#"
 * INIT { $count as integer = 1 @start first }
 * first { #STORY "hello" @end }
@@ -58,7 +117,7 @@ fn unknown_variables_targets_and_rng_are_rejected_before_player_exposure() {
     save.current = Some(wire::SemanticEvent {
         kind: Some(wire::semantic_event::Kind::Choices(wire::Choices {
             items: vec![wire::Choice {
-                text: "bad".into(),
+                text: Some("bad".into()),
                 target_scene: "missing".into(),
             }],
         })),

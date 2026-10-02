@@ -1,0 +1,23 @@
+* INIT {
+    $name as string = "Ada";
+    $count as integer = 2;
+    $ready as boolean = true;
+    $ratio as decimal = 0.5;
+    @actor A "Actor";
+    @start first;
+}
+* first {
+    #PREP
+    $local as string = "local";
+    #STORY
+    @"greeting";
+    A: @"count-line";
+    @choice { @"continue-choice" -> second; }
+}
+* second {
+    #PREP
+    $count += 1;
+    #STORY
+    "Plain ${count}";
+    @end;
+}

@@ -8,6 +8,36 @@ import 'test_support.dart';
 
 void main() {
   test(
+    'generic localized model open does not eagerly read catalog bodies',
+    () async {
+      final story = CompiledStory(
+        formatVersion: 1,
+        project: ProjectMetadata(
+          id: 'storybundle.test',
+          name: 'Test Bundle',
+          version: '1.0.0',
+        ),
+        initialization: Initialization(startScene: 'start'),
+        localization: LocalizationMetadata(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'id'],
+        ),
+        scenes: [Scene(label: 'start', story: StoryBlock())],
+      );
+      final bridge = FakeStoryBundleBindings(
+        payload: makeBridgePayload(protobufBytes: story.writeToBuffer()),
+      );
+      final loader = StoryBundleLoader(
+        trustStore: StoryBundleTrustStore.empty(),
+        bindings: bridge,
+      );
+      final loaded = await loader.openBytes(Uint8List(4));
+      expect(loaded.story.localization.supportedLocales, ['en', 'id']);
+      expect(bridge.readCalls, 0);
+      await loaded.dispose();
+    },
+  );
+  test(
     'loader binds typed model, manifest, verification, and progress',
     () async {
       final bridge = FakeStoryBundleBindings();

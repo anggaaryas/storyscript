@@ -18,6 +18,7 @@ fn literal(value: &str) -> pb::InterpolatedString {
 fn valid_story() -> pb::CompiledStory {
     pb::CompiledStory {
         format_version: FORMAT_VERSION,
+        localization: None,
         project: Some(pb::ProjectMetadata {
             id: "demo.story".to_string(),
             name: "Demo".to_string(),
@@ -60,6 +61,68 @@ fn descriptor_fingerprint_matches_checked_contract() {
         schema::descriptor_sha256()
     );
     assert_eq!(schema::descriptor_sha256(), schema::EXPECTED_SHA256.trim());
+    assert_ne!(
+        schema::descriptor_sha256(),
+        "aee45aee882cacdfeb6d320808ed0ac72805da27c87b5486289e6a9b6be9d70a"
+    );
+}
+
+#[test]
+fn localization_union_metadata_arguments_and_limits_are_explicit() {
+    use storyscript_bundle::limits::*;
+    assert_eq!(
+        (
+            MAX_LOCALES,
+            MAX_MESSAGE_IDS,
+            MAX_CATALOG_BYTES,
+            MAX_MESSAGE_ID_BYTES
+        ),
+        (64, 100_000, 16 << 20, 256)
+    );
+    assert_eq!(ResourceLimits::HARD.max_archive_bytes, 100 << 20);
+    assert_eq!(ResourceLimits::HARD.max_entry_bytes, 64 << 20);
+    assert_eq!(
+        serde_json::to_string(&storyscript_bundle::manifest::EntryType::Catalog).unwrap(),
+        "\"catalog\""
+    );
+    let mut story = valid_story();
+    story.localization = Some(pb::LocalizationMetadata {
+        default_locale: "en".into(),
+        supported_locales: vec!["en".into(), "id".into()],
+    });
+    let text = pb::StoryText {
+        value: Some(pb::story_text::Value::Message(pb::MessageReference {
+            id: "opening-line".into(),
+            arguments: vec![pb::MessageArgument {
+                name: "ratio".into(),
+                r#type: pb::VariableType::Decimal as i32,
+            }],
+        })),
+    };
+    story.scenes[0].story.as_mut().unwrap().statements.insert(
+        0,
+        pb::StoryStatement {
+            value: Some(pb::story_statement::Value::Narration(pb::Narration {
+                text: Some(text),
+            })),
+        },
+    );
+    validate_story(&story).unwrap();
+    assert_eq!(
+        pb::CompiledStory::decode(story.encode_to_vec().as_slice()).unwrap(),
+        story
+    );
+    story
+        .localization
+        .as_mut()
+        .unwrap()
+        .supported_locales
+        .push("EN".into());
+    assert!(validate_story(&story).is_err());
+    story.localization.as_mut().unwrap().supported_locales.pop();
+    story.localization.as_mut().unwrap().default_locale = "fr".into();
+    assert!(validate_story(&story).is_err());
+    assert!(!include_str!("../../proto/storybundle/v1/compiled_story.proto").contains("map<"));
 }
 
 #[test]

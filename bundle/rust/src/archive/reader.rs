@@ -100,6 +100,11 @@ pub fn preflight(bytes: &[u8], limits: ResourceLimits) -> Result<ArchiveEnvelope
         {
             return Err(BundleError::Limit(format!("entry '{path}' is too large")));
         }
+        if path.starts_with(crate::manifest::CATALOG_PREFIX)
+            && entry.size() > crate::limits::MAX_CATALOG_BYTES.min(limits.max_entry_bytes)
+        {
+            return Err(BundleError::Limit(format!("catalog '{path}' is too large")));
+        }
         total = total
             .checked_add(entry.size())
             .ok_or_else(|| BundleError::Limit("declared size overflow".to_string()))?;

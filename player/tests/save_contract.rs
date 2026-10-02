@@ -10,8 +10,47 @@ use storyscript_player::contract::{
 fn descriptor_is_pinned_and_versions_are_explicit() {
     assert!(!SAVE_DESCRIPTOR.is_empty());
     assert_eq!(descriptor_sha256(), SAVE_SCHEMA_SHA256.trim());
+    assert_ne!(
+        descriptor_sha256(),
+        "b7cfaeb678ca14c607b05e42f1de8fdc855e368b24584a0e302908c97dc8a787"
+    );
     assert_eq!(SAVE_SCHEMA_VERSION, 1);
     assert_eq!(SAVE_RUNTIME_VERSION, 1);
+}
+
+#[test]
+fn keyed_save_text_is_locale_neutral_and_exact_scalar_only() {
+    let mut save = valid_wire_save();
+    let message = wire::MessageSnapshot {
+        id: "opening-line".into(),
+        arguments: vec![wire::MessageArgument {
+            name: "count".into(),
+            r#type: wire::ValueType::Integer as i32,
+            value: Some(wire::Value {
+                kind: Some(wire::value::Kind::Integer(i64::MAX)),
+            }),
+        }],
+    };
+    save.current = Some(wire::SemanticEvent {
+        kind: Some(wire::semantic_event::Kind::Narration(wire::StoryText {
+            value: Some(wire::story_text::Value::Message(message)),
+        })),
+    });
+    let bytes = save.encode_to_vec();
+    assert_eq!(decode_save_contract(&bytes, HARD_LIMITS).unwrap(), save);
+    let schema = include_str!("../proto/storyplayer/v1/player_save.proto");
+    assert!(!schema.contains("selected_locale"));
+    assert!(!schema.contains("rendered_text"));
+    if let Some(wire::semantic_event::Kind::Narration(text)) =
+        save.current.as_mut().unwrap().kind.as_mut()
+    {
+        if let Some(wire::story_text::Value::Message(message)) = text.value.as_mut() {
+            message.arguments[0].r#type = wire::ValueType::ArrayInteger as i32;
+        }
+    }
+    assert!(decode_save_contract(&save.encode_to_vec(), HARD_LIMITS).is_err());
+    // Previous v1 used a bare narration string; it cannot decode as StoryText.
+    assert!(wire::SemanticEvent::decode(&b"\x12\x05hello"[..]).is_err());
 }
 
 #[test]
@@ -193,7 +232,7 @@ fn every_event_effect_and_origin_has_a_distinct_variant() {
         }),
         wire::semantic_event::Kind::Choices(wire::Choices {
             items: vec![wire::Choice {
-                text: "yes".into(),
+                text: Some("yes".into()),
                 target_scene: "b".into(),
             }],
         }),
@@ -245,7 +284,10 @@ fn every_event_effect_and_origin_has_a_distinct_variant() {
         semantic_sha256: "s".into(),
     };
     assert_ne!(source, bundle);
-    assert_ne!(SemanticEvent::End, SemanticEvent::Narration(String::new()));
+    assert_ne!(
+        SemanticEvent::End,
+        SemanticEvent::Narration(String::new().into())
+    );
     let signed = wire::BundleOrigin {
         signer: Some(wire::bundle_origin::Signer::SignerKeyId("key".into())),
         ..Default::default()

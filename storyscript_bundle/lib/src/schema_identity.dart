@@ -1,3 +1,3 @@
 /// SHA-256 of the canonical StoryBundle v1 Protobuf descriptor set.
 const storyBundleSchemaSha256 =
-    'aee45aee882cacdfeb6d320808ed0ac72805da27c87b5486289e6a9b6be9d70a';
+    '0c1bacf81cbe7b4b2cafb68c7d1305f383efda9b3548e7ebfd2b0a5f158d2810';

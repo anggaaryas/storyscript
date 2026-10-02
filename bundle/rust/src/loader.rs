@@ -40,6 +40,7 @@ pub struct LoadedBundle {
     story: CompiledStory,
     status: VerificationStatus,
     assets: Vec<AssetDescriptor>,
+    catalogs: Vec<CatalogDescriptor>,
     limits: ResourceLimits,
 }
 
@@ -50,6 +51,13 @@ pub struct UntrustedInspection {
     pub format_version: Option<u32>,
     pub project_id: Option<String>,
     pub signer_key_id: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CatalogDescriptor {
+    pub locale: String,
+    pub size: u64,
+    pub sha256: String,
 }
 
 pub fn load(
@@ -106,6 +114,55 @@ pub fn load(
         &story,
         assets.iter().map(|asset| asset.logical_path.as_str()),
     )?;
+    let contracts = crate::localization::message_contracts(&story)?;
+    let catalog_entries: Vec<_> = manifest
+        .entries
+        .iter()
+        .filter(|e| e.entry_type == EntryType::Catalog)
+        .collect();
+    let expected: std::collections::BTreeSet<_> = story
+        .localization
+        .as_ref()
+        .map(|v| v.supported_locales.iter().cloned().collect())
+        .unwrap_or_default();
+    if catalog_entries.len() != expected.len() || catalog_entries.len() > crate::limits::MAX_LOCALES
+    {
+        return Err(BundleError::SemanticViolation(
+            "catalog entries must exactly cover supported locales".into(),
+        ));
+    }
+    let mut catalogs = Vec::new();
+    for listed in catalog_entries {
+        let locale = crate::localization::catalog_locale(&listed.path)?;
+        if !expected.contains(&locale) {
+            return Err(BundleError::SemanticViolation(
+                "unknown catalog locale".into(),
+            ));
+        }
+        let entry = envelope
+            .entry(&listed.path)
+            .expect("validated listed entry");
+        let data = reader::read_entry(
+            bytes,
+            entry,
+            crate::limits::MAX_CATALOG_BYTES.min(limits.max_entry_bytes),
+        )?;
+        let source = std::str::from_utf8(&data)
+            .map_err(|_| BundleError::Contract(format!("{}: catalog is not UTF-8", listed.path)))?;
+        let catalog = crate::localization::parse_catalog(&locale, source, &listed.path)?;
+        if catalog.canonical != source {
+            return Err(BundleError::Contract(format!(
+                "{}: catalog is not canonical semantic FTL",
+                listed.path
+            )));
+        }
+        crate::localization::validate_catalog_contract(&catalog, &contracts, &listed.path)?;
+        catalogs.push(CatalogDescriptor {
+            locale,
+            size: listed.uncompressed_size,
+            sha256: listed.sha256.clone(),
+        });
+    }
 
     Ok(LoadedBundle {
         archive: bytes.to_vec(),
@@ -114,6 +171,7 @@ pub fn load(
         story,
         status,
         assets,
+        catalogs,
         limits,
     })
 }
@@ -162,6 +220,39 @@ impl LoadedBundle {
 
     pub fn assets(&self) -> &[AssetDescriptor] {
         &self.assets
+    }
+
+    pub fn catalogs(&self) -> &[CatalogDescriptor] {
+        &self.catalogs
+    }
+
+    /// Only available through the completely verified bundle capability. Returns
+    /// one bounded catalog; generic model loading never copies all bodies to Dart.
+    pub fn read_catalog(&self, locale: &str, maximum_bytes: u64) -> Result<String> {
+        let descriptor = self
+            .catalogs
+            .iter()
+            .find(|v| v.locale == locale)
+            .ok_or_else(|| BundleError::Contract("unsupported catalog locale".into()))?;
+        let maximum = maximum_bytes
+            .min(crate::limits::MAX_CATALOG_BYTES)
+            .min(self.limits.max_entry_bytes);
+        if descriptor.size > maximum {
+            return Err(BundleError::Limit(
+                "catalog exceeds requested read limit".into(),
+            ));
+        }
+        let path = format!("{}{locale}.ftl", crate::manifest::CATALOG_PREFIX);
+        let bytes = reader::read_entry(
+            &self.archive,
+            self.envelope.entry(&path).expect("verified catalog entry"),
+            maximum,
+        )?;
+        use sha2::{Digest, Sha256};
+        if hex::encode(Sha256::digest(&bytes)) != descriptor.sha256 {
+            return Err(BundleError::DigestMismatch(path));
+        }
+        String::from_utf8(bytes).map_err(|_| BundleError::Contract("catalog is not UTF-8".into()))
     }
 
     pub fn read_asset(&self, logical_path: &str, maximum_bytes: u64) -> Result<Vec<u8>> {

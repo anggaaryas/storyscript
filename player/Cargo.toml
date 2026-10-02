@@ -7,9 +7,13 @@ build = "build.rs"
 [features]
 default = ["tui"]
 tui = ["dep:clap", "dep:ratatui", "dep:crossterm"]
-storybundle-runtime = ["dep:storyscript-bundle"]
+storybundle-runtime = []
 
 [dependencies]
+fluent = "=0.17.0"
+fluent-syntax = "=0.12.0"
+unic-langid = "=0.9.6"
+icu_locale_core = { version = "=2.1.1", features = ["alloc"] }
 storyscript-parser = { path = "../parser/rust" }
 clap = { version = "4.5.47", features = ["derive"], optional = true }
 ratatui = { version = "0.28", optional = true }
@@ -19,7 +23,7 @@ rand = "0.10.1"
 rand_chacha = "=0.10.0"
 prost = "=0.14.1"
 sha2 = "0.10.9"
-storyscript-bundle = { path = "../bundle/rust", optional = true }
+storyscript-bundle = { path = "../bundle/rust" }
 
 [build-dependencies]
 prost-build = "=0.14.1"
@@ -27,6 +31,8 @@ protoc-bin-vendored = "=3.2.0"
 
 [dev-dependencies]
 prost-types = "=0.14.1"
+tempfile = "3.22.0"
+ed25519-dalek = "2.2.0"
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 getrandom = { version = "0.4.2", features = ["wasm_js"] }

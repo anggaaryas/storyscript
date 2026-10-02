@@ -24,7 +24,7 @@ struct LogicCallEdge {
 /// Performs semantic validation on a parsed StoryScript AST.
 /// Returns a list of diagnostics (errors and warnings).
 pub fn validate(script: &Script) -> Vec<Diagnostic> {
-    let mut diags = Vec::new();
+    let mut diags = crate::localization::validate_ids(script);
 
     let mut declared_vars: VarTypes = HashMap::new();
     let mut actor_map: HashMap<String, &ActorDecl> = HashMap::new();
@@ -281,6 +281,15 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
 
     diags.sort();
     diags
+}
+
+#[cfg(test)]
+mod localization_tests {
+    #[test]
+    fn duplicate_ids_across_different_text_sites_are_rejected() {
+        let result = crate::compiler::compile_source(r#"* INIT { @start s } * s { #STORY @"same-id"; @choice { @"same-id" -> s; } }"#);
+        assert!(result.diagnostics.iter().any(|d| d.code == crate::diagnostic::DiagnosticCode::ELocalizationIdDuplicate));
+    }
 }
 
 fn collect_logic_signatures(script: &Script, diags: &mut Vec<Diagnostic>) -> LogicSignatures {

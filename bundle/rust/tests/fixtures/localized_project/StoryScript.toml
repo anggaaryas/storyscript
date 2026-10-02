@@ -1,0 +1,11 @@
+[project]
+id = "localization.reference"
+name = "Localization Reference"
+version = "1.0.0"
+entry = "story/main.StoryScript"
+compiler-version = "0.1.0-localization.1"
+
+[localization]
+default-locale = "en"
+supported-locales = ["en", "id"]
+root = "localization"

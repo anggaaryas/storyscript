@@ -9,6 +9,82 @@ use storyscript_bundle::proto::storybundle::v1 as pb;
 use common::{TestBundle, read_entries, write_entries};
 
 #[test]
+fn localized_catalogs_are_verified_before_exposure_and_reads_are_bounded() {
+    let bundle = TestBundle::localized();
+    let loaded = load(
+        &bundle.bytes,
+        &bundle.trust_store(),
+        VerificationPolicy::Strict,
+        ResourceLimits::HARD,
+    )
+    .unwrap();
+    assert_eq!(
+        loaded
+            .catalogs()
+            .iter()
+            .map(|c| c.locale.as_str())
+            .collect::<Vec<_>>(),
+        ["en", "id"]
+    );
+    assert!(loaded.read_catalog("id", 1 << 20).unwrap().contains("Halo"));
+    assert!(loaded.read_catalog("id", 1).is_err());
+    assert!(loaded.read_catalog("fr", 1 << 20).is_err());
+    for mode in ["tampered", "missing", "extra", "alias"] {
+        let mut entries = read_entries(&bundle.bytes);
+        match mode {
+            "tampered" => {
+                entries
+                    .iter_mut()
+                    .find(|(p, _)| p == "localization/en.ftl")
+                    .unwrap()
+                    .1[0] ^= 1;
+            }
+            "missing" => entries.retain(|(p, _)| p != "localization/en.ftl"),
+            "extra" => entries.push(("localization/fr.ftl".into(), b"extra = Extra\n".to_vec())),
+            "alias" => entries.push(("localization/EN.ftl".into(), b"extra = Alias\n".to_vec())),
+            _ => unreachable!(),
+        }
+        assert!(
+            load(
+                &write_entries(&entries),
+                &bundle.trust_store(),
+                VerificationPolicy::Strict,
+                ResourceLimits::HARD
+            )
+            .is_err(),
+            "{mode}"
+        );
+    }
+    let source = loaded.read_catalog("en", 1 << 20).unwrap();
+    let noncanonical = bundle.rewrite_payload(
+        "localization/en.ftl",
+        format!("# forbidden comment\n{source}").into_bytes(),
+    );
+    assert!(
+        load(
+            &noncanonical,
+            &bundle.trust_store(),
+            VerificationPolicy::Strict,
+            ResourceLimits::HARD
+        )
+        .is_err()
+    );
+    let wrong_variables = bundle.rewrite_payload(
+        "localization/en.ftl",
+        source.replace("$name", "$ready").into_bytes(),
+    );
+    assert!(
+        load(
+            &wrong_variables,
+            &bundle.trust_store(),
+            VerificationPolicy::Strict,
+            ResourceLimits::HARD
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn valid_signed_bundle_round_trips_model_and_bounded_asset() {
     let bundle = TestBundle::new();
     let loaded = load(

@@ -18,6 +18,19 @@ pub const SAVE_DESCRIPTOR: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/storyplayer_descriptor.bin"));
 pub const SAVE_SCHEMA_SHA256: &str = include_str!("../proto/storyplayer/v1/schema.sha256");
 
+impl From<String> for proto::storyplayer::v1::StoryText {
+    fn from(value: String) -> Self {
+        Self {
+            value: Some(proto::storyplayer::v1::story_text::Value::Plain(value)),
+        }
+    }
+}
+impl From<&str> for proto::storyplayer::v1::StoryText {
+    fn from(value: &str) -> Self {
+        value.to_string().into()
+    }
+}
+
 pub fn descriptor_sha256() -> String {
     format!("{:x}", Sha256::digest(SAVE_DESCRIPTOR))
 }
@@ -52,14 +65,14 @@ pub enum BundleSigner {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SemanticEvent {
     SceneTransition(String),
-    Narration(String),
+    Narration(EventText),
     Dialogue {
         actor_id: String,
         actor_name: String,
         emotion: Option<String>,
         position: Option<String>,
         portrait_path: Option<String>,
-        text: String,
+        text: EventText,
     },
     Choices(Vec<Choice>),
     Media(MediaEffect),
@@ -69,8 +82,80 @@ pub enum SemanticEvent {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Choice {
-    pub text: String,
+    pub text: EventText,
     pub target_scene: String,
+}
+
+/// Rendered host text with an internal locale-neutral snapshot. Save codecs
+/// persist only `message` for keyed content, never its rendered cache.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EventText {
+    pub rendered: String,
+    pub message: Option<MessageSnapshot>,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessageSnapshot {
+    pub id: String,
+    pub arguments: Vec<MessageArgumentSnapshot>,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessageArgumentSnapshot {
+    pub name: String,
+    pub var_type: crate::model::VarType,
+    pub value: crate::engine::Value,
+}
+impl From<String> for EventText {
+    fn from(rendered: String) -> Self {
+        Self {
+            rendered,
+            message: None,
+        }
+    }
+}
+impl From<&str> for EventText {
+    fn from(s: &str) -> Self {
+        s.to_string().into()
+    }
+}
+impl std::ops::Deref for EventText {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.rendered
+    }
+}
+impl std::fmt::Display for EventText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.rendered)
+    }
+}
+impl PartialEq<str> for EventText {
+    fn eq(&self, other: &str) -> bool {
+        self.rendered == other
+    }
+}
+impl PartialEq<&str> for EventText {
+    fn eq(&self, other: &&str) -> bool {
+        self.rendered == *other
+    }
+}
+impl EventText {
+    pub(crate) fn retained_bytes(&self) -> usize {
+        self.rendered.len()
+            + self.message.as_ref().map_or(0, |m| {
+                m.id.len()
+                    + m.arguments
+                        .iter()
+                        .map(|a| {
+                            a.name.len()
+                                + 64
+                                + match &a.value {
+                                    crate::engine::Value::Str(v) => v.len(),
+                                    _ => 32,
+                                }
+                        })
+                        .sum::<usize>()
+            })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -451,10 +536,10 @@ fn validate_event(
         .ok_or_else(|| corrupt("missing event variant"))?
     {
         K::Scene(scene) if !scene.scene.is_empty() => Ok(()),
-        K::Narration(s) => valid_text(s, limits),
+        K::Narration(s) => validate_story_text(Some(s), limits),
         K::Dialogue(d) if !d.actor_id.is_empty() => {
             valid_text(&d.actor_name, limits)?;
-            valid_text(&d.text, limits)?;
+            validate_story_text(d.text.as_ref(), limits)?;
             if let Some(path) = &d.portrait_path {
                 valid_text(path, limits)?;
             }
@@ -467,7 +552,7 @@ fn validate_event(
                 if choice.target_scene.is_empty() {
                     return Err(corrupt("empty choice target"));
                 }
-                valid_text(&choice.text, limits)?;
+                validate_story_text(choice.text.as_ref(), limits)?;
             }
             Ok(())
         }
@@ -494,5 +579,59 @@ fn validate_effect(
         }
         K::BgmStop(true) => Ok(()),
         _ => Err(corrupt("invalid media effect")),
+    }
+}
+
+fn validate_story_text(
+    value: Option<&proto::storyplayer::v1::StoryText>,
+    limits: PlayerLimits,
+) -> Result<(), SaveContractError> {
+    use proto::storyplayer::v1 as w;
+    match value.and_then(|v| v.value.as_ref()) {
+        Some(w::story_text::Value::Plain(text)) => valid_text(text, limits),
+        Some(w::story_text::Value::Message(message)) => {
+            if message.id.len() > 256
+                || !message
+                    .id
+                    .as_bytes()
+                    .first()
+                    .is_some_and(u8::is_ascii_alphabetic)
+                || !message
+                    .id
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+            {
+                return Err(corrupt("invalid message ID"));
+            }
+            let mut previous = None;
+            for arg in &message.arguments {
+                if arg.name.is_empty()
+                    || previous.is_some_and(|name: &str| name >= arg.name.as_str())
+                {
+                    return Err(corrupt("unordered or duplicate message arguments"));
+                }
+                previous = Some(arg.name.as_str());
+                let ty = w::ValueType::try_from(arg.r#type)
+                    .map_err(|_| corrupt("invalid argument type"))?;
+                if !matches!(
+                    ty,
+                    w::ValueType::Integer
+                        | w::ValueType::Decimal
+                        | w::ValueType::Boolean
+                        | w::ValueType::String
+                ) {
+                    return Err(corrupt("message arguments must be scalars"));
+                }
+                validate_value(
+                    arg.value
+                        .as_ref()
+                        .ok_or_else(|| corrupt("missing message argument value"))?,
+                    ty,
+                    limits,
+                )?;
+            }
+            Ok(())
+        }
+        None => Err(corrupt("missing story text variant")),
     }
 }

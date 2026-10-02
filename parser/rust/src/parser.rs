@@ -2,6 +2,35 @@ use crate::ast::*;
 use crate::diagnostic::{Diagnostic, DiagnosticCode, Phase};
 use crate::token::{Spanned, Token};
 
+#[cfg(test)]
+mod keyed_text_tests {
+    use crate::{ast::StoryText, compiler::compile_source, diagnostic::DiagnosticCode};
+    #[test]
+    fn parses_all_keyed_sites_without_changing_plain_interpolation() {
+        let output = compile_source(r#"* INIT { $name as string = "A"; @actor A "Actor"; @start s }
+* s { #STORY @"narration-id"; A: @"dialogue-id"; "Hi ${name}"; @choice { @"choice-id" -> s; } }"#);
+        assert!(output.diagnostics.iter().all(|v| !v.is_error()), "{:?}", output.diagnostics);
+        assert_eq!(output.message_sites().iter().map(|v| v.kind).collect::<Vec<_>>(), ["narration", "dialogue", "choice"]);
+        let script = output.script.unwrap();
+        assert!(matches!(&script.scenes[0].story.statements[2], crate::ast::StoryStatement::Narration { text: StoryText::Plain(s), .. } if s == "Hi ${name}"));
+    }
+    #[test]
+    fn invalid_ids_and_excluded_sites_have_stable_diagnostics() {
+        for id in ["", "1bad", "has space", "${name}", "é", "bad\\name"] {
+            let output = compile_source(&format!("* INIT {{ @start s }} * s {{ #STORY @\"{id}\"; @end }}"));
+            assert!(output.diagnostics.iter().any(|v| v.code == DiagnosticCode::ELocalizationIdInvalid), "{id}");
+        }
+        for source in [
+            r#"* INIT { $s as string = @"data"; @start s } * s { #STORY @end }"#,
+            r#"* INIT { @actor A @"actor-name"; @start s } * s { #STORY @end }"#,
+            r#"* INIT { @start s } * s { #PREP @bg @"asset-path"; #STORY @end }"#,
+        ] {
+            let output = compile_source(source);
+            assert!(output.diagnostics.iter().any(|v| v.code == DiagnosticCode::ELocalizationSiteForbidden));
+        }
+    }
+}
+
 pub struct Parser {
     tokens: Vec<Spanned>,
     pos: usize,
@@ -1891,9 +1920,9 @@ impl Parser {
 
     fn parse_story_statement(&mut self, scene: &str) -> Option<StoryStatement> {
         match self.peek().clone() {
-            Token::StringLit(text) => {
+            Token::StringLit(_) | Token::LocalizedText(_) => {
                 let (l, c) = self.current_span();
-                self.advance();
+                let text = self.parse_story_text(scene)?;
                 self.eat_optional_semicolon();
                 Some(StoryStatement::Narration {
                     text,
@@ -2099,6 +2128,20 @@ impl Parser {
         }
     }
 
+    fn parse_story_text(&mut self, scene: &str) -> Option<StoryText> {
+        let (line, column) = self.current_span();
+        let text = match self.peek().clone() {
+            Token::StringLit(value) => StoryText::Plain(value),
+            Token::LocalizedText(id) => StoryText::Localized(LocalizedText { id, source: String::new(), line, column }),
+            _ => {
+                self.diagnostics.push(Diagnostic::new(DiagnosticCode::ESyntax, "Expected plain or keyed story text", Phase::Parse, scene, line, column));
+                return None;
+            }
+        };
+        self.advance();
+        Some(text)
+    }
+
     fn parse_dialogue(&mut self, scene: &str) -> Option<StoryStatement> {
         let (line, column) = self.current_span();
         let actor_id = if let Token::Ident(s) = self.peek().clone() {
@@ -2180,21 +2223,7 @@ impl Parser {
             return None;
         }
 
-        let text = if let Token::StringLit(s) = self.peek().clone() {
-            self.advance();
-            s
-        } else {
-            let (l, c) = self.current_span();
-            self.diagnostics.push(Diagnostic::new(
-                DiagnosticCode::ESyntax,
-                "Expected dialogue text string",
-                Phase::Parse,
-                scene,
-                l,
-                c,
-            ));
-            return None;
-        };
+        let text = self.parse_story_text(scene)?;
 
         self.eat_optional_semicolon();
 
@@ -2248,7 +2277,7 @@ impl Parser {
 
     fn parse_choice_entry(&mut self, scene: &str) -> Option<ChoiceEntry> {
         match self.peek().clone() {
-            Token::StringLit(_) => self.parse_choice_option(scene).map(ChoiceEntry::Option),
+            Token::StringLit(_) | Token::LocalizedText(_) => self.parse_choice_option(scene).map(ChoiceEntry::Option),
             Token::If => self.parse_choice_if_entry(scene),
             Token::Repeat => self.parse_choice_repeat_entry(scene),
             Token::For => self.parse_choice_for_snapshot_entry(scene),
@@ -2269,12 +2298,7 @@ impl Parser {
 
     fn parse_choice_option(&mut self, scene: &str) -> Option<ChoiceOption> {
         let (line, column) = self.current_span();
-        let text = if let Token::StringLit(s) = self.peek().clone() {
-            self.advance();
-            s
-        } else {
-            return None;
-        };
+        let text = self.parse_story_text(scene)?;
 
         if !self.expect(&Token::Arrow) {
             return None;

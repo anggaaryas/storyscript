@@ -191,3 +191,34 @@ fn init_rejects_an_existing_symlink() {
     assert!(String::from_utf8_lossy(&result.stderr).contains("B_OUTPUT_INVALID"));
     assert!(!destination.join("StoryScript.toml").exists());
 }
+#[test]
+fn localized_initializer_is_optional_and_release_checkable() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("localized");
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_storyscript-bundle"))
+        .args([
+            "init",
+            path.to_str().unwrap(),
+            "--id",
+            "test.localized",
+            "--name",
+            "Localized",
+            "--localized",
+            "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(path.join("localization/en.ftl").is_file());
+    assert_eq!(
+        storyscript_bundle::project::compile(&path)
+            .unwrap()
+            .catalogs
+            .len(),
+        1
+    );
+}

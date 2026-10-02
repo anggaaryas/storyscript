@@ -458,7 +458,7 @@ fn event_to_bridge(value: SemanticEvent) -> BridgeSemanticEvent {
         }
         SemanticEvent::Narration(text) => {
             output.kind = "narration".into();
-            output.text = Some(text);
+            output.text = Some(text.rendered);
         }
         SemanticEvent::Dialogue {
             actor_id,
@@ -474,14 +474,14 @@ fn event_to_bridge(value: SemanticEvent) -> BridgeSemanticEvent {
             output.emotion = emotion;
             output.position = position;
             output.portrait_path = portrait_path;
-            output.text = Some(text);
+            output.text = Some(text.rendered);
         }
         SemanticEvent::Choices(items) => {
             output.kind = "choices".into();
             output.choices = items
                 .into_iter()
                 .map(|item| BridgeSemanticChoice {
-                    text: item.text,
+                    text: item.text.rendered,
                     target_scene: item.target_scene,
                 })
                 .collect();

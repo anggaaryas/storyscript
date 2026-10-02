@@ -14,6 +14,10 @@ name = "storyscript-bundle"
 path = "src/main.rs"
 
 [dependencies]
+fluent = "=0.17.0"
+fluent-syntax = "=0.12.0"
+unic-langid = "=0.9.6"
+icu_locale_core = { version = "=2.1.1", features = ["alloc"] }
 clap = { version = "4.5.47", features = ["derive"] }
 ed25519-dalek = { version = "2.2.0", features = ["pem", "pkcs8", "rand_core", "zeroize"] }
 globset = "0.4.16"

@@ -16,7 +16,7 @@ use storyscript_parser::interpolation::{ESCAPED_DOLLAR_MARKER, render_interpolat
 // Runtime value
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     Int(i64),
     Decimal(Decimal),
@@ -62,7 +62,7 @@ pub struct ActorInfo {
 
 #[derive(Debug, Clone)]
 pub struct ChoiceDisplay {
-    pub text: String,
+    pub text: crate::contract::EventText,
     pub target: String,
 }
 
@@ -89,14 +89,14 @@ enum InternalEvent {
     Scene(String, Vec<MediaEffect>),
     Media(MediaEffect),
     Error(RuntimeError),
-    Narration(String),
+    Narration(crate::contract::EventText),
     Dialogue {
         actor_name: String,
         actor_id: String,
         emotion: Option<String>,
         position: Option<String>,
         portrait_path: Option<String>,
-        text: String,
+        text: crate::contract::EventText,
     },
     Choices(Vec<ChoiceDisplay>),
     Jump(String),
@@ -227,6 +227,7 @@ pub struct Engine {
     call_depth: usize,
     last_error: Option<RuntimeError>,
     active_choices: Option<Vec<ChoiceDisplay>>,
+    localization: Option<Arc<crate::localization::LocaleRuntime>>,
 }
 
 impl Engine {
@@ -271,6 +272,10 @@ impl Engine {
         seed: [u8; 32],
         limits: PlayerLimits,
     ) -> Result<Self, RuntimeError> {
+        Self::open_localized_checked(script, seed, limits, None)
+    }
+
+    pub(crate) fn open_localized_checked(script: &StoryModel, seed: [u8; 32], limits: PlayerLimits, localization: Option<Arc<crate::localization::LocaleRuntime>>) -> Result<Self, RuntimeError> {
         let limits = limits.lowered().map_err(|invalid| RuntimeError {
             code: "R_LIMIT_CONFIGURATION".into(),
             scene: script.init.start.clone(),
@@ -280,6 +285,7 @@ impl Engine {
             limit: Some(invalid.hard_maximum as u64),
         })?;
         let mut candidate = Self::without_execution(script, SessionRng::from_seed(seed));
+        candidate.localization = localization;
         candidate.limits = limits;
         candidate.current_scene = script.init.start.clone();
         if candidate.initialize(&script.init.variables) {
@@ -367,6 +373,7 @@ impl Engine {
             call_depth: 0,
             last_error: None,
             active_choices: None,
+            localization: None,
         }
     }
 
@@ -377,6 +384,9 @@ impl Engine {
     pub(crate) fn model(&self) -> &StoryModel {
         &self.indexes.model
     }
+
+    pub(crate) fn locale_runtime(&self) -> Option<&Arc<crate::localization::LocaleRuntime>> { self.localization.as_ref() }
+    pub(crate) fn set_locale_runtime(&mut self, localization: Option<Arc<crate::localization::LocaleRuntime>>) { self.localization = localization; }
 
     pub(crate) fn snapshot(&self) -> EngineState {
         EngineState {
@@ -1019,7 +1029,7 @@ impl Engine {
 
             match stmt {
                 StoryStatement::Narration { text, .. } => {
-                    let resolved = match self.resolve_string_or_error(text, "narration") {
+                    let resolved = match self.resolve_story_text(text, "narration") {
                         Some(value) => value,
                         None => return StoryFlow::Error,
                     };
@@ -1034,7 +1044,7 @@ impl Engine {
                             Some(text) => text,
                             None => return StoryFlow::Error,
                         };
-                        if !self.push_event(InternalEvent::Narration(text)) {
+                        if !self.push_event(InternalEvent::Narration(text.into())) {
                             return StoryFlow::Error;
                         }
                     } else {
@@ -1078,7 +1088,7 @@ impl Engine {
                         }
                     };
 
-                    let text = match self.resolve_string_or_error(&dlg.text, "dialogue") {
+                    let text = match self.resolve_story_text(&dlg.text, "dialogue") {
                         Some(value) => value,
                         None => return StoryFlow::Error,
                     };
@@ -1228,7 +1238,7 @@ impl Engine {
     ) -> StoryFlow {
         match entry {
             ChoiceEntry::Option(opt) => {
-                let text = match self.resolve_string_or_error(&opt.text, "choice label") {
+                let text = match self.resolve_story_text(&opt.text, "choice label") {
                     Some(value) => value,
                     None => return StoryFlow::Error,
                 };
@@ -1302,7 +1312,7 @@ impl Engine {
     fn push_choice_option(
         &mut self,
         options: &mut Vec<ChoiceDisplay>,
-        text: String,
+        text: crate::contract::EventText,
         target: String,
     ) -> StoryFlow {
         if options.len() >= CHOICE_OPTION_CAP {
@@ -1454,7 +1464,7 @@ impl Engine {
                     continue;
                 }
                 Some(InternalEvent::Narration(text)) => {
-                    return Some(StepResult::Narration(text));
+                    return Some(StepResult::Narration(text.rendered));
                 }
                 Some(InternalEvent::Dialogue {
                     actor_name,
@@ -1469,7 +1479,7 @@ impl Engine {
                         actor_id,
                         emotion,
                         position,
-                        text,
+                        text: text.rendered,
                     });
                 }
                 Some(InternalEvent::Choices(options)) => {
@@ -2950,6 +2960,37 @@ impl Engine {
 
         self.local_var_types = baseline_types;
         self.local_variables = baseline_values;
+    }
+
+    fn resolve_story_text(&mut self, text: &crate::model::StoryText, context: &str) -> Option<crate::contract::EventText> {
+        match text {
+            crate::model::StoryText::Plain(text) => self.resolve_string_or_error(text, context).map(Into::into),
+            crate::model::StoryText::Message { id, arguments } => {
+                let mut snapshot = crate::contract::MessageSnapshot { id: id.clone(), arguments: Vec::new() };
+                for (name, var_type) in arguments {
+                    let Some(value) = self.resolve_var_value(name).cloned() else {
+                        self.raise_runtime_error("R_LOCALIZATION_ARGUMENT", format!("Missing localization argument '${name}'"));
+                        return None;
+                    };
+                    if value_type(&value) != *var_type {
+                        self.raise_runtime_error("R_LOCALIZATION_ARGUMENT", "Localization argument type mismatch".into());
+                        return None;
+                    }
+                    snapshot.arguments.push(crate::contract::MessageArgumentSnapshot { name: name.clone(), var_type: *var_type, value });
+                }
+                let runtime = self.localization.clone();
+                let work = runtime.as_ref().map_or(1, |r| r.snapshot_work(&snapshot));
+                for _ in 0..work { if !self.charge() { return None; } }
+                match crate::localization::render_snapshot(runtime.as_deref(), snapshot, self.limits, &self.current_scene) {
+                    Ok(text) => Some(text),
+                    Err(error) => {
+                        self.raise_runtime_error(&error.code, error.message.clone());
+                        self.last_error = Some(error);
+                        None
+                    }
+                }
+            }
+        }
     }
 
     fn resolve_string_or_error(&mut self, template: &str, context: &str) -> Option<String> {

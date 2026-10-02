@@ -14,6 +14,12 @@ pub struct CompileOutput {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+impl CompileOutput {
+    pub fn message_sites(&self) -> Vec<crate::localization::MessageSite> {
+        self.script.as_ref().map(crate::localization::inventory).unwrap_or_default()
+    }
+}
+
 pub fn compile_source(source: &str) -> CompileOutput {
     let (parsed_root, mut diagnostics) = parse_root_script(source);
     let root_script = match parsed_root {
@@ -88,6 +94,9 @@ pub fn compile_project(project_root: &Path, entry_path: &Path) -> Result<Compile
     })?;
 
     let (parsed_root, mut diagnostics) = parse_root_script(&source);
+    for diagnostic in &mut diagnostics {
+        diagnostic.message = format!("{}:{}:{}: {}", entry.logical.to_string_lossy(), diagnostic.line, diagnostic.column, diagnostic.message);
+    }
     let mut root_script = match parsed_root {
         Some(script) => script,
         None => {
@@ -100,6 +109,7 @@ pub fn compile_project(project_root: &Path, entry_path: &Path) -> Result<Compile
     };
 
     let mut modules: Vec<ChildModule> = Vec::new();
+    crate::localization::mark_source(&mut root_script.scenes, &entry.logical.to_string_lossy().replace('\\', "/"));
     let mut seen_include_paths: HashSet<String> = HashSet::new();
     let mut seen_canonical_paths: HashSet<PathBuf> = HashSet::new();
     seen_include_paths.insert(path_key(&entry.logical));
@@ -157,9 +167,13 @@ pub fn compile_project(project_root: &Path, entry_path: &Path) -> Result<Compile
             }
         };
 
-        let (child_module, child_diags) = parse_child_script(&child_source);
+        let (child_module, mut child_diags) = parse_child_script(&child_source);
+        for diagnostic in &mut child_diags {
+            diagnostic.message = format!("{}:{}:{}: {}", resolved.logical.to_string_lossy(), diagnostic.line, diagnostic.column, diagnostic.message);
+        }
         diagnostics.extend(child_diags);
-        if let Some(module) = child_module {
+        if let Some(mut module) = child_module {
+            crate::localization::mark_source(&mut module.scenes, &resolved.logical.to_string_lossy().replace('\\', "/"));
             modules.push(module);
         }
     }
@@ -298,9 +312,10 @@ fn parse_root_script(source: &str) -> (Option<Script>, Vec<Diagnostic>) {
     let tokens = lexer.tokenize();
     let mut diagnostics = lexer.diagnostics.clone();
 
-    let mut parser = Parser::new(tokens);
+    let mut parser = Parser::new(tokens.clone());
     let script = parser.parse();
     diagnostics.extend(parser.diagnostics);
+    diagnostics.extend(crate::localization::validate_token_sites(&tokens, script.as_ref().map(|v| v.scenes.as_slice()).unwrap_or_default()));
 
     if script.is_none() && diagnostics.is_empty() {
         diagnostics.push(Diagnostic::new(
@@ -321,9 +336,10 @@ fn parse_child_script(source: &str) -> (Option<ChildModule>, Vec<Diagnostic>) {
     let tokens = lexer.tokenize();
     let mut diagnostics = lexer.diagnostics.clone();
 
-    let mut parser = Parser::new(tokens);
+    let mut parser = Parser::new(tokens.clone());
     let module = parser.parse_child_module();
     diagnostics.extend(parser.diagnostics);
+    diagnostics.extend(crate::localization::validate_token_sites(&tokens, module.as_ref().map(|v| v.scenes.as_slice()).unwrap_or_default()));
 
     (module, diagnostics)
 }

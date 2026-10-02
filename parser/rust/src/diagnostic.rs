@@ -5,6 +5,9 @@ pub enum DiagnosticCode {
     // Compile-time errors
     ESyntax,
     ENumericLiteralInvalid,
+    ELocalizationIdInvalid,
+    ELocalizationIdDuplicate,
+    ELocalizationSiteForbidden,
     EInitCount,
     EInitOrder,
     EStartCount,
@@ -79,6 +82,9 @@ impl fmt::Display for DiagnosticCode {
         let s = match self {
             Self::ESyntax => "E_SYNTAX",
             Self::ENumericLiteralInvalid => "E_NUMERIC_LITERAL_INVALID",
+            Self::ELocalizationIdInvalid => "E_LOCALIZATION_ID_INVALID",
+            Self::ELocalizationIdDuplicate => "E_LOCALIZATION_ID_DUPLICATE",
+            Self::ELocalizationSiteForbidden => "E_LOCALIZATION_SITE_FORBIDDEN",
             Self::EInitCount => "E_INIT_COUNT",
             Self::EInitOrder => "E_INIT_ORDER",
             Self::EStartCount => "E_START_COUNT",
