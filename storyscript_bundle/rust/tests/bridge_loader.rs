@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::pkcs8::EncodePrivateKey;
 use pkcs8::LineEnding;
-use rand::rngs::OsRng;
 use storyscript_bundle::api::bundle::{
     BridgeLimits, BridgeTrustKey, BridgeVerificationPolicy, bridge_hard_limits, bundle_dispose,
     bundle_open_bytes, bundle_read_asset,
@@ -93,17 +92,56 @@ fn bounded_asset_reads_fail_before_allocating() {
 }
 
 fn signed_fixture() -> (Vec<u8>, BridgeTrustKey) {
-    let private_key = SigningKey::generate(&mut OsRng);
+    signed_project("demo_project")
+}
+
+fn signed_project(name: &str) -> (Vec<u8>, BridgeTrustKey) {
+    let private_key = SigningKey::from_bytes(&[31; 32]);
     let pem = private_key
         .to_pkcs8_pem(LineEnding::LF)
         .expect("PKCS#8 PEM");
     let signer = Ed25519Signer::from_pkcs8_pem(pem.as_str()).expect("signer");
     let project = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../bundle/rust/tests/fixtures/demo_project");
+        .join("../../bundle/rust/tests/fixtures")
+        .join(name);
     let bytes = exporter::export(&project, &signer).expect("fixture export");
     let trust_key = BridgeTrustKey {
         public_key: signer.public_key_bytes().to_vec(),
         expected_key_id: Some(signer.key_id()),
     };
     (bytes, trust_key)
+}
+
+#[test]
+fn localized_inspector_metadata_does_not_copy_catalog_bodies() {
+    use prost::Message;
+    use storyscript_bundle_core::proto::storybundle::v1::CompiledStory;
+    let (bytes, key) = signed_project("localized_project");
+    let opened = bundle_open_bytes(
+        bytes,
+        vec![key],
+        BridgeVerificationPolicy::Strict,
+        bridge_hard_limits(),
+    )
+    .opened
+    .unwrap();
+    let story = CompiledStory::decode(opened.compiled_story.as_slice()).unwrap();
+    let locales = story.localization.unwrap();
+    assert_eq!(locales.default_locale, "en");
+    assert_eq!(locales.supported_locales, ["en", "id"]);
+    for prose in [
+        b"Hello".as_slice(),
+        b"Halo".as_slice(),
+        b"Author comment".as_slice(),
+    ] {
+        assert!(
+            !opened
+                .compiled_story
+                .windows(prose.len())
+                .any(|s| s == prose)
+        );
+    }
+    let catalog = bundle_read_asset(&opened.resource, "localization/id.ftl".into(), 1 << 20);
+    assert!(catalog.bytes.is_none()); // Catalogs are not public assets.
+    assert!(catalog.error.is_some());
 }

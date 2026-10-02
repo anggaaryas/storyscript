@@ -12,6 +12,21 @@ final class SourceStoryPlayerLoader {
   final SourcePlayerBindings bindings;
   final StoryPlayerLimits limits;
 
+  Future<SourceStoryPlayer> openProject(
+    String root, {
+    StoryPlayerLocalePreferences locales =
+        const StoryPlayerLocalePreferences.defaults(),
+  }) => _open(bindings.openProject(root, locales, limits));
+
+  Future<SourceStoryPlayer> restoreProject(
+    String root,
+    Uint8List save, {
+    StoryPlayerLocalePreferences locales =
+        const StoryPlayerLocalePreferences.defaults(),
+  }) => _open(
+    bindings.restoreProject(root, Uint8List.fromList(save), locales, limits),
+  );
+
   Future<SourceStoryPlayer> openSource(String source) =>
       _open(bindings.openSource(source, limits));
   Future<SourceStoryPlayer> openPath(String path) =>
@@ -25,15 +40,28 @@ final class SourceStoryPlayerLoader {
     Future<SourcePlayerBridgePayload> pending,
   ) async {
     final payload = await pending;
-    return SourceStoryPlayer._(bindings, payload.resource, payload.current);
+    return SourceStoryPlayer._(
+      bindings,
+      payload.resource,
+      payload.current,
+      payload.locale,
+    );
   }
 }
 
 final class SourceStoryPlayer {
-  SourceStoryPlayer._(this._bindings, this._resource, this._current);
+  SourceStoryPlayer._(
+    this._bindings,
+    this._resource,
+    this._current,
+    this.locale,
+  );
 
   final SourcePlayerBindings _bindings;
   final Object _resource;
+  final StoryPlayerLocaleResolution locale;
+  String? get resolvedLocale => locale.resolvedLocale;
+  bool get hasUnresolvedLocalization => locale.hasUnresolvedLocalization;
   StoryPlayerDelta _current;
   bool _disposed = false;
   Future<void>? _disposePending;

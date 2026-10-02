@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 714466409;
+  int get rustContentHash => -2084114550;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -85,6 +85,16 @@ abstract class RustLibApi extends BaseApi {
     required BridgeSourcePlayerOpened that,
   });
 
+  bool
+  crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetHasUnresolvedLocalization({
+    required BridgeSourcePlayerOpened that,
+  });
+
+  String?
+  crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetResolvedLocale({
+    required BridgeSourcePlayerOpened that,
+  });
+
   SourcePlayerResource
   crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetResource({
     required BridgeSourcePlayerOpened that,
@@ -93,6 +103,17 @@ abstract class RustLibApi extends BaseApi {
   void crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetCurrent({
     required BridgeSourcePlayerOpened that,
     required BridgePlayerDelta current,
+  });
+
+  void
+  crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetHasUnresolvedLocalization({
+    required BridgeSourcePlayerOpened that,
+    required bool hasUnresolvedLocalization,
+  });
+
+  void crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetResolvedLocale({
+    required BridgeSourcePlayerOpened that,
+    String? resolvedLocale,
   });
 
   void crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetResource({
@@ -153,6 +174,12 @@ abstract class RustLibApi extends BaseApi {
     required BridgePlayerLimits limits,
   });
 
+  Future<BridgeSourcePlayerOpenResult> crateApiPlayerV2SourcePlayerOpenProject({
+    required String root,
+    required List<String> requestedLocales,
+    required BridgePlayerLimits limits,
+  });
+
   Future<BridgeSourcePlayerOpenResult> crateApiPlayerV2SourcePlayerOpenRaw({
     required String source,
     required BridgePlayerLimits limits,
@@ -161,6 +188,14 @@ abstract class RustLibApi extends BaseApi {
   Future<BridgeSourcePlayerOpenResult> crateApiPlayerV2SourcePlayerRestorePath({
     required String path,
     required List<int> save,
+    required BridgePlayerLimits limits,
+  });
+
+  Future<BridgeSourcePlayerOpenResult>
+  crateApiPlayerV2SourcePlayerRestoreProject({
+    required String root,
+    required List<int> save,
+    required List<String> requestedLocales,
     required BridgePlayerLimits limits,
   });
 
@@ -232,6 +267,75 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  bool
+  crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetHasUnresolvedLocalization({
+    required BridgeSourcePlayerOpened that,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeSourcePlayerOpened(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetHasUnresolvedLocalizationConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetHasUnresolvedLocalizationConstMeta =>
+      const TaskConstMeta(
+        debugName:
+            "BridgeSourcePlayerOpened_auto_accessor_get_has_unresolved_localization",
+        argNames: ["that"],
+      );
+
+  @override
+  String?
+  crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetResolvedLocale({
+    required BridgeSourcePlayerOpened that,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeSourcePlayerOpened(
+            that,
+            serializer,
+          );
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_String,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetResolvedLocaleConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetResolvedLocaleConstMeta =>
+      const TaskConstMeta(
+        debugName: "BridgeSourcePlayerOpened_auto_accessor_get_resolved_locale",
+        argNames: ["that"],
+      );
+
+  @override
   SourcePlayerResource
   crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetResource({
     required BridgeSourcePlayerOpened that,
@@ -244,7 +348,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
         },
         codec: SseCodec(
           decodeSuccessData:
@@ -280,7 +384,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_bridge_player_delta(current, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -302,6 +406,78 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  void
+  crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetHasUnresolvedLocalization({
+    required BridgeSourcePlayerOpened that,
+    required bool hasUnresolvedLocalization,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeSourcePlayerOpened(
+            that,
+            serializer,
+          );
+          sse_encode_bool(hasUnresolvedLocalization, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetHasUnresolvedLocalizationConstMeta,
+        argValues: [that, hasUnresolvedLocalization],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetHasUnresolvedLocalizationConstMeta =>
+      const TaskConstMeta(
+        debugName:
+            "BridgeSourcePlayerOpened_auto_accessor_set_has_unresolved_localization",
+        argNames: ["that", "hasUnresolvedLocalization"],
+      );
+
+  @override
+  void crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetResolvedLocale({
+    required BridgeSourcePlayerOpened that,
+    String? resolvedLocale,
+  }) {
+    return handler.executeSync(
+      SyncTask(
+        callFfi: () {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_RefMut_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerBridgeSourcePlayerOpened(
+            that,
+            serializer,
+          );
+          sse_encode_opt_String(resolvedLocale, serializer);
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetResolvedLocaleConstMeta,
+        argValues: [that, resolvedLocale],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetResolvedLocaleConstMeta =>
+      const TaskConstMeta(
+        debugName: "BridgeSourcePlayerOpened_auto_accessor_set_resolved_locale",
+        argNames: ["that", "resolvedLocale"],
+      );
+
+  @override
   void crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetResource({
     required BridgeSourcePlayerOpened that,
     required SourcePlayerResource resource,
@@ -318,7 +494,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             resource,
             serializer,
           );
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -346,7 +522,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(name, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -371,7 +547,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 10,
             port: port_,
           );
         },
@@ -396,7 +572,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_u_64(sessionId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bridge_state,
@@ -423,7 +599,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_u_64(sessionId, serializer);
           sse_encode_u_32(index, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bridge_state,
@@ -448,7 +624,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_u_64(sessionId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 13)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bool,
@@ -471,7 +647,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_u_64(sessionId, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_bridge_state,
@@ -497,7 +673,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(path, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_u_64,
@@ -520,7 +696,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_String(source, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 16)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_u_64,
@@ -551,7 +727,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 17,
             port: port_,
           );
         },
@@ -589,7 +765,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 18,
             port: port_,
           );
         },
@@ -625,7 +801,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 19,
             port: port_,
           );
         },
@@ -661,7 +837,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 20,
             port: port_,
           );
         },
@@ -697,7 +873,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 21,
             port: port_,
           );
         },
@@ -727,7 +903,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 22,
             port: port_,
           );
         },
@@ -764,7 +940,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 23,
             port: port_,
           );
         },
@@ -799,7 +975,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 24,
             port: port_,
           );
         },
@@ -821,6 +997,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<BridgeSourcePlayerOpenResult> crateApiPlayerV2SourcePlayerOpenProject({
+    required String root,
+    required List<String> requestedLocales,
+    required BridgePlayerLimits limits,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(root, serializer);
+          sse_encode_list_String(requestedLocales, serializer);
+          sse_encode_box_autoadd_bridge_player_limits(limits, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_source_player_open_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerV2SourcePlayerOpenProjectConstMeta,
+        argValues: [root, requestedLocales, limits],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerV2SourcePlayerOpenProjectConstMeta =>
+      const TaskConstMeta(
+        debugName: "source_player_open_project",
+        argNames: ["root", "requestedLocales", "limits"],
+      );
+
+  @override
   Future<BridgeSourcePlayerOpenResult> crateApiPlayerV2SourcePlayerOpenRaw({
     required String source,
     required BridgePlayerLimits limits,
@@ -834,7 +1047,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 26,
             port: port_,
           );
         },
@@ -871,7 +1084,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 27,
             port: port_,
           );
         },
@@ -893,6 +1106,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<BridgeSourcePlayerOpenResult>
+  crateApiPlayerV2SourcePlayerRestoreProject({
+    required String root,
+    required List<int> save,
+    required List<String> requestedLocales,
+    required BridgePlayerLimits limits,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(root, serializer);
+          sse_encode_list_prim_u_8_loose(save, serializer);
+          sse_encode_list_String(requestedLocales, serializer);
+          sse_encode_box_autoadd_bridge_player_limits(limits, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 28,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bridge_source_player_open_result,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiPlayerV2SourcePlayerRestoreProjectConstMeta,
+        argValues: [root, save, requestedLocales, limits],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiPlayerV2SourcePlayerRestoreProjectConstMeta =>
+      const TaskConstMeta(
+        debugName: "source_player_restore_project",
+        argNames: ["root", "save", "requestedLocales", "limits"],
+      );
+
+  @override
   Future<BridgeSourcePlayerOpenResult> crateApiPlayerV2SourcePlayerRestoreRaw({
     required String source,
     required List<int> save,
@@ -908,7 +1161,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1325,6 +1578,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       name: dco_decode_String(arr[0]),
       value: dco_decode_String(arr[1]),
     );
+  }
+
+  @protected
+  List<String> dco_decode_list_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_String).toList();
   }
 
   @protected
@@ -1901,6 +2160,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_name = sse_decode_String(deserializer);
     var var_value = sse_decode_String(deserializer);
     return BridgeVariable(name: var_name, value: var_value);
+  }
+
+  @protected
+  List<String> sse_decode_list_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
   }
 
   @protected
@@ -2506,6 +2777,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_String(List<String> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_bridge_choice(
     List<BridgeChoice> self,
     SseSerializer serializer,
@@ -2770,6 +3050,16 @@ class BridgeSourcePlayerOpenedImpl extends RustOpaque
         that: this,
       );
 
+  bool get hasUnresolvedLocalization => RustLib.instance.api
+      .crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetHasUnresolvedLocalization(
+        that: this,
+      );
+
+  String? get resolvedLocale => RustLib.instance.api
+      .crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetResolvedLocale(
+        that: this,
+      );
+
   SourcePlayerResource get resource => RustLib.instance.api
       .crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorGetResource(
         that: this,
@@ -2779,6 +3069,20 @@ class BridgeSourcePlayerOpenedImpl extends RustOpaque
       .crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetCurrent(
         that: this,
         current: current,
+      );
+
+  set hasUnresolvedLocalization(bool hasUnresolvedLocalization) => RustLib
+      .instance
+      .api
+      .crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetHasUnresolvedLocalization(
+        that: this,
+        hasUnresolvedLocalization: hasUnresolvedLocalization,
+      );
+
+  set resolvedLocale(String? resolvedLocale) => RustLib.instance.api
+      .crateApiPlayerV2BridgeSourcePlayerOpenedAutoAccessorSetResolvedLocale(
+        that: this,
+        resolvedLocale: resolvedLocale,
       );
 
   set resource(SourcePlayerResource resource) => RustLib.instance.api

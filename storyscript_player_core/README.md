@@ -27,6 +27,31 @@ The generated legacy numeric-session functions remain exported for existing
 consumers. New integrations should use `SourceStoryPlayerLoader` and its
 injectable `SourcePlayerBindings` seam.
 
+## Localized source projects
+
+Use filesystem project APIs to load `StoryScript.toml` and complete Fluent catalogs:
+
+```dart
+final player = await loader.openProject(projectRoot,
+  locales: StoryPlayerLocalePreferences(['id-ID', 'en']));
+print(player.resolvedLocale); // negotiated immutable locale, e.g. id
+final save = await player.exportSave();
+final candidate = await loader.restoreProject(projectRoot, save,
+  locales: StoryPlayerLocalePreferences(['en']));
+// Swap only after success, then dispose the previous player.
+await player.dispose();
+```
+
+Preferences are ordered immutable copies; omitted preferences select the project
+default. `player.locale` reports resolution and unresolved status. Raw source/path
+methods display keyed message IDs, with null `resolvedLocale` and
+`hasUnresolvedLocalization == true`, rather than discovering catalogs. Dart only
+receives rendered event/choice/history text. FTL and argument snapshots stay in
+Rust; saves are locale-neutral and restore rerenders without PREP/STORY replay.
+The host owns shell localization. Project/path methods require filesystem access.
+Custom source bindings must implement the new project operations. See the
+[localization guide](../docs/feature/storyscript_localization.md).
+
 ## Ownership and limits
 
 `StoryPlayerLimits` can lower the Rust hard profile. Mutations are serialized;

@@ -17,19 +17,23 @@ Future<BridgeRuntimeLimits> bundlePlayerHardLimits() =>
 Future<BridgeBundlePlayerOpenResult> bundlePlayerOpenFromBundle({
   required BundleResource bundle,
   required BridgeRuntimeLimits limits,
+  required List<String> requestedLocales,
 }) => RustLib.instance.api.crateApiPlayerBundlePlayerOpenFromBundle(
   bundle: bundle,
   limits: limits,
+  requestedLocales: requestedLocales,
 );
 
 Future<BridgeBundlePlayerOpenResult> bundlePlayerRestoreFromBundle({
   required BundleResource bundle,
   required List<int> save,
   required BridgeRuntimeLimits limits,
+  required List<String> requestedLocales,
 }) => RustLib.instance.api.crateApiPlayerBundlePlayerRestoreFromBundle(
   bundle: bundle,
   save: save,
   limits: limits,
+  requestedLocales: requestedLocales,
 );
 
 Future<BridgeBundlePlayerOpenResult> bundlePlayerOpenBytes({
@@ -38,12 +42,14 @@ Future<BridgeBundlePlayerOpenResult> bundlePlayerOpenBytes({
   required BridgeVerificationPolicy policy,
   required BridgeLimits bundleLimits,
   required BridgeRuntimeLimits playerLimits,
+  required List<String> requestedLocales,
 }) => RustLib.instance.api.crateApiPlayerBundlePlayerOpenBytes(
   bytes: bytes,
   trustKeys: trustKeys,
   policy: policy,
   bundleLimits: bundleLimits,
   playerLimits: playerLimits,
+  requestedLocales: requestedLocales,
 );
 
 Future<BridgeBundlePlayerOpenResult> bundlePlayerRestoreBytes({
@@ -53,6 +59,7 @@ Future<BridgeBundlePlayerOpenResult> bundlePlayerRestoreBytes({
   required BridgeVerificationPolicy policy,
   required BridgeLimits bundleLimits,
   required BridgeRuntimeLimits playerLimits,
+  required List<String> requestedLocales,
 }) => RustLib.instance.api.crateApiPlayerBundlePlayerRestoreBytes(
   bytes: bytes,
   save: save,
@@ -60,6 +67,7 @@ Future<BridgeBundlePlayerOpenResult> bundlePlayerRestoreBytes({
   policy: policy,
   bundleLimits: bundleLimits,
   playerLimits: playerLimits,
+  requestedLocales: requestedLocales,
 );
 
 Future<BridgeBundlePlayerOpenResult> bundlePlayerOpenPath({
@@ -68,12 +76,14 @@ Future<BridgeBundlePlayerOpenResult> bundlePlayerOpenPath({
   required BridgeVerificationPolicy policy,
   required BridgeLimits bundleLimits,
   required BridgeRuntimeLimits playerLimits,
+  required List<String> requestedLocales,
 }) => RustLib.instance.api.crateApiPlayerBundlePlayerOpenPath(
   path: path,
   trustKeys: trustKeys,
   policy: policy,
   bundleLimits: bundleLimits,
   playerLimits: playerLimits,
+  requestedLocales: requestedLocales,
 );
 
 Future<BridgeBundlePlayerOpenResult> bundlePlayerRestorePath({
@@ -83,6 +93,7 @@ Future<BridgeBundlePlayerOpenResult> bundlePlayerRestorePath({
   required BridgeVerificationPolicy policy,
   required BridgeLimits bundleLimits,
   required BridgeRuntimeLimits playerLimits,
+  required List<String> requestedLocales,
 }) => RustLib.instance.api.crateApiPlayerBundlePlayerRestorePath(
   path: path,
   save: save,
@@ -90,6 +101,7 @@ Future<BridgeBundlePlayerOpenResult> bundlePlayerRestorePath({
   policy: policy,
   bundleLimits: bundleLimits,
   playerLimits: playerLimits,
+  requestedLocales: requestedLocales,
 );
 
 Future<BridgeBundlePlayerActionResult> bundlePlayerCurrent({
@@ -145,9 +157,17 @@ Future<BridgeBundlePlayerDisposeResult> bundlePlayerDispose({
 abstract class BridgeBundlePlayerOpened implements RustOpaqueInterface {
   BridgePlayerDelta get current;
 
+  bool get hasUnresolvedLocalization;
+
+  String? get resolvedLocale;
+
   BundlePlayerResource get resource;
 
   set current(BridgePlayerDelta current);
+
+  set hasUnresolvedLocalization(bool hasUnresolvedLocalization);
+
+  set resolvedLocale(String? resolvedLocale);
 
   set resource(BundlePlayerResource resource);
 }

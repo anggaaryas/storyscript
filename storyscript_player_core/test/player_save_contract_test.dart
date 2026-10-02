@@ -51,6 +51,68 @@ void main() {
       ),
     );
   });
+
+  test(
+    'project preferences and resolution are immutable and saves are copied',
+    () async {
+      final tags = ['id-ID', 'en'];
+      final locales = StoryPlayerLocalePreferences(tags);
+      tags[0] = 'fr';
+      expect(locales.locales, ['id-ID', 'en']);
+      expect(() => locales.locales.add('fr'), throwsUnsupportedError);
+      final bindings = _FakeBindings();
+      final loader = SourceStoryPlayerLoader(bindings: bindings);
+      final player = await loader.openProject('project', locales: locales);
+      expect(bindings.requested, ['id-ID', 'en']);
+      expect(player.resolvedLocale, 'id');
+      expect(player.hasUnresolvedLocalization, isFalse);
+      final save = Uint8List.fromList([1, 2, 3]);
+      final restored = await loader.restoreProject(
+        'project',
+        save,
+        locales: StoryPlayerLocalePreferences(['en']),
+      );
+      save[0] = 99;
+      expect(bindings.receivedSave, [1, 2, 3]);
+      expect(restored.resolvedLocale, 'en');
+      expect(restored.current.event.text, 'Hello');
+      expect(player.resolvedLocale, 'id');
+      final fallback = await loader.openProject(
+        'project',
+        locales: StoryPlayerLocalePreferences(['fr']),
+      );
+      expect(fallback.resolvedLocale, 'en');
+      final raw = await loader.openSource('@"greeting"');
+      expect(raw.resolvedLocale, isNull);
+      expect(raw.hasUnresolvedLocalization, isTrue);
+    },
+  );
+
+  test(
+    'failed project candidate keeps existing player and structured error',
+    () async {
+      final bindings = _FakeBindings();
+      final loader = SourceStoryPlayerLoader(bindings: bindings);
+      final old = await loader.openProject('project');
+      bindings.failure = const StoryPlayerException(
+        StoryPlayerError(
+          code: 'R_LOCALIZATION_NUMBER',
+          scene: 'first',
+          message: 'unsafe number',
+        ),
+      );
+      await expectLater(
+        loader.restoreProject('project', Uint8List(0)),
+        throwsA(
+          predicate<StoryPlayerException>(
+            (e) => e.error.code == 'R_LOCALIZATION_NUMBER',
+          ),
+        ),
+      );
+      expect(old.current.event.kind, StoryPlayerEventKind.scene);
+      expect(bindings.disposeCalls, 0);
+    },
+  );
 }
 
 StoryPlayerDelta _delta(StoryPlayerEvent event, [int sequence = 0]) =>
@@ -71,6 +133,46 @@ final class _FakeBindings implements SourcePlayerBindings {
   );
   StoryPlayerException? failure;
   int disposeCalls = 0;
+  List<String> requested = [];
+  Uint8List? receivedSave;
+
+  @override
+  Future<SourcePlayerBridgePayload> openProject(
+    String root,
+    StoryPlayerLocalePreferences locales,
+    StoryPlayerLimits limits,
+  ) async {
+    if (failure case final error?) throw error;
+    requested = locales.locales;
+    return SourcePlayerBridgePayload(
+      resource: resource,
+      current: currentDelta,
+      locale: StoryPlayerLocaleResolution(
+        resolvedLocale: requested.firstOrNull?.startsWith('id') == true
+            ? 'id'
+            : 'en',
+      ),
+    );
+  }
+
+  @override
+  Future<SourcePlayerBridgePayload> restoreProject(
+    String root,
+    Uint8List save,
+    StoryPlayerLocalePreferences locales,
+    StoryPlayerLimits limits,
+  ) async {
+    receivedSave = save;
+    final payload = await openProject(root, locales, limits);
+    return SourcePlayerBridgePayload(
+      resource: resource,
+      current: _delta(
+        StoryPlayerEvent(kind: StoryPlayerEventKind.narration, text: 'Hello'),
+        1,
+      ),
+      locale: payload.locale,
+    );
+  }
 
   @override
   Future<StoryPlayerDelta> advance(Object resource) async {
@@ -126,8 +228,13 @@ final class _FakeBindings implements SourcePlayerBindings {
   Future<SourcePlayerBridgePayload> openSource(
     String source,
     StoryPlayerLimits limits,
-  ) async =>
-      SourcePlayerBridgePayload(resource: resource, current: currentDelta);
+  ) async => SourcePlayerBridgePayload(
+    resource: resource,
+    current: currentDelta,
+    locale: StoryPlayerLocaleResolution(
+      hasUnresolvedLocalization: source.contains('@"'),
+    ),
+  );
 
   @override
   Future<SourcePlayerBridgePayload> restorePath(

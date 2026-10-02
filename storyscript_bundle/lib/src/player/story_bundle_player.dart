@@ -41,7 +41,32 @@ final class StoryBundlePlayerLoader {
   final StoryBundleVerificationPolicy _policy;
   int _generation = 0;
 
-  Future<StoryBundlePlayer> openBytes(Uint8List bytes) {
+  Future<StoryBundlePlayer> openBytes(
+    Uint8List bytes, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) {
+    _preflightBytes(bytes);
+    return _finish(
+      _withLocales(
+        locales,
+        (b) => b.openBytes(
+          Uint8List.fromList(bytes),
+          _request,
+          _playerLimits,
+          locales: locales,
+        ),
+        () => _bindings.openBytes(
+          Uint8List.fromList(bytes),
+          _request,
+          _playerLimits,
+        ),
+      ),
+      ++_generation,
+    );
+  }
+
+  void _preflightBytes(Uint8List bytes) {
     if (bytes.lengthInBytes > _bundleLimits.maxArchiveBytes) {
       throw const StoryBundlePlayerException(
         StoryBundleRuntimeError(
@@ -51,50 +76,137 @@ final class StoryBundlePlayerLoader {
         ),
       );
     }
-    return _finish(
-      _bindings.openBytes(Uint8List.fromList(bytes), _request, _playerLimits),
-      ++_generation,
-    );
   }
 
-  Future<StoryBundlePlayer> restoreBytes(Uint8List bytes, Uint8List save) =>
-      _finish(
-        _bindings.restoreBytes(
+  Future<StoryBundlePlayer> restoreBytes(
+    Uint8List bytes,
+    Uint8List save, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) {
+    _preflightBytes(bytes);
+    return _finish(
+      _withLocales(
+        locales,
+        (b) => b.restoreBytes(
+          Uint8List.fromList(bytes),
+          Uint8List.fromList(save),
+          _request,
+          _playerLimits,
+          locales: locales,
+        ),
+        () => _bindings.restoreBytes(
           Uint8List.fromList(bytes),
           Uint8List.fromList(save),
           _request,
           _playerLimits,
         ),
-        ++_generation,
-      );
-  Future<StoryBundlePlayer> openPath(String path) =>
-      _finish(_bindings.openPath(path, _request, _playerLimits), ++_generation);
-  Future<StoryBundlePlayer> restorePath(String path, Uint8List save) => _finish(
-    _bindings.restorePath(
-      path,
-      Uint8List.fromList(save),
-      _request,
-      _playerLimits,
+      ),
+      ++_generation,
+    );
+  }
+
+  Future<StoryBundlePlayer> openPath(
+    String path, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) => _finish(
+    _withLocales(
+      locales,
+      (b) => b.openPath(path, _request, _playerLimits, locales: locales),
+      () => _bindings.openPath(path, _request, _playerLimits),
     ),
     ++_generation,
   );
-  Future<StoryBundlePlayer> fromBundle(LoadedStoryBundle bundle) => _finish(
-    _bindings.openFromBundle(bundle.playerResourceHandoff(), _playerLimits),
+  Future<StoryBundlePlayer> restorePath(
+    String path,
+    Uint8List save, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) => _finish(
+    _withLocales(
+      locales,
+      (b) => b.restorePath(
+        path,
+        Uint8List.fromList(save),
+        _request,
+        _playerLimits,
+        locales: locales,
+      ),
+      () => _bindings.restorePath(
+        path,
+        Uint8List.fromList(save),
+        _request,
+        _playerLimits,
+      ),
+    ),
+    ++_generation,
+  );
+  Future<StoryBundlePlayer> fromBundle(
+    LoadedStoryBundle bundle, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) => _finish(
+    _withLocales(
+      locales,
+      (b) => b.openFromBundle(
+        bundle.playerResourceHandoff(),
+        _playerLimits,
+        locales: locales,
+      ),
+      () => _bindings.openFromBundle(
+        bundle.playerResourceHandoff(),
+        _playerLimits,
+      ),
+    ),
     ++_generation,
   );
   Future<StoryBundlePlayer> restoreFromBundle(
     LoadedStoryBundle bundle,
-    Uint8List save,
-  ) => _finish(
-    _bindings.restoreFromBundle(
-      bundle.playerResourceHandoff(),
-      Uint8List.fromList(save),
-      _playerLimits,
+    Uint8List save, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) => _finish(
+    _withLocales(
+      locales,
+      (b) => b.restoreFromBundle(
+        bundle.playerResourceHandoff(),
+        Uint8List.fromList(save),
+        _playerLimits,
+        locales: locales,
+      ),
+      () => _bindings.restoreFromBundle(
+        bundle.playerResourceHandoff(),
+        Uint8List.fromList(save),
+        _playerLimits,
+      ),
     ),
     ++_generation,
   );
   void cancelPendingLoads() {
     _generation++;
+  }
+
+  Future<StoryBundlePlayerBridgePayload> _withLocales(
+    StoryBundlePlayerLocalePreferences locales,
+    Future<StoryBundlePlayerBridgePayload> Function(
+      LocaleAwareStoryBundlePlayerBindings,
+    )
+    localized,
+    Future<StoryBundlePlayerBridgePayload> Function() legacy,
+  ) {
+    final bindings = _bindings;
+    if (bindings is LocaleAwareStoryBundlePlayerBindings) {
+      return localized(bindings);
+    }
+    if (locales.locales.isEmpty) return legacy();
+    throw const StoryBundlePlayerException(
+      StoryBundleRuntimeError(
+        code: 'R_LOCALIZATION_BINDINGS',
+        scene: '',
+        message: 'injected bindings do not support locale preferences',
+      ),
+    );
   }
 
   StoryBundleBridgeRequest get _request => StoryBundleBridgeRequest(
@@ -122,6 +234,7 @@ final class StoryBundlePlayerLoader {
       payload.resource,
       payload.current,
       _bundleLimits.maxEntryBytes,
+      payload.locale,
     );
   }
 }
@@ -132,10 +245,14 @@ final class StoryBundlePlayer {
     this._resource,
     this._current,
     this._maximumAssetBytes,
+    this.locale,
   );
   final StoryBundlePlayerBindings _bindings;
   final Object _resource;
   final int _maximumAssetBytes;
+  final StoryBundlePlayerLocaleResolution locale;
+  String? get resolvedLocale => locale.resolvedLocale;
+  bool get hasUnresolvedLocalization => locale.hasUnresolvedLocalization;
   StoryBundlePlayerDelta _current;
   bool _disposed = false;
   Future<void>? _disposeFuture;

@@ -10,9 +10,11 @@ final class StoryBundlePlayerBridgePayload {
   const StoryBundlePlayerBridgePayload({
     required this.resource,
     required this.current,
+    this.locale = const StoryBundlePlayerLocaleResolution(),
   });
   final Object resource;
   final StoryBundlePlayerDelta current;
+  final StoryBundlePlayerLocaleResolution locale;
 }
 
 abstract interface class StoryBundlePlayerBindings {
@@ -60,21 +62,80 @@ abstract interface class StoryBundlePlayerBindings {
   Future<void> dispose(Object resource);
 }
 
-final class FfiStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
+/// Opt-in capability keeps legacy injected bindings source-compatible. Nonempty
+/// preferences fail explicitly if an injected implementation lacks this capability.
+abstract interface class LocaleAwareStoryBundlePlayerBindings
+    implements StoryBundlePlayerBindings {
+  @override
+  Future<StoryBundlePlayerBridgePayload> openBytes(
+    Uint8List bytes,
+    StoryBundleBridgeRequest request,
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  });
+  @override
+  Future<StoryBundlePlayerBridgePayload> restoreBytes(
+    Uint8List bytes,
+    Uint8List save,
+    StoryBundleBridgeRequest request,
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  });
+  @override
+  Future<StoryBundlePlayerBridgePayload> openPath(
+    String path,
+    StoryBundleBridgeRequest request,
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  });
+  @override
+  Future<StoryBundlePlayerBridgePayload> restorePath(
+    String path,
+    Uint8List save,
+    StoryBundleBridgeRequest request,
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  });
+  @override
+  Future<StoryBundlePlayerBridgePayload> openFromBundle(
+    Object bundleResource,
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  });
+  @override
+  Future<StoryBundlePlayerBridgePayload> restoreFromBundle(
+    Object bundleResource,
+    Uint8List save,
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  });
+}
+
+final class FfiStoryBundlePlayerBindings
+    implements LocaleAwareStoryBundlePlayerBindings {
   const FfiStoryBundlePlayerBindings();
 
   @override
   Future<StoryBundlePlayerBridgePayload> openBytes(
     Uint8List bytes,
     StoryBundleBridgeRequest request,
-    StoryBundlePlayerLimits limits,
-  ) => _open(
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) => _open(
     rust.bundlePlayerOpenBytes(
       bytes: bytes,
       trustKeys: _trust(request.trustStore),
       policy: _policy(request.policy),
       bundleLimits: request.limits.toBridge(),
       playerLimits: _limits(limits),
+      requestedLocales: locales.locales,
     ),
   );
   @override
@@ -82,8 +143,10 @@ final class FfiStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
     Uint8List bytes,
     Uint8List save,
     StoryBundleBridgeRequest request,
-    StoryBundlePlayerLimits limits,
-  ) => _open(
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) => _open(
     rust.bundlePlayerRestoreBytes(
       bytes: bytes,
       save: save,
@@ -91,20 +154,24 @@ final class FfiStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
       policy: _policy(request.policy),
       bundleLimits: request.limits.toBridge(),
       playerLimits: _limits(limits),
+      requestedLocales: locales.locales,
     ),
   );
   @override
   Future<StoryBundlePlayerBridgePayload> openPath(
     String path,
     StoryBundleBridgeRequest request,
-    StoryBundlePlayerLimits limits,
-  ) => _open(
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) => _open(
     rust.bundlePlayerOpenPath(
       path: path,
       trustKeys: _trust(request.trustStore),
       policy: _policy(request.policy),
       bundleLimits: request.limits.toBridge(),
       playerLimits: _limits(limits),
+      requestedLocales: locales.locales,
     ),
   );
   @override
@@ -112,8 +179,10 @@ final class FfiStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
     String path,
     Uint8List save,
     StoryBundleBridgeRequest request,
-    StoryBundlePlayerLimits limits,
-  ) => _open(
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) => _open(
     rust.bundlePlayerRestorePath(
       path: path,
       save: save,
@@ -121,28 +190,35 @@ final class FfiStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
       policy: _policy(request.policy),
       bundleLimits: request.limits.toBridge(),
       playerLimits: _limits(limits),
+      requestedLocales: locales.locales,
     ),
   );
   @override
   Future<StoryBundlePlayerBridgePayload> openFromBundle(
     Object resource,
-    StoryBundlePlayerLimits limits,
-  ) => _open(
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) => _open(
     rust.bundlePlayerOpenFromBundle(
       bundle: _bundleResource(resource),
       limits: _limits(limits),
+      requestedLocales: locales.locales,
     ),
   );
   @override
   Future<StoryBundlePlayerBridgePayload> restoreFromBundle(
     Object resource,
     Uint8List save,
-    StoryBundlePlayerLimits limits,
-  ) => _open(
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) => _open(
     rust.bundlePlayerRestoreFromBundle(
       bundle: _bundleResource(resource),
       save: save,
       limits: _limits(limits),
+      requestedLocales: locales.locales,
     ),
   );
 
@@ -236,7 +312,14 @@ final class FfiStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
       return StoryBundlePlayerBridgePayload(
         resource: opened.resource,
         current: _delta(opened.current),
+        locale: StoryBundlePlayerLocaleResolution(
+          resolvedLocale: opened.resolvedLocale,
+          hasUnresolvedLocalization: opened.hasUnresolvedLocalization,
+        ),
       );
+    } catch (_) {
+      await rust.bundlePlayerDispose(resource: opened.resource);
+      rethrow;
     } finally {
       opened.dispose();
     }

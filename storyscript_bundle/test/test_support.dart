@@ -96,7 +96,8 @@ StoryBundleManifest makeManifest() => StoryBundleManifest(
   entries: const <StoryBundleManifestEntry>[],
 );
 
-final class FakeStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
+final class FakeStoryBundlePlayerBindings
+    implements LocaleAwareStoryBundlePlayerBindings {
   final resource = Object();
   StoryBundlePlayerDelta currentDelta = makePlayerDelta();
   int openBytesCalls = 0;
@@ -104,16 +105,38 @@ final class FakeStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
   int disposeCalls = 0;
   int assetCalls = 0;
   Completer<StoryBundlePlayerBridgePayload>? pendingOpen;
+  bool localized = false;
+  List<String> requested = [];
+  String? selectedLocale;
+  Uint8List? receivedSave;
+  Uint8List? receivedBytes;
+  Object? receivedBundle;
+  StoryBundlePlayerException? failure;
 
-  StoryBundlePlayerBridgePayload get payload =>
-      StoryBundlePlayerBridgePayload(resource: resource, current: currentDelta);
+  void negotiate(StoryBundlePlayerLocalePreferences locales) {
+    if (failure case final error?) throw error;
+    requested = locales.locales;
+    selectedLocale = localized
+        ? (requested.firstOrNull?.startsWith('id') == true ? 'id' : 'en')
+        : null;
+  }
+
+  StoryBundlePlayerBridgePayload get payload => StoryBundlePlayerBridgePayload(
+    resource: resource,
+    current: currentDelta,
+    locale: StoryBundlePlayerLocaleResolution(resolvedLocale: selectedLocale),
+  );
 
   @override
   Future<StoryBundlePlayerDelta> advance(Object resource) async {
     return currentDelta = makePlayerDelta(
       event: StoryBundlePlayerEvent(
         kind: StoryBundlePlayerEventKind.narration,
-        text: 'hello',
+        text: selectedLocale == 'id'
+            ? 'Halo'
+            : localized
+            ? 'Hello'
+            : 'hello',
       ),
       sequence: 1,
     );
@@ -154,18 +177,26 @@ final class FakeStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
   Future<StoryBundlePlayerBridgePayload> openBytes(
     Uint8List bytes,
     StoryBundleBridgeRequest request,
-    StoryBundlePlayerLimits limits,
-  ) {
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) {
     openBytesCalls++;
+    receivedBytes = bytes;
+    negotiate(locales);
     return pendingOpen?.future ?? Future.value(payload);
   }
 
   @override
   Future<StoryBundlePlayerBridgePayload> openFromBundle(
     Object bundleResource,
-    StoryBundlePlayerLimits limits,
-  ) async {
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) async {
     fromBundleCalls++;
+    receivedBundle = bundleResource;
+    negotiate(locales);
     return payload;
   }
 
@@ -173,8 +204,14 @@ final class FakeStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
   Future<StoryBundlePlayerBridgePayload> openPath(
     String path,
     StoryBundleBridgeRequest request,
-    StoryBundlePlayerLimits limits,
-  ) async => payload;
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) async {
+    negotiate(locales);
+    return payload;
+  }
+
   @override
   Future<Uint8List> readAsset(
     Object resource,
@@ -190,21 +227,50 @@ final class FakeStoryBundlePlayerBindings implements StoryBundlePlayerBindings {
     Uint8List bytes,
     Uint8List save,
     StoryBundleBridgeRequest request,
-    StoryBundlePlayerLimits limits,
-  ) async => payload;
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) async {
+    receivedBytes = bytes;
+    return restorePath('', save, request, limits, locales: locales);
+  }
+
   @override
   Future<StoryBundlePlayerBridgePayload> restoreFromBundle(
     Object bundleResource,
     Uint8List save,
-    StoryBundlePlayerLimits limits,
-  ) async => payload;
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) async {
+    receivedBundle = bundleResource;
+    receivedSave = save;
+    negotiate(locales);
+    return payload;
+  }
+
   @override
   Future<StoryBundlePlayerBridgePayload> restorePath(
     String path,
     Uint8List save,
     StoryBundleBridgeRequest request,
-    StoryBundlePlayerLimits limits,
-  ) async => payload;
+    StoryBundlePlayerLimits limits, {
+    StoryBundlePlayerLocalePreferences locales =
+        const StoryBundlePlayerLocalePreferences.defaults(),
+  }) async {
+    receivedSave = save;
+    negotiate(locales);
+    if (localized) {
+      currentDelta = makePlayerDelta(
+        event: StoryBundlePlayerEvent(
+          kind: StoryBundlePlayerEventKind.narration,
+          text: selectedLocale == 'id' ? 'Halo' : 'Hello',
+        ),
+        sequence: currentDelta.sequence,
+      );
+    }
+    return payload;
+  }
 }
 
 StoryBundlePlayerDelta makePlayerDelta({

@@ -1,6 +1,6 @@
 # Localized Story Project Checklist
 
-Audience: authors and integrators shipping the rewritten-v1 Rust localization core.
+Audience: authors and integrators shipping rewritten-v1 Rust/Dart localization.
 
 ## Authoring and translation
 
@@ -48,9 +48,25 @@ Audience: authors and integrators shipping the rewritten-v1 Rust localization co
 - [ ] Handle structured number/resolver/limit errors without losing the checkpoint.
 - [ ] Store saves opaquely with host-owned confidentiality, retention and deletion.
 
+## Dart host integration
+
+- [ ] Initialize the package's `RustLib` and rebuild matching native/Web bridge
+  artifacts after generation (source FRB 2.12.0; bundle FRB 2.13.0).
+- [ ] For filesystem projects, use `SourceStoryPlayerLoader.openProject` /
+  `restoreProject` with `StoryPlayerLocalePreferences`, not raw source/path methods.
+- [ ] For bundles, pass `StoryBundlePlayerLocalePreferences` as named `locales`
+  to bytes/path open/restore or existing-bundle `fromBundle`/`restoreFromBundle`.
+- [ ] Read immutable `player.locale` / `resolvedLocale`; distinguish null plain
+  sessions from raw keyed `hasUnresolvedLocalization` rather than claiming translation.
+- [ ] Keep message arguments and FTL out of Dart. Preserve rendered isolation marks
+  and compact event/history APIs; treat save bytes as opaque confidential copies.
+- [ ] If injecting bundle bindings, implement `LocaleAwareStoryBundlePlayerBindings`
+  for explicit preferences. Legacy adapters only accept default preferences.
+- [ ] Verify stale-load disposal, parent-first/child-first leases, structured
+  errors, and candidate-before-swap locale changes in focused non-UI tests.
+
 ## Remaining acceptance
 
-- [ ] Integrate locale-aware Dart source/bundle APIs when phases 6–7 land.
 - [ ] Validate workspace editor tools when phase 8 lands; current grammar is lexical.
 - [ ] Human-owned localized Flutter widget/golden/integration/accessibility/platform
   acceptance follows phase 9. Do not claim the current Station Nine UI is localized.

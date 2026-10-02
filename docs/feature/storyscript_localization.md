@@ -1,8 +1,8 @@
 # StoryScript Story Localization
 
-Audience: authors, translators and Rust SDK integrators. Phases 1–5 are the core
-implementation; locale-aware Dart bridges, workspace editor intelligence and the
-localized Flutter example are later phases, not shipped capabilities here.
+Audience: authors, translators and Rust/Dart SDK integrators. Phases 1–7 implement
+the core and locale-aware source/bundle bridges. Workspace editor intelligence,
+the localized Flutter example and CI/release lockstep remain later phases.
 
 ## What is localized
 
@@ -123,8 +123,62 @@ options, not arbitrary extension-based number-format customization.
 Raw `from_source`/`from_file` and legacy `StoryPlayer` do not discover catalogs:
 they display IDs and return `resolved_locale() == None` with
 `has_unresolved_localization() == true`. This is deliberately not translated output.
-Current Dart source APIs remain raw until phase 6; locale preferences for Dart
-bundle players arrive in phase 7. Do not invent corresponding Dart methods yet.
+
+## Dart playback (UI-free)
+
+Initialize the appropriate package's `RustLib` once. For native source projects,
+import `package:storyscript_player_core/storyscript_player_core.dart` and use:
+
+```dart
+final loader = SourceStoryPlayerLoader();
+final player = await loader.openProject('my-story',
+  locales: StoryPlayerLocalePreferences(['id-ID', 'en']));
+print(player.resolvedLocale); // id
+final save = await player.exportSave();
+final candidate = await loader.restoreProject('my-story', save,
+  locales: StoryPlayerLocalePreferences(['en']));
+// Publish candidate before disposing player. On restore failure, keep player.
+await player.dispose();
+```
+
+`openSource`/`openPath` and their restore variants remain raw: they do not discover
+FTL. `player.locale` is an immutable `StoryPlayerLocaleResolution`, with
+`resolvedLocale` and `hasUnresolvedLocalization` also available as getters.
+Project/path APIs require filesystem access; use bundle bytes on Web.
+
+For verified archives, import
+`package:storyscript_bundle/storyscript_bundle_player.dart` and use:
+
+```dart
+final loader = StoryBundlePlayerLoader(trustStore: trustStore);
+final player = await loader.openBytes(bundleBytes,
+  locales: StoryBundlePlayerLocalePreferences(['id-ID', 'en']));
+final save = await player.exportSave();
+final candidate = await loader.restoreBytes(bundleBytes, save,
+  locales: StoryBundlePlayerLocalePreferences(['en']));
+await player.dispose(); // only after candidate succeeds and is published
+```
+
+The same named `locales` parameter is available on `openPath`, `restorePath`,
+`fromBundle` and `restoreFromBundle`. An empty/default preference list selects the
+project default; non-localized stories have a null resolved locale. Ordered lists
+are copied into unmodifiable preference models; Rust validates every tag and
+performs exact/language-only/default negotiation. `player.locale` is an immutable
+`StoryBundlePlayerLocaleResolution`. No locale setter or global locale exists.
+
+Fused bundle routes return no compiled model or catalog bodies to Dart. Existing
+verified-bundle routes retain their own Rust lease, so disposing the Inspector's
+parent handle does not invalidate child players. All event/choice/history `text`
+fields are rendered plain text; IDs and argument snapshots stay inside Rust and
+opaque saves. Dart neither parses FTL nor reinterprets Fluent isolation marks.
+
+Custom bundle bindings may opt into `LocaleAwareStoryBundlePlayerBindings`.
+Legacy `StoryBundlePlayerBindings` implementations remain usable with default
+preferences; explicit nonempty preferences fail with `R_LOCALIZATION_BINDINGS`
+rather than being silently ignored. FFI bindings implement the locale capability.
+Custom source bindings implement `openProject`/`restoreProject` as well as the
+existing raw operations. Rebuild native/Web bridge artifacts with the generated
+outputs: source FRB is pinned to 2.12.0 and bundle FRB to 2.13.0.
 
 ## Exact progress and limits
 

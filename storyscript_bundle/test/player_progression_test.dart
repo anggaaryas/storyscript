@@ -18,4 +18,21 @@ void main() {
     expect(page.entries, hasLength(1));
     expect(page.nextSequence, 1);
   });
+  test('localized rendered text and paged history stay Rust-owned', () async {
+    final bindings = FakeStoryBundlePlayerBindings()..localized = true;
+    final player =
+        await StoryBundlePlayerLoader(
+          trustStore: StoryBundleTrustStore.empty(),
+          bindings: bindings,
+        ).openBytes(
+          Uint8List(0),
+          locales: StoryBundlePlayerLocalePreferences(['id']),
+        );
+    expect((await player.advance()).event.text, 'Halo');
+    expect(
+      (await player.history(startSequence: 0)).entries.single.event.text,
+      'Halo',
+    );
+    expect(player.resolvedLocale, 'id');
+  });
 }

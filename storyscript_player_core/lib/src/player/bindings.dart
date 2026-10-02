@@ -7,12 +7,25 @@ final class SourcePlayerBridgePayload {
   const SourcePlayerBridgePayload({
     required this.resource,
     required this.current,
+    this.locale = const StoryPlayerLocaleResolution(),
   });
   final Object resource;
   final StoryPlayerDelta current;
+  final StoryPlayerLocaleResolution locale;
 }
 
 abstract interface class SourcePlayerBindings {
+  Future<SourcePlayerBridgePayload> openProject(
+    String root,
+    StoryPlayerLocalePreferences locales,
+    StoryPlayerLimits limits,
+  );
+  Future<SourcePlayerBridgePayload> restoreProject(
+    String root,
+    Uint8List save,
+    StoryPlayerLocalePreferences locales,
+    StoryPlayerLimits limits,
+  );
   Future<SourcePlayerBridgePayload> openSource(
     String source,
     StoryPlayerLimits limits,
@@ -45,6 +58,34 @@ abstract interface class SourcePlayerBindings {
 
 final class FfiSourcePlayerBindings implements SourcePlayerBindings {
   const FfiSourcePlayerBindings();
+
+  @override
+  Future<SourcePlayerBridgePayload> openProject(
+    String root,
+    StoryPlayerLocalePreferences locales,
+    StoryPlayerLimits limits,
+  ) => _open(
+    rust.sourcePlayerOpenProject(
+      root: root,
+      requestedLocales: locales.locales,
+      limits: _limits(limits),
+    ),
+  );
+
+  @override
+  Future<SourcePlayerBridgePayload> restoreProject(
+    String root,
+    Uint8List save,
+    StoryPlayerLocalePreferences locales,
+    StoryPlayerLimits limits,
+  ) => _open(
+    rust.sourcePlayerRestoreProject(
+      root: root,
+      save: save,
+      requestedLocales: locales.locales,
+      limits: _limits(limits),
+    ),
+  );
 
   @override
   Future<SourcePlayerBridgePayload> openSource(
@@ -156,7 +197,14 @@ final class FfiSourcePlayerBindings implements SourcePlayerBindings {
       return SourcePlayerBridgePayload(
         resource: opened.resource,
         current: _delta(opened.current),
+        locale: StoryPlayerLocaleResolution(
+          resolvedLocale: opened.resolvedLocale,
+          hasUnresolvedLocalization: opened.hasUnresolvedLocalization,
+        ),
       );
+    } catch (_) {
+      await rust.sourcePlayerDispose(resource: opened.resource);
+      rethrow;
     } finally {
       opened.dispose();
     }

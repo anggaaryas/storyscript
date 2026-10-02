@@ -1,15 +1,15 @@
 use std::sync::{Arc, Mutex, TryLockError};
 
 use storyscript_bundle_core::loader::LoadedBundle;
-use storyscript_player::contract::{
-    EventDelta, HistoryEntry, HistoryPage, MediaEffect, PlayerLimits, RuntimeError, SemanticEvent,
-    SessionStatus, HARD_LIMITS,
-};
 use storyscript_player::SemanticPlayer;
+use storyscript_player::contract::{
+    EventDelta, HARD_LIMITS, HistoryEntry, HistoryPage, MediaEffect, PlayerLimits, RuntimeError,
+    SemanticEvent, SessionStatus,
+};
 
 use super::bundle::{
-    bundle_open_bytes, bundle_open_path, BridgeError, BridgeLimits, BridgeTrustKey,
-    BridgeVerificationPolicy, BundleResource,
+    BridgeError, BridgeLimits, BridgeTrustKey, BridgeVerificationPolicy, BundleResource,
+    bundle_open_bytes, bundle_open_path,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -100,6 +100,8 @@ pub struct BundlePlayerResource {
 pub struct BridgeBundlePlayerOpened {
     pub resource: BundlePlayerResource,
     pub current: BridgePlayerDelta,
+    pub resolved_locale: Option<String>,
+    pub has_unresolved_localization: bool,
 }
 pub struct BridgeBundlePlayerOpenResult {
     pub opened: Option<BridgeBundlePlayerOpened>,
@@ -133,24 +135,26 @@ pub fn bundle_player_hard_limits() -> BridgeRuntimeLimits {
 pub fn bundle_player_open_from_bundle(
     bundle: &BundleResource,
     limits: BridgeRuntimeLimits,
+    requested_locales: Vec<String>,
 ) -> BridgeBundlePlayerOpenResult {
     let bundle = match bundle.lease() {
         Ok(value) => value,
         Err(error) => return BridgeBundlePlayerOpenResult::failure(error.into()),
     };
-    open_bundle(bundle, None, limits)
+    open_bundle(bundle, None, limits, &requested_locales)
 }
 
 pub fn bundle_player_restore_from_bundle(
     bundle: &BundleResource,
     save: Vec<u8>,
     limits: BridgeRuntimeLimits,
+    requested_locales: Vec<String>,
 ) -> BridgeBundlePlayerOpenResult {
     let bundle = match bundle.lease() {
         Ok(value) => value,
         Err(error) => return BridgeBundlePlayerOpenResult::failure(error.into()),
     };
-    open_bundle(bundle, Some(save), limits)
+    open_bundle(bundle, Some(save), limits, &requested_locales)
 }
 
 pub fn bundle_player_open_bytes(
@@ -159,6 +163,7 @@ pub fn bundle_player_open_bytes(
     policy: BridgeVerificationPolicy,
     bundle_limits: BridgeLimits,
     player_limits: BridgeRuntimeLimits,
+    requested_locales: Vec<String>,
 ) -> BridgeBundlePlayerOpenResult {
     let result = bundle_open_bytes(bytes, trust_keys, policy, bundle_limits);
     let Some(opened) = result.opened else {
@@ -172,7 +177,7 @@ pub fn bundle_player_open_bytes(
         );
     };
     match opened.resource.lease() {
-        Ok(bundle) => open_bundle(bundle, None, player_limits),
+        Ok(bundle) => open_bundle(bundle, None, player_limits, &requested_locales),
         Err(error) => BridgeBundlePlayerOpenResult::failure(error.into()),
     }
 }
@@ -184,6 +189,7 @@ pub fn bundle_player_restore_bytes(
     policy: BridgeVerificationPolicy,
     bundle_limits: BridgeLimits,
     player_limits: BridgeRuntimeLimits,
+    requested_locales: Vec<String>,
 ) -> BridgeBundlePlayerOpenResult {
     let result = bundle_open_bytes(bytes, trust_keys, policy, bundle_limits);
     let Some(opened) = result.opened else {
@@ -197,7 +203,7 @@ pub fn bundle_player_restore_bytes(
         );
     };
     match opened.resource.lease() {
-        Ok(bundle) => open_bundle(bundle, Some(save), player_limits),
+        Ok(bundle) => open_bundle(bundle, Some(save), player_limits, &requested_locales),
         Err(error) => BridgeBundlePlayerOpenResult::failure(error.into()),
     }
 }
@@ -208,6 +214,7 @@ pub fn bundle_player_open_path(
     policy: BridgeVerificationPolicy,
     bundle_limits: BridgeLimits,
     player_limits: BridgeRuntimeLimits,
+    requested_locales: Vec<String>,
 ) -> BridgeBundlePlayerOpenResult {
     let result = bundle_open_path(path, trust_keys, policy, bundle_limits);
     let Some(opened) = result.opened else {
@@ -221,7 +228,7 @@ pub fn bundle_player_open_path(
         );
     };
     match opened.resource.lease() {
-        Ok(bundle) => open_bundle(bundle, None, player_limits),
+        Ok(bundle) => open_bundle(bundle, None, player_limits, &requested_locales),
         Err(error) => BridgeBundlePlayerOpenResult::failure(error.into()),
     }
 }
@@ -233,6 +240,7 @@ pub fn bundle_player_restore_path(
     policy: BridgeVerificationPolicy,
     bundle_limits: BridgeLimits,
     player_limits: BridgeRuntimeLimits,
+    requested_locales: Vec<String>,
 ) -> BridgeBundlePlayerOpenResult {
     let result = bundle_open_path(path, trust_keys, policy, bundle_limits);
     let Some(opened) = result.opened else {
@@ -246,7 +254,7 @@ pub fn bundle_player_restore_path(
         );
     };
     match opened.resource.lease() {
-        Ok(bundle) => open_bundle(bundle, Some(save), player_limits),
+        Ok(bundle) => open_bundle(bundle, Some(save), player_limits, &requested_locales),
         Err(error) => BridgeBundlePlayerOpenResult::failure(error.into()),
     }
 }
@@ -361,14 +369,20 @@ fn open_bundle(
     bundle: Arc<LoadedBundle>,
     save: Option<Vec<u8>>,
     limits: BridgeRuntimeLimits,
+    requested_locales: &[String],
 ) -> BridgeBundlePlayerOpenResult {
     let limits = match PlayerLimits::try_from(limits) {
         Ok(value) => value,
         Err(error) => return BridgeBundlePlayerOpenResult::failure(error),
     };
     let result = match save {
-        Some(save) => SemanticPlayer::restore_loaded_bundle(&bundle, &save, limits),
-        None => SemanticPlayer::from_loaded_bundle(&bundle, limits),
+        Some(save) => SemanticPlayer::restore_loaded_bundle_with_locales(
+            &bundle,
+            &save,
+            requested_locales,
+            limits,
+        ),
+        None => SemanticPlayer::from_loaded_bundle_with_locales(&bundle, requested_locales, limits),
     };
     match result {
         Ok(player) => BridgeBundlePlayerOpenResult::success(player, bundle),
@@ -421,12 +435,16 @@ fn lock_lease(
 impl BridgeBundlePlayerOpenResult {
     fn success(player: SemanticPlayer, bundle: Arc<LoadedBundle>) -> Self {
         let current = delta_to_bridge(player.current().clone());
+        let resolved_locale = player.resolved_locale().map(str::to_owned);
+        let has_unresolved_localization = player.has_unresolved_localization();
         Self {
             opened: Some(BridgeBundlePlayerOpened {
                 resource: BundlePlayerResource {
                     lease: Arc::new(Mutex::new(Some(PlayerLease { player, bundle }))),
                 },
                 current,
+                resolved_locale,
+                has_unresolved_localization,
             }),
             error: None,
         }

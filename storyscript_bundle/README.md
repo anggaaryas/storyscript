@@ -47,11 +47,36 @@ pages, opaque save export/restore, bounded asset reads, and idempotent disposal.
 Save bytes require the exact authenticated bundle origin and are not encrypted
 or authenticated. The host owns UI and persistence.
 
+All six player loader routes accept immutable ordered locale preferences:
+
+```dart
+final loader = StoryBundlePlayerLoader(trustStore: trustStore);
+final player = await loader.openBytes(bundleBytes,
+  locales: StoryBundlePlayerLocalePreferences(['id-ID', 'en']));
+print(player.resolvedLocale);
+final save = await player.exportSave();
+final candidate = await loader.restoreBytes(bundleBytes, save,
+  locales: StoryBundlePlayerLocalePreferences(['en']));
+await player.dispose(); // publish candidate first; retain old player on failure
+```
+
+`openPath`, `restorePath`, `fromBundle` and `restoreFromBundle` take the same named
+`locales` parameter. Empty preferences select the project default; non-localized
+bundles report null `resolvedLocale`. `player.locale` is immutable. Catalogs are
+signed, fully verified and read through Rust's retained bundle lease; fused paths
+transfer neither catalog bodies nor the compiled model to Dart. Save bytes contain
+locale-neutral message snapshots and restore rerenders current/pending/history
+without PREP/STORY replay. Dart receives rendered plain text only, while the host
+localizes its shell. Custom adapters opt into `LocaleAwareStoryBundlePlayerBindings`;
+legacy injected bindings still work with defaults but explicit preferences fail
+with `R_LOCALIZATION_BINDINGS`. See the [localization guide](../docs/feature/storyscript_localization.md).
+
 ## Limits and lifecycle
 
 Hard ceilings are 100 MiB archive/total uncompressed, 64 MiB per entry, 16 MiB
 compiled IR, 1 MiB manifest, 4,096 entries, 1,024-byte paths, and semantic depth
-128. `StoryBundleLimits` may lower but not raise them. Dart preflights observable
+128. Localization additionally caps 64 locales, 100,000 message/term IDs, 16 MiB
+per catalog and 256-byte IDs. `StoryBundleLimits` may lower but not raise them. Dart preflights observable
 limits and Rust enforces all limits authoritatively.
 
 `LoadedStoryBundle.dispose()` is idempotent and releases its caller handle.

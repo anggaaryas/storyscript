@@ -2,6 +2,24 @@ import 'dart:typed_data';
 
 enum StoryPlayerStatus { active, finished, faulted }
 
+/// Ordered BCP-47 preferences. Rust validates and negotiates these at construction.
+final class StoryPlayerLocalePreferences {
+  StoryPlayerLocalePreferences(Iterable<String> locales)
+    : locales = List.unmodifiable(locales);
+  const StoryPlayerLocalePreferences.defaults() : locales = const [];
+  final List<String> locales;
+}
+
+/// Immutable session metadata; null is not a translated/default locale claim.
+final class StoryPlayerLocaleResolution {
+  const StoryPlayerLocaleResolution({
+    this.resolvedLocale,
+    this.hasUnresolvedLocalization = false,
+  });
+  final String? resolvedLocale;
+  final bool hasUnresolvedLocalization;
+}
+
 enum StoryPlayerEventKind {
   scene,
   narration,

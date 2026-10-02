@@ -48,6 +48,30 @@ Future<BridgeSourcePlayerOpenResult> sourcePlayerRestorePath({
   limits: limits,
 );
 
+/// Opens a validated StoryScript.toml project with an immutable negotiated locale.
+Future<BridgeSourcePlayerOpenResult> sourcePlayerOpenProject({
+  required String root,
+  required List<String> requestedLocales,
+  required BridgePlayerLimits limits,
+}) => RustLib.instance.api.crateApiPlayerV2SourcePlayerOpenProject(
+  root: root,
+  requestedLocales: requestedLocales,
+  limits: limits,
+);
+
+/// Restores a candidate without replaying PREP/STORY or modifying another session.
+Future<BridgeSourcePlayerOpenResult> sourcePlayerRestoreProject({
+  required String root,
+  required List<int> save,
+  required List<String> requestedLocales,
+  required BridgePlayerLimits limits,
+}) => RustLib.instance.api.crateApiPlayerV2SourcePlayerRestoreProject(
+  root: root,
+  save: save,
+  requestedLocales: requestedLocales,
+  limits: limits,
+);
+
 Future<BridgePlayerActionResult> sourcePlayerCurrent({
   required SourcePlayerResource resource,
 }) => RustLib.instance.api.crateApiPlayerV2SourcePlayerCurrent(
@@ -94,9 +118,17 @@ Future<BridgePlayerDisposeResult> sourcePlayerDispose({
 abstract class BridgeSourcePlayerOpened implements RustOpaqueInterface {
   BridgePlayerDelta get current;
 
+  bool get hasUnresolvedLocalization;
+
+  String? get resolvedLocale;
+
   SourcePlayerResource get resource;
 
   set current(BridgePlayerDelta current);
+
+  set hasUnresolvedLocalization(bool hasUnresolvedLocalization);
+
+  set resolvedLocale(String? resolvedLocale);
 
   set resource(SourcePlayerResource resource);
 }

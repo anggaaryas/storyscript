@@ -90,6 +90,8 @@ pub struct SourcePlayerResource {
 pub struct BridgeSourcePlayerOpened {
     pub resource: SourcePlayerResource,
     pub current: BridgePlayerDelta,
+    pub resolved_locale: Option<String>,
+    pub has_unresolved_localization: bool,
 }
 
 pub struct BridgeSourcePlayerOpenResult {
@@ -180,6 +182,39 @@ pub fn source_player_restore_path(
         Err(error) => return BridgeSourcePlayerOpenResult::failure(error),
     };
     match SemanticPlayer::restore_file(&PathBuf::from(path), &save, limits) {
+        Ok(player) => BridgeSourcePlayerOpenResult::success(player),
+        Err(error) => BridgeSourcePlayerOpenResult::failure(error.into()),
+    }
+}
+
+/// Opens a validated StoryScript.toml project with an immutable negotiated locale.
+pub fn source_player_open_project(
+    root: String,
+    requested_locales: Vec<String>,
+    limits: BridgePlayerLimits,
+) -> BridgeSourcePlayerOpenResult {
+    let limits = match PlayerLimits::try_from(limits) {
+        Ok(value) => value,
+        Err(error) => return BridgeSourcePlayerOpenResult::failure(error),
+    };
+    match SemanticPlayer::from_project(&PathBuf::from(root), &requested_locales, limits) {
+        Ok(player) => BridgeSourcePlayerOpenResult::success(player),
+        Err(error) => BridgeSourcePlayerOpenResult::failure(error.into()),
+    }
+}
+
+/// Restores a candidate without replaying PREP/STORY or modifying another session.
+pub fn source_player_restore_project(
+    root: String,
+    save: Vec<u8>,
+    requested_locales: Vec<String>,
+    limits: BridgePlayerLimits,
+) -> BridgeSourcePlayerOpenResult {
+    let limits = match PlayerLimits::try_from(limits) {
+        Ok(value) => value,
+        Err(error) => return BridgeSourcePlayerOpenResult::failure(error),
+    };
+    match SemanticPlayer::restore_project(&PathBuf::from(root), &save, &requested_locales, limits) {
         Ok(player) => BridgeSourcePlayerOpenResult::success(player),
         Err(error) => BridgeSourcePlayerOpenResult::failure(error.into()),
     }
@@ -312,12 +347,16 @@ fn lock_player(
 impl BridgeSourcePlayerOpenResult {
     fn success(player: SemanticPlayer) -> Self {
         let current = delta_to_bridge(player.current().clone());
+        let resolved_locale = player.resolved_locale().map(str::to_owned);
+        let has_unresolved_localization = player.has_unresolved_localization();
         Self {
             opened: Some(BridgeSourcePlayerOpened {
                 resource: SourcePlayerResource {
                     player: Arc::new(Mutex::new(Some(player))),
                 },
                 current,
+                resolved_locale,
+                has_unresolved_localization,
             }),
             error: None,
         }

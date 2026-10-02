@@ -1,7 +1,7 @@
 # StoryScript Localization v1 QA Matrix
 
-Scope: implemented phases 1–5; later bridge/editor/app/CI phases are explicitly
-deferred. Audience: core maintainers and QA reviewers. No live service/network or
+Scope: implemented phases 1–7; later editor/app/CI phases are explicitly
+deferred. Audience: core/SDK maintainers and QA reviewers. No live service/network or
 Flutter UI runner is required for the agent-owned core tests.
 
 ## Contract-mapped deterministic tests
@@ -24,7 +24,10 @@ Flutter UI runner is required for the agent-owned core tests.
 | Hostile restore | Valid typed references | Unknown IDs/names/types, arrays/duplicates, old runtime identity, targets/RNG/sequence bounds | `save_security.rs`, `save_contract.rs` |
 | Source/bundle parity | Same rendered events in en/id/fallback, cross-locale bundle restore | Distinct origins; old source/bundle saves not interchangeable | `bundle_runtime.rs` |
 | Generic Dart model | Generated locale/ref records and plain union | No eager catalog read during model open | `storyscript_bundle/test/protobuf_contract_test.dart`, `story_bundle_loader_test.dart` |
-| Existing bridges/TUI | Rendered-string DTOs, verified leases, raw source/save compatibility | No new locale-aware Dart methods claimed; existing lifecycle/error guards preserved | Existing Rust bridge tests, player CLI check |
+| Source project bridge | Ordered id-ID/en and en/id, unsupported fallback, cross-locale current/pending/history | Malformed tags, raw source/path open/restore ID/null locale/unresolved flag, unsafe numbers/no candidate or byte-identical prior checkpoint, lower-only limits, legacy lifecycle | `storyscript_player_core/rust/tests/player_save_bridge.rs` |
+| Source Dart facade | Project forwarding, immutable preferences/resolution, copied saves, candidate restore | Structured failure keeps old checkpoint, raw unresolved flag, unchanged disposal | `storyscript_player_core/test/player_save_contract_test.dart` (injected bindings, not native FFI) |
+| Bundle bridge | All six construction routes, en/id/fallback, current/pending/history rerender, default plain bundles | Catalog tamper in strict/development policies exposes no player; malformed preferences; child/parent disposal orders; no public catalog asset/read or eager compiled-prose transfer | `storyscript_bundle/rust/tests/bridge_loader.rs`, `bridge_player.rs` |
+| Bundle Dart facade | All six locale-forwarding routes, rendered progression/history, immutable metadata, copied save/archive buffers | Stale candidate cleanup, failed candidate rollback, preflight archive on restore, explicit preferences on legacy bindings fail | `storyscript_bundle/test/player_api_test.dart`, `player_progression_test.dart`, `player_save_test.dart`, `player_lifecycle_test.dart`, `test_support.dart` (injected bindings) |
 
 ## Agent-owned commands
 
@@ -42,11 +45,42 @@ cargo check --manifest-path bundle/rust/fuzz/Cargo.toml
 ```
 
 From `storyscript_bundle/`: `flutter analyze` and focused non-UI
-`flutter test test/protobuf_contract_test.dart test/story_bundle_loader_test.dart`.
+`flutter test test/protobuf_contract_test.dart test/story_bundle_loader_test.dart test/player_api_test.dart test/player_progression_test.dart test/player_save_test.dart test/player_lifecycle_test.dart`.
+From `storyscript_player_core/`: `flutter analyze && flutter test test/player_save_contract_test.dart`.
 Keep pinned Protobuf generation byte-stable on regeneration. Inspect `git diff
 --check`, scoped dependency locks, docs and public-key-only fixtures. Compile the
 extension and validate its grammar JSON; semantic localization editor tests do not
 exist until phase 8.
+
+## Bridge review checklist
+
+- [ ] Compare initial resolution with request order, language-only and default fallback;
+  distinguish raw IDs from localized output and null plain-story metadata.
+- [ ] Confirm generated source FRB 2.12.0 and bundle FRB 2.13.0 outputs are
+  byte-identical on a second regeneration; rebuild native/Web binaries separately.
+- [ ] Keep catalogs behind verified leases, not assets, model bodies or Dart parsers.
+- [ ] Verify save/restore candidate sequence/history/pending choices and retain the
+  old session on failure; never mutate locale or replay PREP/STORY.
+- [ ] Preserve copied buffers, lower-only limits, structured codes, idempotent
+  disposal and stale-result cleanup without touching human-owned UI tests.
+
+### 2026-10-02 Phases 6–7 execution record
+
+- Source Rust bridge: 5 tests passed; source non-UI Dart: 4 passed.
+- Bundle Rust bridge/loader: 10 tests passed; focused player Dart: 14 passed,
+  or 20 with Protobuf and generic-loader regression tests.
+- Both packages' `flutter analyze` reported no issues. Full shared player
+  `--no-default-features --features storybundle-runtime`: 47 tests passed;
+  `schema check` passed with the existing rewritten descriptor.
+- Pinned source FRB 2.12.0 and bundle FRB 2.13.0 outputs were byte-identical
+  on repeat generation. Bridge Rust suites also passed after regeneration.
+- Supplemental `cargo clippy --all-targets -- -D warnings` is **not green**:
+  each bridge has five existing `result_large_err` diagnostics in unchanged
+  action closures, lock-result and limit-conversion helpers. No suppression or
+  unrelated shared error-type refactor was introduced. Required phase checkpoints
+  do not include this supplemental lint gate.
+- No widget/golden/integration test was modified or run. Native/Web FFI artifact
+  builds and platform acceptance remain human-owned, not implied by these results.
 
 ## Manual/release checklist
 
@@ -59,8 +93,8 @@ exist until phase 8.
 
 ## Human-deferred / future-phase coverage
 
-Phases 6–7 add requested/resolved locale DTOs, project Dart loaders and fused bundle
-locale preferences, plus focused non-UI bridge tests. Phase 8 adds workspace
+Phases 6–7 cover project Dart loaders, requested/resolved locale DTOs and all bundle
+routes through real Rust and injected non-UI Dart tests. Phase 8 adds workspace
 completion/definition/references/rename/sync/diagnostics tests. Phase 9 localizes
 Station Nine and Flutter shell copy; phase 10 owns CI/release lockstep.
 

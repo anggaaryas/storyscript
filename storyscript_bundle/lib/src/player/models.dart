@@ -2,6 +2,24 @@ import 'dart:typed_data';
 
 enum StoryBundlePlayerStatus { active, finished, faulted }
 
+/// Ordered BCP-47 preferences; only Rust negotiates verified catalog resources.
+final class StoryBundlePlayerLocalePreferences {
+  StoryBundlePlayerLocalePreferences(Iterable<String> locales)
+    : locales = List.unmodifiable(locales);
+  const StoryBundlePlayerLocalePreferences.defaults() : locales = const [];
+  final List<String> locales;
+}
+
+/// Immutable metadata for this session, not a mutable global locale setting.
+final class StoryBundlePlayerLocaleResolution {
+  const StoryBundlePlayerLocaleResolution({
+    this.resolvedLocale,
+    this.hasUnresolvedLocalization = false,
+  });
+  final String? resolvedLocale;
+  final bool hasUnresolvedLocalization;
+}
+
 enum StoryBundlePlayerEventKind {
   scene,
   narration,

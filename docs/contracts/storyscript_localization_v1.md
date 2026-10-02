@@ -1,8 +1,8 @@
 # StoryScript Localization v1 Contract
 
-Status: implemented rewritten-v1 Rust core (phases 1–5); checkpoints are tracked in
+Status: implemented rewritten-v1 Rust core and source/bundle bridges (phases 1–7); checkpoints are tracked in
 `docs/plan/20261002001_storyscript_localization_plan.md`. This contract does not
-claim that later bridge/editor/UI phases have shipped.
+claim that later editor/UI/CI phases have shipped.
 
 ## Ownership and syntax
 
@@ -100,6 +100,27 @@ argument bytes/names, not only AST node counts. Restore charges the same aggrega
 budget before formatting current/pending/history, preventing small saved references
 from expanding into unbounded retained text. A structurally valid large pattern can
 therefore fail the interaction work limit even below the 1 MiB event ceiling.
+
+## Rust/Dart bridge boundary
+
+Source resource APIs provide project-root open/restore plus ordered requested
+locales. Raw source/path APIs remain separate and expose unresolved-ID status.
+All six bundle routes (fused bytes/path and verified-parent open/restore) accept
+ordered preferences only at construction. Initial results carry rendered current
+deltas, optional resolved locale and an unresolved-localization flag. Resolution is
+immutable and excluded from saves. Dart preference lists are unmodifiable copies;
+Rust is the locale syntax/negotiation and formatting authority.
+
+The verified `Arc<LoadedBundle>` lease owns catalog access for child players;
+no player is published before complete validation. Fused results do not transfer
+the compiled model or catalog bodies; Inspector loading transfers locale metadata
+only. IDs/arguments remain internal to Rust and save bytes. All Dart event, choice
+and history text fields are resolved strings, never a second FTL interpreter.
+Resource APIs preserve busy/disposed guards, lower-only limits, structured errors,
+copied save inputs/outputs, idempotent disposal and stale-result cleanup. Bridge
+conversion failure releases the unpublished candidate. Changing locale requires
+new-candidate restore, not session mutation. Source and bundle generated bridges
+remain independently pinned at FRB 2.12.0 and 2.13.0 respectively.
 
 ## Locale-neutral saves and replacement
 
