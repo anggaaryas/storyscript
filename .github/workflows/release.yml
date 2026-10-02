@@ -71,6 +71,37 @@ jobs:
       - name: Test bundle
         run: cargo test --manifest-path bundle/rust/Cargo.toml
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      - name: CLI dependency audits
+        run: |
+          cargo audit --file bundle/rust/Cargo.lock
+          cargo audit --file player/Cargo.lock
+
+      - name: Rewritten descriptors and strict reference catalogs
+        run: |
+          cargo run --manifest-path bundle/rust/Cargo.toml -- schema check
+          cargo test --manifest-path player/Cargo.toml --no-default-features --test save_contract
+          cargo run --manifest-path bundle/rust/Cargo.toml -- localize check --project storyscript_bundle/example/game --json
+          cargo run --manifest-path bundle/rust/Cargo.toml -- localize check --project tool/vscode-storyscript/server/test/fixtures/localized --json
+          python3 tests/localization_gates.py
+
+      - name: Source and signed-bundle localization lockstep
+        run: cargo test --manifest-path player/Cargo.toml --no-default-features --features storybundle-runtime --test bundle_runtime --test runtime_semantics --test runtime_compatibility --test execution_limits --test save_roundtrip --test save_security
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tool/vscode-storyscript/package-lock.json
+      - name: Editor localization release gate
+        run: |
+          npm --prefix tool/vscode-storyscript ci
+          npm --prefix tool/vscode-storyscript test
+          npm --prefix tool/vscode-storyscript run compile
+          npm --prefix tool/vscode-storyscript audit
+
   build:
     name: Build ${{ matrix.asset }}
     needs: verify

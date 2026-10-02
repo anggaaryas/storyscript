@@ -118,6 +118,12 @@ root = "assets"
 literal-policy = "required"
 dynamic-files = ["portraits/hero-happy.png"]
 dynamic-globs = ["backgrounds/chapter-*-*.png"]
+
+# Optional for keyed story content; all declared catalogs must be complete.
+[localization]
+default-locale = "en"
+supported-locales = ["en", "id"]
+root = "localization"
 ```
 
 The compiler pin must exactly equal the exporter parser version. Entry, asset root,
@@ -125,6 +131,10 @@ dynamic files, and globs are project-relative and may not be absolute or travers
 parent. Literal asset discovery is mandatory in v1. Dynamic templates require one
 or more explicit compatible file/glob matches; a key path is never persisted here.
 Unknown configuration fields are errors.
+Localization root is likewise canonical, sandboxed and project-relative. Files
+are exactly `<root>/<canonical-locale>.ftl`; strict `localize check` precedes signed
+export. Station Nine's en/id fixture demonstrates this contract independently of
+the plain Inspector fixture, with separate public test keys and no retained private key.
 
 ## Resource profile
 

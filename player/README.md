@@ -37,8 +37,9 @@ validated but not encrypted, authenticated, or anti-cheat.
 - Fluent numeric values must round-trip exactly through `f64`; failures are atomic.
   Old-v1 bundles/saves are deliberately rejected with no migration.
 
-See `docs/feature/storyscript_localization.md` for authoring and Rust APIs. Locale-aware
-Dart bridges/editor/example UI are phases 6–9, not part of this core implementation.
+See `docs/feature/storyscript_localization.md` for authoring and Rust/Dart APIs.
+The workspace editor and English/Indonesian Station Nine app use this same core;
+language changes restore exact saved checkpoints without live session mutation.
 
 ## Limits
 

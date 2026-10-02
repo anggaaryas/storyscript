@@ -1,0 +1,11 @@
+{
+  "name": "Fluent",
+  "scopeName": "source.ftl",
+  "patterns": [
+    { "name": "comment.line.number-sign.ftl", "match": "^\\s*#.*$" },
+    { "name": "entity.name.function.ftl", "match": "^-?[A-Za-z][A-Za-z0-9_-]*(?=\\s*=)" },
+    { "name": "variable.other.ftl", "match": "\\$[A-Za-z][A-Za-z0-9_-]*" },
+    { "name": "support.function.ftl", "match": "\\b[A-Z]+(?=\\()" },
+    { "name": "keyword.operator.ftl", "match": "->|[{}]|\\*?\\[[^\\]]+\\]" }
+  ]
+}

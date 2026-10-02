@@ -10,7 +10,9 @@ Audience: developers preparing their first export.
 - [ ] Verify signed catalog digests/bounds and no eager generic Dart catalog transfer.
 - [ ] Re-export/re-sign old-v1 bundles; old saves require a restart, with no migration.
 - [ ] Test source-project / signed-bundle en/id/fallback parity and locale-neutral
-  cross-locale restores. Rust locale APIs are ready; Dart preference APIs are phases 6–7.
+  cross-locale restores. Both Rust and Dart locale APIs are ready; use the immutable
+  ordered preference models and display requested/resolved fallback. Editor advice
+  never replaces strict CLI check. Station Nine is the localized reference app.
 
 ## Authoring
 

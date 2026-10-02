@@ -1,0 +1,142 @@
+import { test } from 'node:test';
+import * as assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { LocalizationIndex } from '../src/localization';
+import { sourceInventory } from '../src/localizationSource';
+import { parseDocument } from '../src/parser';
+
+function fixture(t: { after(fn: () => void): void }) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'storyscript-editor-'));
+    fs.cpSync(path.resolve('server/test/fixtures/localized'), root, { recursive: true });
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const uri = (relative: string) => pathToFileURL(path.join(root, relative)).href;
+    const index = new LocalizationIndex(); index.setRoots([uri('')]);
+    return { root, uri, index };
+}
+test('multi-file definitions, references, completions, symbols and atomic rename', t => {
+    const { index, uri } = fixture(t);
+    assert.deepEqual([...index.diagnostics.values()].flat(), []);
+    const source = uri('story/main.StoryScript');
+    const pos = { line: 8, character: 9 };
+    assert.equal(index.definitions(source, pos).length, 2);
+    assert.equal(index.references(source, pos).length, 3);
+    assert.equal(index.symbols('').length, 2);
+    assert.ok(index.completions(source, pos).some(c => c.label === 'welcome'));
+    index.update(uri('locales/en.ftl'), '-brand = Station\nwelcome = Hello { $name }, { -brand }.\ncount = { $count }\n', 4);
+    assert.ok(index.completions(uri('locales/en.ftl'), { line: 1, character: 22 }).some(c => c.label === 'name'));
+    const edit = index.rename(source, pos, 'greeting')!;
+    assert.equal(edit.documentChanges!.length, 3);
+    assert.equal((edit.documentChanges![1] as { textDocument: { version: number } }).textDocument.version, 4);
+    assert.equal(index.rename(source, pos, 'count'), null);
+    assert.equal(index.rename(source, pos, 'bad id'), null);
+});
+test('sync preserves translator text and is versioned; stale versions are ignored', t => {
+    const { index, uri } = fixture(t);
+    const catalog = uri('locales/id.ftl');
+    const text = '# translator note\nwelcome = Halo { $name }\n';
+    assert.equal(index.update(catalog, text, 10), true);
+    assert.equal(index.update(catalog, 'broken', 9), false);
+    const actions = index.sync(catalog);
+    assert.equal(actions.length, 1);
+    const changes = actions[0].edit!.documentChanges![0] as { textDocument: { version: number }; edits: { newText: string }[] };
+    assert.equal(changes.textDocument.version, 10);
+    assert.ok(changes.edits[0].newText.includes('count = count'));
+    assert.ok(!changes.edits[0].newText.includes('welcome ='));
+    index.close(catalog);
+    assert.equal(index.sync(catalog).length, 0);
+});
+test('diagnostics cover malformed FTL, profile, drift, scope, arrays, unused and cycles', t => {
+    const { index, uri } = fixture(t);
+    index.update(uri('locales/id.ftl'), 'welcome = { $missing }\ncount = { DATETIME($count) }\nunused = Extra\nloop = { loop }\nbad = {\nattr = Value\n    .title = Nope\n', 1);
+    const messages = [...index.diagnostics.values()].flat().map(d => d.message).join('\n');
+    for (const expected of ['malformed FTL', 'unsupported', 'variable-set drift', 'out-of-scope', 'unused', 'cycle']) assert.ok(messages.includes(expected), expected);
+    index.update(uri('story/main.StoryScript'), '* INIT {\n$items as array<string> = []\n@start START\n}\n* START {\n#STORY\n@"welcome"\n}', 1);
+    index.update(uri('locales/id.ftl'), 'welcome = { $items }\ncount = { $count }\n', 2);
+    assert.ok([...index.diagnostics.values()].flat().some(d => d.message.includes('array variable')));
+});
+test('include changes, duplicate IDs, closed-file freshness and project isolation', t => {
+    const { index, uri, root } = fixture(t);
+    const source = uri('story/main.StoryScript'); const pos = { line: 8, character: 9 };
+    fs.appendFileSync(path.join(root, 'locales/en.ftl'), '\n# external edit\n');
+    assert.equal(index.rename(source, pos, 'greeting'), null);
+    index.rebuild(); assert.ok(index.rename(source, pos, 'greeting'));
+    index.update(uri('story/other.StoryScript'), '* OTHER {\n#STORY\n@"welcome"\n}', 1);
+    assert.equal(index.prepareRename(source, pos), null);
+    assert.ok([...index.diagnostics.values()].flat().some(d => d.message.includes('duplicate source')));
+    index.update(source, '* INIT { @start START; @include ["missing.StoryScript"] }\n', 1);
+    assert.ok([...index.diagnostics.values()].flat().some(d => d.message.includes('Project index')));
+});
+test('canonical locale, traversal and symlink escape diagnostics', t => {
+    const { index, uri, root } = fixture(t);
+    const config = uri('StoryScript.toml');
+    const make = (locale: string, directory: string) => `[project]\nentry="story/main.StoryScript"\n[localization]\ndefault-locale="${locale}"\nsupported-locales=["${locale}"]\nroot="${directory}"`;
+    index.update(config, make('en-us', 'locales'), 1);
+    assert.ok(index.diagnostics.get(config)!.some(d => d.message.includes('canonical locale')));
+    index.update(config, make('en', '../outside'), 2);
+    assert.ok(index.diagnostics.get(config)!.some(d => d.message.includes('unsafe')));
+    fs.symlinkSync(os.tmpdir(), path.join(root, 'escape'));
+    index.update(config, make('en', 'escape'), 3);
+    assert.ok(index.diagnostics.get(config)!.some(d => d.message.includes('symlink')));
+});
+test('source token ranges ignore comments/ordinary strings; lexical loop variables and legacy symbols', () => {
+    const source = '* INIT {\n$items as array<string> = []\n@start START\n}\n* START {\n#STORY\n// @"ignored"\n"@\\"also-ignored"\nfor ($item in snapshot $items) {\n@"inside"\n}\n@"outside"\n}';
+    const inventory = sourceInventory(source);
+    assert.deepEqual(inventory.sites.map(s => s.id), ['inside', 'outside']);
+    assert.equal(inventory.sites[0].variables.get('item'), 'string');
+    assert.equal(inventory.sites[1].variables.has('item'), false);
+    assert.equal(source.slice(inventory.sites[0].start, inventory.sites[0].end), 'inside');
+    assert.equal(parseDocument(source, 'test').scenes.length, 2);
+    const shared = sourceInventory('* INIT { $name as string = "A" } * START { #STORY @"first"; @"second"; }');
+    assert.equal(shared.sites[0].variables, shared.sites[1].variables);
+});
+test('transitive variables, reference rename ranges and missing catalog creation', t => {
+    const { index, uri, root } = fixture(t);
+    for (const locale of ['en', 'id']) index.update(uri(`locales/${locale}.ftl`), 'shared = { $name }\nwelcome = { shared } { count }\ncount = { $count }\n', 1);
+    assert.deepEqual([...index.diagnostics.values()].flat(), []);
+    const edit = index.rename(uri('story/other.StoryScript'), { line: 5, character: 9 }, 'signals')!;
+    assert.equal(edit.documentChanges!.length, 3);
+    assert.equal((edit.documentChanges![1] as { edits: unknown[] }).edits.length, 2);
+    assert.equal(index.definitions(uri('locales/en.ftl'), { line: 1, character: 4 }).length, 3);
+    index.close(uri('locales/id.ftl'));
+    fs.unlinkSync(path.join(root, 'locales/id.ftl')); index.rebuild();
+    const action = index.sync(uri('StoryScript.toml'))[0];
+    assert.ok(action.edit!.documentChanges!.some(c => 'kind' in c && c.kind === 'create'));
+});
+test('variable completion during incomplete FTL and parameterized term profile', t => {
+    const { index, uri } = fixture(t);
+    index.update(uri('locales/en.ftl'), 'welcome = Hello { $', 1);
+    assert.ok(index.completions(uri('locales/en.ftl'), { line: 0, character: 19 }).some(c => c.label === 'name'));
+    assert.equal(index.rename(uri('story/main.StoryScript'), { line: 8, character: 9 }, 'greeting'), null);
+    index.update(uri('locales/en.ftl'), '-brand = { $name }\nwelcome = { -brand }\ncount = { NUMBER($count, useGrouping: "false") }\n', 2);
+    assert.ok([...index.diagnostics.values()].flat().some(d => d.message.includes('term parameters')));
+    index.update(uri('locales/en.ftl'), '-brand = { $name }\nwelcome = { $name } { -brand(name: "Station") }\ncount = { NUMBER($count, useGrouping: "false") }\n', 3);
+    assert.deepEqual([...index.diagnostics.values()].flat(), []);
+});
+test('workspace projects do not cross-rename and AST edits never replace prose/comments', t => {
+    const { index, uri, root } = fixture(t);
+    const second = path.join(root, 'second');
+    fs.cpSync(path.resolve('server/test/fixtures/localized'), second, { recursive: true });
+    index.rebuild();
+    const text = '# welcome is a stable key\n-brand = Station\nwelcome = welcome, { $name } { -brand }\ncount = { $count }\n';
+    index.update(uri('locales/en.ftl'), text, 2);
+    const edits = index.rename(uri('story/main.StoryScript'), { line: 8, character: 9 }, 'greeting')!;
+    assert.equal(edits.documentChanges!.length, 3);
+    assert.ok(edits.documentChanges!.every(c => 'textDocument' in c && !c.textDocument.uri.includes('/second/')));
+    const english = edits.documentChanges!.find(c => 'textDocument' in c && c.textDocument.uri === uri('locales/en.ftl')) as { edits: { range: { start: { line: number; character: number }; end: { line: number; character: number } }; newText: string }[] };
+    assert.equal(english.edits.length, 1);
+    assert.deepEqual(english.edits[0].range, { start: { line: 2, character: 0 }, end: { line: 2, character: 7 } });
+    index.update(uri('story/other.StoryScript'), '* OTHER { #STORY @"bad id" }', 2);
+    assert.ok([...index.diagnostics.values()].flat().some(d => d.message.includes('invalid message ID')));
+});
+test('unsaved included documents are indexed and source work is bounded', t => {
+    const { index, uri, root } = fixture(t);
+    index.update(uri('story/draft.StoryScript'), '* REQUIRE { } * DRAFT { #STORY @"draft"; @end }', 1);
+    const main = fs.readFileSync(path.join(root, 'story/main.StoryScript'), 'utf8');
+    index.update(uri('story/main.StoryScript'), main.replace('@include ["other.StoryScript"]', '@include ["other.StoryScript", "draft.StoryScript"]'), 1);
+    assert.ok(index.symbols('draft').some(s => s.name === 'draft'));
+    assert.ok([...index.diagnostics.values()].flat().some(d => d.message.includes("missing 'draft'")));
+    assert.throws(() => sourceInventory('* INIT { } '.repeat(30000)), /token analysis limit/);
+});

@@ -19,7 +19,7 @@ pub enum Token {
     Dollar,    // $
 
     // Literals
-    StringLit(String), // "..."
+    StringLit(String),     // "..."
     LocalizedText(String), // @"fluent-id"
     IntLit(i64),
     DecimalLit(Decimal),

@@ -16,7 +16,16 @@ Audience: release operators, runtime maintainers and support engineers.
    Keep game/Inspector fixture keys separate; discard ephemeral private test keys.
 6. Canary English/Indonesian, unsupported fallback, source/bundle parity and
    cross-locale restore. Dart facade tests are injected and Rust bridge tests exercise
-   real projects/archives; native/Web FFI, later editor and UI acceptance are separate.
+   real projects/archives; editor tests run separately, while native/Web FFI and UI
+   acceptance remain human-owned.
+
+CI runs editor tests/package/audit, both descriptors/generator drift, strict Station
+Nine catalogs, Rust runtime/security suites and focused non-UI Dart/controller
+tests. `tests/localization_gates.py` checks doc/dependency/schema/ARB invariants.
+Existing widget/platform jobs require explicit human `run_ui_platform` dispatch;
+Web integration uses `run_web_wasm`. A green agent gate is not platform acceptance.
+The release workflow verifies strict catalogs and localization lockstep before
+building CLI archives; only humans dispatch/accept/publish releases.
 
 ## First response
 
@@ -43,7 +52,7 @@ saves are not encrypted or authenticated, and snapshots may contain PII.
 | `R_EXECUTION_LIMIT` during restore/switch | Restore formatting is bounded too. Keep the old player and checkpoint, reduce complexity/history or restore an earlier save under valid caps. |
 | `R_SAVE_STATE_CORRUPT` | Reject unknown IDs, wrong names/types/values, arrays or impossible progress; recover a protected backup. |
 | Old-v1 `B_SCHEMA_MISMATCH` / `R_SAVE_INCOMPATIBLE` | Re-export bundles with matching rewritten descriptors and restart old progress. No migration exists. |
-| Stale editor localization index | Workspace-aware localization indexing is phase 8; current extension changes are lexical only. Use CLI check as authority. |
+| Stale editor localization index | Save/reopen buffers or reload the workspace after external changes; watchers rebuild source/config/FTL indexes. Older buffer versions are ignored and rename refuses changed closed-file snapshots. Resolve paths/includes and run CLI check as authority. |
 
 ## Locale changes and rollback
 
@@ -54,8 +63,10 @@ event/history, media and progress. Restore must not replay current PREP/STORY.
 Rust constructors and Dart `restoreProject` / bundle bytes/path/existing-bundle
 restore APIs support this now. Use immutable ordered preference models and expose
 requested versus `player.resolvedLocale` when fallback matters. Catalog parsing and
-message arguments remain in Rust; do not rewrite rendered text in Dart. The sample
-app's switch controller remains phase 9.
+message arguments remain in Rust; do not rewrite rendered text in Dart. Station
+Nine retains its verified bundle, restores a candidate and commits the shell
+locale only on success. Busy/error feedback is app-owned ARB text. On failed switch
+retry after resolving the structured cause; do not restart or discard the old player.
 
 Roll back runtime/compiler, source or bundle, both schemas, package binaries and
 trust mapping as one matching set. The in-place v1 replacement deliberately rejects

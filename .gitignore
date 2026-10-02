@@ -23,6 +23,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 package-lock.json
+!tool/vscode-storyscript/package-lock.json
 pnpm-lock.yaml
 yarn.lock
 
@@ -93,3 +94,4 @@ docs/qa-docs/*
 docs/plan/*
 !docs/plan/20261002001_storyscript_localization_plan.md
 !journal/20261002001_storyscript_localization_core.md
+!journal/20261002002_localization_editor_reference_release.md

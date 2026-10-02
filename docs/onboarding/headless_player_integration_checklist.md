@@ -13,7 +13,9 @@ Audience: developers adding source or verified-bundle playback to an app.
 - [ ] Preserve current/pending/history snapshots, exact-number guards and Fluent isolation.
 - [ ] Keep application-shell localization in the host, not StoryScript catalogs.
 - [ ] Treat old-v1 bundle/save rejection as re-export/restart with no migration.
-- [ ] Do not claim locale-aware Dart source/bundle APIs before phases 6–7 ship.
+- [ ] Use Dart source `openProject`/`restoreProject` and bundle named `locales`
+  parameters with immutable ordered preference models; surface resolved fallback.
+  Consult Station Nine's candidate-restore controller, not a live locale setter.
 
 ## Initialization and trust
 

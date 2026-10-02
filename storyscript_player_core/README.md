@@ -52,6 +52,11 @@ The host owns shell localization. Project/path methods require filesystem access
 Custom source bindings must implement the new project operations. See the
 [localization guide](../docs/feature/storyscript_localization.md).
 
+For authoring, the VS Code workspace index observes source/config/FTL without a
+Rust CLI dependency; its diagnostics remain advisory. Run `localize check` before
+signed export. Station Nine in the separate bundle example demonstrates the
+same locale-neutral candidate-restore flow with Flutter-owned ARB shell copy.
+
 ## Ownership and limits
 
 `StoryPlayerLimits` can lower the Rust hard profile. Mutations are serialized;

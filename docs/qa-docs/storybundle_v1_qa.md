@@ -10,8 +10,9 @@ Use [localization QA](storyscript_localization_v1_qa.md) for the current contrac
 complete en/id catalogs, canonical signed entries, tamper/missing/extra/alias/limit
 rejection, generic Dart metadata without eager body transfer, source/bundle locale
 parity and cross-locale saves. Both independent signed fixtures were re-exported.
-Locale-aware Dart/editor/UI phases are deferred; all widget/golden/integration and
-platform rows remain human-owned and are not part of this core run.
+Locale-aware Dart, workspace editor and localized reference app implementation are
+complete; all widget/golden/integration and platform rows remain human-owned.
+Agent-owned checks use the focused non-UI commands in the localization QA matrix.
 
 ## Automated checklist
 
@@ -40,7 +41,7 @@ platform rows remain human-owned and are not part of this core run.
 | Native integration | Signed Rust load; Dart decode; asset read; tamper rejection; disposal; signed game branch and unknown signer | `storyscript_bundle/example/integration_test/storybundle_loading_test.dart` |
 | Web/platform | Wasm generation, COOP/COEP integration, Android/iOS/macOS/Linux/Windows/Web builds | `.github/workflows/storybundle-ci.yml` |
 
-## Required commands
+## Historical broad commands (UI rows are human-owned)
 
 ```bash
 cargo test --manifest-path parser/rust/Cargo.toml

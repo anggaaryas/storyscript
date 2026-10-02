@@ -129,7 +129,7 @@ Semantic text and assets remain recoverable. Keep private signing keys outside t
 project/repository. The separate headless player entrypoint executes only bundles
 that have passed Rust verification.
 
-### Story-content localization core
+### Story-content localization
 
 Keyed literals `@"fluent-message-id"` localize narration, dialogue and choice labels
 through strict project Fluent catalogs. Use optional `init --localized`, then
@@ -141,8 +141,13 @@ Rust `SemanticPlayer::from_project`/`restore_project` and verified bundle
 `_with_locales` constructors negotiate one immutable locale. Saves preserve exact
 locale-neutral message snapshots and rerender current/pending/history without replay.
 Raw source/path APIs display IDs and report no locale. Generic Dart loading receives
-locale metadata, not eager catalog bodies. Locale-aware Dart/editor/Flutter app work
-is deferred to phases 6–9. See `docs/feature/storyscript_localization.md`.
+locale metadata, not eager catalog bodies. Source Dart `openProject`/`restoreProject`
+and all six bundle open/restore routes accept ordered locale preferences.
+The VS Code extension provides workspace completion/definitions/references/rename,
+append-only catalog sync and advisory diagnostics without a CLI binary. Station
+Nine ships complete en/id FTL catalogs and separate Flutter shell ARBs; its language
+selector restores a saved candidate, preserving the prior session on failure.
+See `docs/feature/storyscript_localization.md`. UI/platform acceptance is human-owned.
 
 ### 4) Load a StoryBundle from Flutter
 

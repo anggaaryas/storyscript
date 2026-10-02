@@ -247,7 +247,10 @@ pub struct PrepRepeat {
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum StoryText { Plain(String), Localized(LocalizedText) }
+pub enum StoryText {
+    Plain(String),
+    Localized(LocalizedText),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocalizedText {
@@ -257,14 +260,29 @@ pub struct LocalizedText {
     pub column: usize,
 }
 impl StoryText {
-    pub fn raw_text(&self) -> &str { match self { Self::Plain(s) => s, Self::Localized(s) => &s.id } }
+    pub fn raw_text(&self) -> &str {
+        match self {
+            Self::Plain(s) => s,
+            Self::Localized(s) => &s.id,
+        }
+    }
 }
 impl std::ops::Deref for StoryText {
     type Target = str;
-    fn deref(&self) -> &str { self.raw_text() }
+    fn deref(&self) -> &str {
+        self.raw_text()
+    }
 }
-impl From<String> for StoryText { fn from(s: String) -> Self { Self::Plain(s) } }
-impl From<&str> for StoryText { fn from(s: &str) -> Self { Self::Plain(s.into()) } }
+impl From<String> for StoryText {
+    fn from(s: String) -> Self {
+        Self::Plain(s)
+    }
+}
+impl From<&str> for StoryText {
+    fn from(s: &str) -> Self {
+        Self::Plain(s.into())
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct StoryBlock {

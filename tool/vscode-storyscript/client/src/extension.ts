@@ -3,7 +3,7 @@
  * ------------------------------------------------------------------ */
 
 import * as path from 'path';
-import { ExtensionContext } from 'vscode';
+import { ExtensionContext, workspace } from 'vscode';
 import {
 	LanguageClient,
 	LanguageClientOptions,
@@ -26,7 +26,12 @@ export function activate(context: ExtensionContext): void {
 	};
 
 	const clientOptions: LanguageClientOptions = {
-		documentSelector: [{ scheme: 'file', language: 'storyscript' }],
+		documentSelector: [
+			{ scheme: 'file', language: 'storyscript' },
+			{ scheme: 'file', language: 'fluent' },
+			{ scheme: 'file', pattern: '**/StoryScript.toml' },
+		],
+		synchronize: { fileEvents: workspace.createFileSystemWatcher('**/*.{StoryScript,ftl,toml}') },
 	};
 
 	client = new LanguageClient(

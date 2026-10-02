@@ -1,0 +1,11 @@
+* INIT {
+    $name as string = "Reader"
+    $count as integer = 2
+    @include ["other.StoryScript"]
+    @start START
+}
+* START {
+    #STORY
+    @"welcome"
+    @end
+}

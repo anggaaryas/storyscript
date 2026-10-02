@@ -1,0 +1,8 @@
+server/src/**
+server/test/**
+client/src/**
+out/test/**
+**/*.map
+**/tsconfig*.json
+**/*.tsbuildinfo
+*.vsix

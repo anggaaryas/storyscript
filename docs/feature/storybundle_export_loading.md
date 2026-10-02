@@ -167,7 +167,9 @@ the compiled model to Dart; an inspector-plus-player flow can hand an existing
 stored separately as opaque exact-origin save bytes. Use
 the Rust `_with_locales` constructors for ordered requested locale negotiation.
 Keyed saves are locale-neutral and restore from exact arguments into another locale;
-locale-aware Dart parameters remain phase 7. See
+all six Dart player loader methods accept `locales: StoryBundlePlayerLocalePreferences([...])`
+and return `player.resolvedLocale`. Station Nine demonstrates save/restore switching;
+Flutter ARBs own shell copy and Rust owns FTL story resolution. See
 `docs/feature/headless_story_player.md`.
 
 See the normative contract at `docs/contracts/storybundle_v1.md`.

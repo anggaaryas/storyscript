@@ -10,8 +10,10 @@ unions/exact scalar snapshots, numeric guards, immutable negotiation, current/
 pending/choice/history cross-locale rerendering, hostile message IDs/arguments,
 raw ID display, atomic limits/resolver failures, and no PREP/STORY replay.
 Old-v1 saves/bundles are rejected without migration. Existing bridge compatibility
-is covered; new locale-aware Dart/editor/UI tests are later plan phases and all
-Flutter widget/golden/integration/platform work remains human-owned.
+is covered, including locale-aware bridge routes, workspace editor tests and
+non-UI Station Nine controller rollback tests. All Flutter widget/golden/integration/
+platform work remains human-owned. The signed reference chapter's five routes run
+in en/id/fallback and rerender choices from byte-identical locale-neutral saves.
 
 ## Contract checkpoint
 

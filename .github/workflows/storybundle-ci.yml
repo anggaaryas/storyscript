@@ -9,7 +9,11 @@ on:
       - 'storyscript_player_core/**'
       - 'storyscript_bundle/**'
       - 'docs/**'
+      - 'tool/vscode-storyscript/**'
+      - 'tests/localization_gates.py'
+      - 'deny.toml'
       - '.github/workflows/storybundle-ci.yml'
+      - '.github/workflows/release.yml'
   pull_request:
     paths:
       - 'parser/rust/**'
@@ -18,9 +22,18 @@ on:
       - 'storyscript_player_core/**'
       - 'storyscript_bundle/**'
       - 'docs/**'
+      - 'tool/vscode-storyscript/**'
+      - 'tests/localization_gates.py'
+      - 'deny.toml'
       - '.github/workflows/storybundle-ci.yml'
+      - '.github/workflows/release.yml'
   workflow_dispatch:
     inputs:
+      run_ui_platform:
+        description: Human-owned widget and platform acceptance (tests require human maintenance)
+        required: true
+        default: false
+        type: boolean
       run_web_wasm:
         description: Run the slow WebAssembly browser integration test
         required: true
@@ -42,6 +55,23 @@ env:
   WASM_BINDGEN_VERSION: 0.2.118
 
 jobs:
+  editor-localization:
+    name: Workspace localization editor owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tool/vscode-storyscript/package-lock.json
+      - run: npm --prefix tool/vscode-storyscript ci
+      - run: npm --prefix tool/vscode-storyscript test
+      - run: npm --prefix tool/vscode-storyscript run compile
+      - run: npm --prefix tool/vscode-storyscript run package
+      - run: npm --prefix tool/vscode-storyscript audit
+      - run: git diff --exit-code -- tool/vscode-storyscript/package-lock.json
   shared-player-runtime:
     name: Shared player runtime and save owner
     runs-on: ubuntu-latest
@@ -83,11 +113,18 @@ jobs:
       - run: cargo clippy --manifest-path bundle/rust/Cargo.toml --all-targets -- -D warnings
       - run: cargo test --manifest-path bundle/rust/Cargo.toml
       - run: cargo run --manifest-path bundle/rust/Cargo.toml -- schema check
+      - run: cargo run --manifest-path bundle/rust/Cargo.toml -- localize check --project storyscript_bundle/example/game --json
+      - run: cargo run --manifest-path bundle/rust/Cargo.toml -- localize check --project tool/vscode-storyscript/server/test/fixtures/localized --json
       - run: cargo check --manifest-path bundle/rust/fuzz/Cargo.toml
       - run: cargo test --manifest-path storyscript_bundle/rust/Cargo.toml
       - run: cargo check --manifest-path storyscript_player_core/rust/Cargo.toml
       - run: cargo audit --file bundle/rust/Cargo.lock
+      - run: cargo audit --file player/Cargo.lock
+      - run: cargo audit --file storyscript_player_core/rust/Cargo.lock
+      - run: cargo audit --file storyscript_bundle/rust/Cargo.lock
+      - run: cargo audit --file bundle/rust/fuzz/Cargo.lock
       - run: cargo deny --manifest-path bundle/rust/Cargo.toml check
+      - run: python3 tests/localization_gates.py
 
   generated-contracts:
     name: Generated contract owner
@@ -118,9 +155,16 @@ jobs:
       - run: '"$RUNNER_TEMP/frb212/bin/flutter_rust_bridge_codegen" generate'
         working-directory: storyscript_player_core
       - run: cargo run --manifest-path bundle/rust/Cargo.toml -- schema check
+      - run: cargo test --manifest-path player/Cargo.toml --no-default-features --test save_contract
+      - run: flutter pub get
+        working-directory: storyscript_bundle/example
+      - run: flutter gen-l10n
+        working-directory: storyscript_bundle/example
       - run: >-
           git diff --exit-code --
           bundle/proto/storybundle/v1
+          player/proto/storyplayer/v1
+          storyscript_bundle/example/lib/l10n
           storyscript_bundle/lib/src/proto
           storyscript_bundle/lib/src/rust
           storyscript_bundle/rust/src/frb_generated.rs
@@ -128,7 +172,7 @@ jobs:
           storyscript_player_core/rust/src/frb_generated.rs
 
   flutter-tests:
-    name: Flutter package and inspector owner
+    name: Flutter analysis and non-UI facade owner (UI acceptance opt-in)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -146,7 +190,7 @@ jobs:
         working-directory: storyscript_bundle
       - run: flutter analyze
         working-directory: storyscript_bundle
-      - run: flutter test
+      - run: flutter test test/protobuf_contract_test.dart test/story_bundle_loader_test.dart test/player_api_test.dart test/player_progression_test.dart test/player_save_test.dart test/player_lifecycle_test.dart test/bridge_contract_test.dart test/trust_policy_test.dart test/asset_access_test.dart test/web_build_destination_test.dart
         working-directory: storyscript_bundle
       - run: flutter pub get
         working-directory: storyscript_player_core
@@ -161,11 +205,21 @@ jobs:
         working-directory: storyscript_player_core
       - run: flutter pub get
         working-directory: storyscript_bundle/example
-      - run: dart format --output=none --set-exit-if-changed lib test integration_test
+      - run: flutter gen-l10n
+        working-directory: storyscript_bundle/example
+      - run: dart format --output=none --set-exit-if-changed lib test/game_controller_locale_test.dart
         working-directory: storyscript_bundle/example
       - run: flutter analyze
         working-directory: storyscript_bundle/example
-      - run: flutter test test
+      - run: flutter test test/game_controller_locale_test.dart
+        working-directory: storyscript_bundle/example
+      - name: Human-owned example UI formatting acceptance
+        if: github.event_name == 'workflow_dispatch' && inputs.run_ui_platform
+        run: dart format --output=none --set-exit-if-changed test integration_test
+        working-directory: storyscript_bundle/example
+      - name: Human-owned example widget acceptance
+        if: github.event_name == 'workflow_dispatch' && inputs.run_ui_platform
+        run: flutter test test
         working-directory: storyscript_bundle/example
 
   web-wasm:
@@ -239,6 +293,7 @@ jobs:
         working-directory: storyscript_bundle/example
 
   platform-builds:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_ui_platform
     name: ${{ matrix.name }} package build owner
     timeout-minutes: 45
     strategy:

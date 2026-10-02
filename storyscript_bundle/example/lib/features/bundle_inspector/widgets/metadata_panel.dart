@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:storyscript_bundle/storyscript_bundle.dart';
+import '../../../l10n/app_localizations.dart';
 
 class MetadataPanel extends StatelessWidget {
   const MetadataPanel({required this.bundle, super.key});
@@ -9,6 +10,8 @@ class MetadataPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final manifest = bundle.manifest;
+    final strings = AppLocalizations.of(context);
+    final localization = bundle.story.localization;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -16,19 +19,34 @@ class MetadataPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Verified metadata',
+              strings.verifiedMetadata,
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const Divider(),
-            _Value(label: 'Project', value: manifest.project.name),
-            _Value(label: 'Project ID', value: manifest.project.id),
-            _Value(label: 'Project version', value: manifest.project.version),
-            _Value(label: 'Format', value: '${manifest.formatVersion}'),
-            _Value(label: 'Compiler', value: manifest.compilerVersion),
-            _Value(label: 'Schema', value: manifest.schemaSha256),
+            _Value(label: strings.project, value: manifest.project.name),
+            _Value(label: strings.projectId, value: manifest.project.id),
             _Value(
-              label: 'Signer',
-              value: bundle.verification.signerKeyId ?? 'Unsigned development',
+              label: strings.projectVersion,
+              value: manifest.project.version,
+            ),
+            _Value(label: strings.format, value: '${manifest.formatVersion}'),
+            _Value(label: strings.compiler, value: manifest.compilerVersion),
+            _Value(label: strings.schema, value: manifest.schemaSha256),
+            _Value(
+              label: strings.defaultLocale,
+              value: localization.defaultLocale.isEmpty
+                  ? strings.notLocalized
+                  : localization.defaultLocale,
+            ),
+            _Value(
+              label: strings.supportedLocaleHeading,
+              value: localization.supportedLocales.isEmpty
+                  ? strings.notLocalized
+                  : localization.supportedLocales.join(', '),
+            ),
+            _Value(
+              label: strings.signer,
+              value: bundle.verification.signerKeyId ?? strings.unsignedBundle,
             ),
           ],
         ),

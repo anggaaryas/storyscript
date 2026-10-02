@@ -1,8 +1,9 @@
 # StoryScript Story Localization
 
-Audience: authors, translators and Rust/Dart SDK integrators. Phases 1–7 implement
-the core and locale-aware source/bundle bridges. Workspace editor intelligence,
-the localized Flutter example and CI/release lockstep remain later phases.
+Audience: authors, translators and Rust/Dart SDK integrators. Phases 1–10 implement
+the core, locale-aware source/bundle bridges, workspace editor intelligence and
+localized Station Nine reference app. CI/release gates cover the same frozen
+contracts; UI/platform acceptance remains human-owned.
 
 ## What is localized
 
@@ -26,7 +27,7 @@ An ID has one declaration across root/includes. It is not translated prose, an
 expression or an interpolation template. Plain strings retain `${variable}`
 interpolation. Actor/project names, scene/actor identifiers, media paths,
 diagnostics and string-variable data remain locale-neutral. The host localizes
-its own menus/errors/accessibility copy; Flutter shell `gen_l10n` work is phase 9.
+its own menus/errors/accessibility copy; the example uses Flutter shell `gen_l10n`.
 
 ## Project layout
 
@@ -94,6 +95,21 @@ the same validation before packaging canonical comment-free signed catalogs.
 Minimal non-localized `init` remains available without `--localized`.
 
 ## Rust playback
+
+### Workspace editor
+
+Open the project workspace in the StoryScript VS Code extension. It observes
+source, `StoryScript.toml` and `.ftl` buffers/files, including closed includes and
+catalogs. Use keyed-ID / catalog-variable completion, cross-file definition and
+references, workspace symbols, atomic message rename and the synchronization
+quick fix. Rename edits the unique source token, locale declarations and Fluent
+references; it refuses collisions, malformed catalogs and stale disk snapshots.
+Open-document edits carry versions. Sync appends TODO stubs (or creates a missing
+catalog) without deleting or overwriting translator content. Review the preview.
+
+Diagnostics are explicitly **advisory**. The bounded TypeScript index uses Fluent
+AST spans and a lightweight source inventory, not the Rust compiler. Always run
+the strict CLI `localize check` before signing; editor success is not release proof.
 
 ```rust
 use std::path::Path;
@@ -181,6 +197,18 @@ existing raw operations. Rebuild native/Web bridge artifacts with the generated
 outputs: source FRB is pinned to 2.12.0 and bundle FRB to 2.13.0.
 
 ## Exact progress and limits
+
+### Reference app
+
+Station Nine ships 86 keyed sites, complete English/Indonesian catalogs, a resident
+count select and stability interpolation in its separately signed fixture. The
+Inspector fixture retains its distinct existing rewritten-v1 trust identity.
+Flutter ARBs localize the shell of both routes, never the story delta text.
+An app-owned process locale initializes from ordered platform preferences; the
+selector commits shell locale only after `GameController` restores a saved
+candidate using the same verified bundle. Failure retains event, progress, locale
+and artwork. Successful restore preserves artwork without PREP/media replay.
+No persistent preference or live session locale mutation is added.
 
 Rust events contain a rendered cache plus an optional immutable message snapshot.
 Hosts/bridge DTOs receive rendered strings. Keyed saves contain only message ID

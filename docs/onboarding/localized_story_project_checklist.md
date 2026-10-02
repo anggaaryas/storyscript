@@ -67,8 +67,11 @@ Audience: authors and integrators shipping rewritten-v1 Rust/Dart localization.
 
 ## Remaining acceptance
 
-- [ ] Validate workspace editor tools when phase 8 lands; current grammar is lexical.
+- [ ] Use workspace keyed-ID/variable completion, definitions/references, rename
+  preview and append-only catalog sync. Resolve advisory diagnostics, then run the
+  authoritative Rust CLI check. Refresh externally changed files before rename.
 - [ ] Human-owned localized Flutter widget/golden/integration/accessibility/platform
-  acceptance follows phase 9. Do not claim the current Station Nine UI is localized.
+  acceptance follows implementation. Station Nine source/catalogs and Flutter ARB
+  shell are localized; analyzer/controller/Rust tests do not prove UI acceptance.
 - [ ] Follow [recovery](../playbook/localization_release_recovery.md) and
   [QA](../qa-docs/storyscript_localization_v1_qa.md) before release.

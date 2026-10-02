@@ -1,0 +1,8 @@
+* REQUIRE {
+    $count as integer
+}
+* OTHER {
+    #STORY
+    @"count"
+    @end
+}

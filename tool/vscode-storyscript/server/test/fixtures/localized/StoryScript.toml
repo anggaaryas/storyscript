@@ -1,0 +1,10 @@
+[project]
+id = "storyscript.editor_fixture"
+name = "Editor localization fixture"
+version = "1.0.0"
+compiler-version = "0.1.0-localization.1"
+entry = "story/main.StoryScript"
+[localization]
+default-locale = "en"
+supported-locales = ["en", "id"]
+root = "locales"

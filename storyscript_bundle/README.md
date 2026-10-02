@@ -71,6 +71,12 @@ localizes its shell. Custom adapters opt into `LocaleAwareStoryBundlePlayerBindi
 legacy injected bindings still work with defaults but explicit preferences fail
 with `R_LOCALIZATION_BINDINGS`. See the [localization guide](../docs/feature/storyscript_localization.md).
 
+The reference app has complete signed English/Indonesian story catalogs and
+separate Flutter `gen_l10n` shell ARBs. Its app-owned selector restores a saved
+candidate from the retained verified bundle, commits the shell locale on success
+and retains artwork/progress on failure. Generate/analyze and non-UI controller
+tests are automated; all widget/integration/platform acceptance remains human-owned.
+
 ## Limits and lifecycle
 
 Hard ceilings are 100 MiB archive/total uncompressed, 64 MiB per entry, 16 MiB

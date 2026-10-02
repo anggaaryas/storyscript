@@ -14,7 +14,8 @@ never bypass it with development policy. Use
 [localization recovery](localization_release_recovery.md) for locale, numeric,
 resolver and cross-locale restore incidents. Generic Dart loading gets metadata,
 not eager FTL body copies. Both separately trusted example fixtures were rebuilt
-for this replacement; Station Nine localization itself remains phase 9.
+for this replacement; Station Nine now ships complete signed English/Indonesian
+catalogs and its own rotated public key. Inspector retains its separate trust identity.
 
 ## Project preparation
 

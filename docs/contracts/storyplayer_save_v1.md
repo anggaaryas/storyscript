@@ -1,7 +1,7 @@
 # StoryPlayer Progress Save v1 Contract
 
-Status: rewritten v1 locale-neutral core execution/save implemented through phase 5.
-Existing bridges preserve rendered strings; locale-aware bridge APIs are later phases.
+Status: rewritten v1 locale-neutral execution/save and both locale-aware bridges implemented.
+Bridges preserve rendered strings; locale selection happens only at open/restore.
 Audience: runtime and bridge implementers. The wire authority is
 `player/proto/storyplayer/v1/player_save.proto`; the pinned descriptor hash in
 `player/proto/storyplayer/v1/schema.sha256` is

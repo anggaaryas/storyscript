@@ -3,6 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:storyscript_bundle/storyscript_bundle_player.dart';
 
 import 'game_controller.dart';
+import '../../l10n/app_localizations.dart';
+import '../../localization/locale_scope.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({required this.controller, super.key});
@@ -17,7 +19,11 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    widget.controller.start();
+    // The app boundary also observes busy state. Start after mounting so its
+    // listener never requests an ancestor rebuild during this widget's build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.controller.start();
+    });
   }
 
   @override
@@ -30,12 +36,13 @@ class _GameScreenState extends State<GameScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFFF2EEE6),
     appBar: AppBar(
-      title: const Text('Signal at Station Nine'),
+      title: Text(AppLocalizations.of(context).gameTitle),
       backgroundColor: const Color(0xFF1C2942),
       foregroundColor: Colors.white,
       actions: [
+        const LocaleSelector(),
         IconButton(
-          tooltip: 'Open demo Bundle Inspector',
+          tooltip: AppLocalizations.of(context).openInspector,
           onPressed: () => Navigator.pushNamed(context, '/inspector'),
           icon: const Icon(Icons.inventory_2_outlined),
         ),
@@ -46,8 +53,14 @@ class _GameScreenState extends State<GameScreen> {
         animation: widget.controller,
         builder: (context, _) {
           final game = widget.controller;
+          final strings = AppLocalizations.of(context);
           if (game.phase == GamePhase.loading || game.phase == GamePhase.idle) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+              child: Semantics(
+                label: strings.loading,
+                child: const CircularProgressIndicator(),
+              ),
+            );
           }
           if (game.phase == GamePhase.failure) {
             return Center(
@@ -55,16 +68,19 @@ class _GameScreenState extends State<GameScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('Could not verify or start the game.'),
+                    Text(strings.gameStartFailed),
                     const SizedBox(height: 12),
                     Text(
-                      game.error ?? 'Unknown error',
+                      game.error ?? strings.unknownError,
                       key: const Key('game-error'),
                     ),
                     const SizedBox(height: 12),
                     FilledButton(
                       onPressed: game.start,
-                      child: const Text('Retry'),
+                      style: const ButtonStyle(
+                        minimumSize: WidgetStatePropertyAll(Size(48, 48)),
+                      ),
+                      child: Text(strings.retry),
                     ),
                   ],
                 ),
@@ -81,7 +97,7 @@ class _GameScreenState extends State<GameScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Text(
-                    'CHAPTER ONE  /  A BORROWED DAWN',
+                    strings.chapter,
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: const Color(0xFF596B83),
                       letterSpacing: 1.3,
@@ -89,6 +105,14 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                   const SizedBox(height: 14),
+                  Text(
+                    strings.localeStatus(
+                      game.requestedLocales.join(', '),
+                      game.resolvedLocale ?? strings.noLocale,
+                    ),
+                  ),
+                  if (game.busy)
+                    Semantics(liveRegion: true, child: Text(strings.loading)),
                   if (game.background != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(12),
@@ -97,7 +121,7 @@ class _GameScreenState extends State<GameScreen> {
                         child: SvgPicture.memory(
                           game.background!,
                           key: const Key('game-background'),
-                          semanticsLabel: 'Station Nine background',
+                          semanticsLabel: strings.backgroundLabel,
                           fit: BoxFit.cover,
                         ),
                       ),
@@ -123,13 +147,16 @@ class _GameScreenState extends State<GameScreen> {
                             child: SvgPicture.memory(
                               game.portrait!,
                               key: const Key('game-portrait'),
-                              semanticsLabel:
-                                  '${event.actorName ?? event.actorId} portrait',
+                              semanticsLabel: strings.portraitLabel(
+                                event.actorName ??
+                                    event.actorId ??
+                                    strings.speaker,
+                              ),
                             ),
                           ),
                         if (event.kind == StoryBundlePlayerEventKind.dialogue)
                           Text(
-                            event.actorName ?? event.actorId ?? 'Speaker',
+                            event.actorName ?? event.actorId ?? strings.speaker,
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   color: const Color(0xFF245A79),
@@ -137,7 +164,7 @@ class _GameScreenState extends State<GameScreen> {
                                 ),
                           ),
                         Text(
-                          _eventText(event),
+                          _eventText(event, strings),
                           key: const Key('game-line'),
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(
@@ -149,11 +176,17 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                         if (game.artWarning != null) ...[
                           const SizedBox(height: 8),
-                          Text(game.artWarning!, key: const Key('art-warning')),
+                          Text(
+                            strings.artworkUnavailable(game.artWarning!),
+                            key: const Key('art-warning'),
+                          ),
                         ],
                         if (game.error != null) ...[
                           const SizedBox(height: 8),
-                          Text(game.error!, key: const Key('game-error')),
+                          Text(
+                            strings.gameError(game.error!),
+                            key: const Key('game-error'),
+                          ),
                         ],
                         const SizedBox(height: 20),
                         if (event.kind == StoryBundlePlayerEventKind.choices &&
@@ -169,8 +202,10 @@ class _GameScreenState extends State<GameScreen> {
                                 width: double.infinity,
                                 child: Semantics(
                                   button: true,
-                                  label:
-                                      'Option ${index + 1}: ${event.choices[index].text}',
+                                  label: strings.choiceLabel(
+                                    index + 1,
+                                    event.choices[index].text,
+                                  ),
                                   child: FilledButton(
                                     key: Key('game-choice-$index'),
                                     onPressed: game.busy
@@ -194,21 +229,27 @@ class _GameScreenState extends State<GameScreen> {
                             key: const Key('game-restart'),
                             onPressed: game.busy ? null : game.start,
                             icon: const Icon(Icons.replay),
-                            label: const Text('Play again'),
+                            label: Text(strings.playAgain),
+                            style: const ButtonStyle(
+                              minimumSize: WidgetStatePropertyAll(Size(48, 48)),
+                            ),
                           )
                         else if (delta.status == StoryBundlePlayerStatus.active)
                           FilledButton(
                             key: const Key('game-next'),
                             onPressed: game.busy ? null : game.advance,
-                            child: const Text('Continue'),
+                            style: const ButtonStyle(
+                              minimumSize: WidgetStatePropertyAll(Size(48, 48)),
+                            ),
+                            child: Text(strings.continueAction),
                           ),
                         const SizedBox(height: 12),
                         Text(
                           event.kind == StoryBundlePlayerEventKind.choices
-                              ? 'Choose how the story continues.'
+                              ? strings.chooseHint
                               : delta.status == StoryBundlePlayerStatus.active
-                              ? 'Continue to turn the page.'
-                              : 'You can begin the chapter again.',
+                              ? strings.continueHint
+                              : strings.restartHint,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
@@ -224,14 +265,18 @@ class _GameScreenState extends State<GameScreen> {
   );
 }
 
-String _eventText(StoryBundlePlayerEvent event) => switch (event.kind) {
-  StoryBundlePlayerEventKind.scene =>
-    'Entering ${event.scene ?? 'the station'}…',
-  StoryBundlePlayerEventKind.choices => 'What will you do?',
-  StoryBundlePlayerEventKind.end => 'The End',
+String _eventText(
+  StoryBundlePlayerEvent event,
+  AppLocalizations strings,
+) => switch (event.kind) {
+  StoryBundlePlayerEventKind.scene => strings.enteringScene(
+    event.scene ?? strings.station,
+  ),
+  StoryBundlePlayerEventKind.choices => strings.choicePrompt,
+  StoryBundlePlayerEventKind.end => strings.theEnd,
   StoryBundlePlayerEventKind.error =>
-    '${event.error?.code ?? 'R_UNKNOWN'}: ${event.error?.message ?? 'Game stopped'}',
-  StoryBundlePlayerEventKind.media => 'Media cue',
+    '${event.error?.code ?? 'R_UNKNOWN'}: ${event.error?.message ?? strings.gameStopped}',
+  StoryBundlePlayerEventKind.media => strings.mediaCue,
   _ => event.text ?? '',
 };
 

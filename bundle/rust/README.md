@@ -28,7 +28,11 @@ derives identity from a host path or overwrites existing content.
 Pass `--localized` for an optional English starter catalog/config and keyed welcome
 line. Add Indonesian or other supported catalogs explicitly; non-localized init
 remains minimal. See `docs/feature/storyscript_localization.md` for strict coverage,
-term/select/NUMBER profile, source-relative diagnostics and append-only sync.
+term/select/NUMBER profile, source-relative diagnostics and append-only sync,
+the workspace editor workflow and the complete English/Indonesian Station Nine
+reference at `storyscript_bundle/example/game`. CLI `localize check` remains the
+release authority even when advisory editor diagnostics are clean. CI/release run
+strict reference-catalog and source/bundle/save parity gates.
 
 See `docs/contracts/storybundle_v1.md` for the normative contract,
 `docs/feature/storybundle_export_loading.md` for flows, and

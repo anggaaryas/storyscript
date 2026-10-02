@@ -287,8 +287,15 @@ pub fn validate(script: &Script) -> Vec<Diagnostic> {
 mod localization_tests {
     #[test]
     fn duplicate_ids_across_different_text_sites_are_rejected() {
-        let result = crate::compiler::compile_source(r#"* INIT { @start s } * s { #STORY @"same-id"; @choice { @"same-id" -> s; } }"#);
-        assert!(result.diagnostics.iter().any(|d| d.code == crate::diagnostic::DiagnosticCode::ELocalizationIdDuplicate));
+        let result = crate::compiler::compile_source(
+            r#"* INIT { @start s } * s { #STORY @"same-id"; @choice { @"same-id" -> s; } }"#,
+        );
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|d| d.code == crate::diagnostic::DiagnosticCode::ELocalizationIdDuplicate)
+        );
     }
 }
 

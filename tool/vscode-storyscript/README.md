@@ -4,6 +4,34 @@ Provides syntax highlighting and language support for `.StoryScript` files.
 
 ## Features
 
+- **Workspace localization intelligence**: discovers `StoryScript.toml`, root/includes,
+  and complete `<localization.root>/<locale>.ftl` catalogs without a Rust executable.
+  Keyed `@"message-id"` completion, catalog `$variable` completion, cross-file
+  definitions/references, workspace symbols, versioned atomic message rename and
+  append-only synchronization actions use source token / Fluent AST ranges.
+- **Advisory catalog diagnostics**: coverage, duplicate/unused IDs, canonical locales,
+  malformed FTL, profile restrictions, transitive variable drift/scope/arrays,
+  dependency cycles and unsafe paths. Open buffers override disk; watchers rebuild
+  closed files. Rename refuses ambiguous IDs, malformed catalogs, collisions and
+  disk changes since indexing. Sync never overwrites translations or removes entries.
+- Existing scene/actor/variable providers remain available. Editor analysis is not
+  a compiler: run `storyscript-bundle localize check --project <root>` before export.
+  Fluent terms and numeric exactness remain subject to the normative Rust profile.
+
+## Development verification
+
+```sh
+npm ci
+npm test
+npm run compile
+npm run package
+npm audit
+```
+
+`server/test/localization.test.ts` uses isolated filesystem fixtures, not VS Code
+or live infrastructure. The extension owns `.ftl` highlighting and observes config,
+source and catalog changes. No CLI binary is bundled or invoked.
+
 - **Syntax Highlighting** for all StoryScript language constructs:
   - Scene definitions (`* scene_name { }`)
   - `* INIT` block

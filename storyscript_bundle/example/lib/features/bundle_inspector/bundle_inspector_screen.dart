@@ -4,6 +4,8 @@ import 'bundle_inspector_controller.dart';
 import 'widgets/asset_panel.dart';
 import 'widgets/metadata_panel.dart';
 import 'widgets/model_panel.dart';
+import '../../l10n/app_localizations.dart';
+import '../../localization/locale_scope.dart';
 
 class BundleInspectorScreen extends StatelessWidget {
   const BundleInspectorScreen({required this.controller, super.key});
@@ -13,7 +15,10 @@ class BundleInspectorScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('StoryBundle Inspector')),
+    appBar: AppBar(
+      title: Text(AppLocalizations.of(context).inspectorTitle),
+      actions: const [LocaleSelector()],
+    ),
     body: SafeArea(
       child: AnimatedBuilder(
         animation: controller,
@@ -49,7 +54,7 @@ class _Toolbar extends StatelessWidget {
       children: [
         Semantics(
           button: true,
-          label: 'Load signed StoryBundle fixture',
+          label: AppLocalizations.of(context).loadSignedBundle,
           child: FilledButton.icon(
             key: const Key('load-bundle'),
             onPressed: state.phase == BundleInspectorPhase.loading
@@ -57,7 +62,9 @@ class _Toolbar extends StatelessWidget {
                 : controller.loadFixture,
             icon: const Icon(Icons.file_open),
             label: Text(
-              state.phase == BundleInspectorPhase.verified ? 'Reload' : 'Load',
+              state.phase == BundleInspectorPhase.verified
+                  ? AppLocalizations.of(context).reload
+                  : AppLocalizations.of(context).load,
             ),
             style: const ButtonStyle(
               minimumSize: WidgetStatePropertyAll(Size(48, 48)),
@@ -68,7 +75,7 @@ class _Toolbar extends StatelessWidget {
           key: const Key('release-bundle'),
           onPressed: state.bundle == null ? null : controller.releaseBundle,
           icon: const Icon(Icons.delete_outline),
-          label: const Text('Release'),
+          label: Text(AppLocalizations.of(context).release),
           style: const ButtonStyle(
             minimumSize: WidgetStatePropertyAll(Size(48, 48)),
           ),
@@ -86,24 +93,22 @@ class _Status extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLocalizations.of(context);
     final (icon, text) = switch (state.phase) {
-      BundleInspectorPhase.empty => (Icons.info_outline, 'No bundle loaded'),
-      BundleInspectorPhase.loading => (
-        Icons.hourglass_top,
-        'Loading${state.progress == null ? '' : ': ${state.progress!.name}'}',
-      ),
+      BundleInspectorPhase.empty => (Icons.info_outline, strings.noBundle),
+      BundleInspectorPhase.loading => (Icons.hourglass_top, strings.loading),
       BundleInspectorPhase.verified => (
         state.bundle!.verification.isUnsignedDevelopment
             ? Icons.warning_amber
             : Icons.verified_user,
         state.bundle!.verification.isUnsignedDevelopment
-            ? 'Unsigned development bundle'
-            : 'Signature trusted and verified',
+            ? strings.unsignedBundle
+            : strings.trustedSignature,
       ),
-      BundleInspectorPhase.failure => (Icons.error_outline, 'Load failed'),
+      BundleInspectorPhase.failure => (Icons.error_outline, strings.loadFailed),
       BundleInspectorPhase.disposed => (
         Icons.delete_outline,
-        'Bundle disposed',
+        strings.bundleDisposed,
       ),
     };
     return Semantics(
@@ -126,10 +131,11 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLocalizations.of(context);
     if (state.phase == BundleInspectorPhase.loading) {
       return Center(
         child: Semantics(
-          label: 'Verifying StoryBundle',
+          label: strings.verifyingBundle,
           child: const CircularProgressIndicator(),
         ),
       );
@@ -151,14 +157,14 @@ class _Body extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
-                SelectableText(state.errorMessage ?? 'Unknown load failure'),
+                SelectableText(state.errorMessage ?? strings.unknownError),
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: controller.loadFixture,
                   style: const ButtonStyle(
                     minimumSize: WidgetStatePropertyAll(Size(48, 48)),
                   ),
-                  child: const Text('Retry'),
+                  child: Text(strings.retry),
                 ),
               ],
             ),
@@ -171,8 +177,8 @@ class _Body extends StatelessWidget {
       return Center(
         child: Text(
           state.phase == BundleInspectorPhase.disposed
-              ? 'The Rust resource has been released.'
-              : 'Load the signed fixture to inspect its verified model.',
+              ? strings.resourceReleased
+              : strings.loadToInspect,
           textAlign: TextAlign.center,
         ),
       );

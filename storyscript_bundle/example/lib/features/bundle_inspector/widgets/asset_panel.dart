@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../bundle_inspector_controller.dart';
+import '../../../l10n/app_localizations.dart';
 
 class AssetPanel extends StatelessWidget {
   const AssetPanel({required this.controller, required this.state, super.key});
@@ -12,6 +13,7 @@ class AssetPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bundle = state.bundle!;
+    final strings = AppLocalizations.of(context);
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -21,7 +23,7 @@ class AssetPanel extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(8),
               child: Text(
-                'Assets (${bundle.assets.length})',
+                strings.assetsHeading(bundle.assets.length),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
@@ -29,10 +31,10 @@ class AssetPanel extends StatelessWidget {
               ListTile(
                 minVerticalPadding: 12,
                 title: SelectableText(asset.logicalPath),
-                subtitle: Text('${asset.size} bytes • ${asset.sha256}'),
+                subtitle: Text(strings.assetBytes(asset.size, asset.sha256)),
                 trailing: _isImage(asset.logicalPath)
                     ? Tooltip(
-                        message: 'Preview ${asset.logicalPath}',
+                        message: strings.previewAsset(asset.logicalPath),
                         child: IconButton(
                           key: Key('preview-${asset.logicalPath}'),
                           constraints: const BoxConstraints.tightFor(
@@ -72,9 +74,10 @@ class _Preview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLocalizations.of(context);
     if (state.previewError != null) {
       return Semantics(
-        label: 'Asset preview failed',
+        label: strings.previewFailed,
         child: Row(
           children: [
             const Icon(Icons.broken_image_outlined),
@@ -91,7 +94,7 @@ class _Preview extends StatelessWidget {
     final path = state.selectedAsset!;
     return Semantics(
       image: true,
-      label: 'Preview of $path',
+      label: strings.previewAsset(path),
       child: SizedBox(
         height: 180,
         child: path.toLowerCase().endsWith('.svg')
@@ -100,7 +103,7 @@ class _Preview extends StatelessWidget {
                 bytes,
                 fit: BoxFit.contain,
                 errorBuilder: (_, error, _) =>
-                    Text('Asset decode failed: $error'),
+                    Text(strings.assetDecodeFailed(error.toString())),
               ),
       ),
     );

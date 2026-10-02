@@ -1,7 +1,7 @@
 # StoryScript Localization v1 QA Matrix
 
-Scope: implemented phases 1–7; later editor/app/CI phases are explicitly
-deferred. Audience: core/SDK maintainers and QA reviewers. No live service/network or
+Scope: implemented phases 1–10; Flutter UI/platform acceptance is explicitly
+human-owned. Audience: core/SDK maintainers and QA reviewers. No live service/network or
 Flutter UI runner is required for the agent-owned core tests.
 
 ## Contract-mapped deterministic tests
@@ -28,6 +28,10 @@ Flutter UI runner is required for the agent-owned core tests.
 | Source Dart facade | Project forwarding, immutable preferences/resolution, copied saves, candidate restore | Structured failure keeps old checkpoint, raw unresolved flag, unchanged disposal | `storyscript_player_core/test/player_save_contract_test.dart` (injected bindings, not native FFI) |
 | Bundle bridge | All six construction routes, en/id/fallback, current/pending/history rerender, default plain bundles | Catalog tamper in strict/development policies exposes no player; malformed preferences; child/parent disposal orders; no public catalog asset/read or eager compiled-prose transfer | `storyscript_bundle/rust/tests/bridge_loader.rs`, `bridge_player.rs` |
 | Bundle Dart facade | All six locale-forwarding routes, rendered progression/history, immutable metadata, copied save/archive buffers | Stale candidate cleanup, failed candidate rollback, preflight archive on restore, explicit preferences on legacy bindings fail | `storyscript_bundle/test/player_api_test.dart`, `player_progression_test.dart`, `player_save_test.dart`, `player_lifecycle_test.dart`, `test_support.dart` (injected bindings) |
+| Workspace editor | en/id multi-file AST index, completion, definitions/references, symbols, atomic rename and append-only sync | Malformed/profile/drift/scope/array/cycle diagnostics, canonical tags, traversal/symlinks, duplicate IDs, stale versions/disk changes, include changes, missing catalog creation, legacy symbols | `tool/vscode-storyscript/server/test/localization.test.ts`; `npm test`, `npm run compile`, `npm run package` |
+| Reference controller | Same-checkpoint rerender, requested/resolved state, same verified lease, unchanged artwork/no media reads | Failed-switch rollback preserves player/locale/delta/artwork; busy guards and disposal | `storyscript_bundle/example/test/game_controller_locale_test.dart` (non-UI/injected bindings) |
+| Signed Station Nine | All five branches in en/id/fallback, count select, stability snapshots, source/bundle parity, cross-locale choices and byte-identical saves | English branch/asset regressions, separate Inspector signature, no rendered keyed save prose | `player/tests/bundle_runtime.rs`; CLI strict check/verify and deterministic repeat export |
+| Release/static gates | Required docs/phrases, pinned Fluent in all owning locks, descriptors, complete shell ARB keys/placeholders, separate trust identities | Stale feature claims, missing contracts, dependency drift or obsolete vulnerable optional rkyv lock entries | `tests/localization_gates.py`, Cargo audit/deny, npm audit, workflow validation |
 
 ## Agent-owned commands
 
@@ -49,8 +53,8 @@ From `storyscript_bundle/`: `flutter analyze` and focused non-UI
 From `storyscript_player_core/`: `flutter analyze && flutter test test/player_save_contract_test.dart`.
 Keep pinned Protobuf generation byte-stable on regeneration. Inspect `git diff
 --check`, scoped dependency locks, docs and public-key-only fixtures. Compile the
-extension and validate its grammar JSON; semantic localization editor tests do not
-exist until phase 8.
+extension with `npm --prefix tool/vscode-storyscript test && npm --prefix tool/vscode-storyscript run compile`;
+package with `npm --prefix tool/vscode-storyscript run package` and audit its lockfile.
 
 ## Bridge review checklist
 
@@ -84,6 +88,41 @@ exist until phase 8.
 
 ## Manual/release checklist
 
+### 2026-10-02 Phases 8–10 execution record
+
+- Full required Rust matrix passed: parser 64, archive/toolchain 65, player 48,
+  source bridge 5 and bundle bridge 10 tests (**192 total**); CLI help also passed.
+- Editor: `npm ci`, ten deterministic tests, compile and VSIX package passed;
+  `npm audit` reports zero vulnerabilities. The English/Indonesian root/include
+  fixture also passed the authoritative Rust catalog check (2 messages).
+- Source Dart: 4 focused tests; bundle Dart: 20 focused tests plus 10 other non-UI
+  loader/trust/assets/Web-destination regressions; reference controller: 3 passed.
+  All three Flutter analyses and `gen-l10n` passed. No UI runner was invoked.
+- Station Nine: strict catalog check (86 messages), repeat signed-byte equality and
+  strict verification passed. Game SHA-256 is
+  `94f40965c83071dd5e13eb5718fd0aa40e08eb9f5f865a4edc316da3000e60e6`.
+  Its external ephemeral private key was deleted. Inspector independently verified
+  with its existing Phase 4 rewritten-v1 artifact/key; no additional rebuild needed.
+- Both pinned FRB generators and Dart Protobuf regenerated with no owned diff;
+  both descriptor contracts/schema check passed. Repeated ARB generation was
+  byte-identical. Parser formatting debt from Phase 2 was normalized without
+  semantic changes; parser/bundle fmt and bundle Clippy `-D warnings` passed.
+- Installer smoke tests, fuzz compile, static localization assertions,
+  `git diff --check` and actionlint 1.7.12 workflow validation passed.
+- Audits for all five owning Rust locks exit successfully; bundle cargo-deny
+  advisories/bans/licenses/sources pass. Expanded auditing initially detected
+  RUSTSEC-2026-0235 in inactive optional `rkyv 0.7.46` entries of player/source
+  locks. A targeted compatible `rust_decimal 1.41.0 → 1.43.0` lock update removed
+  those entries, matching the archive toolchain; regressions were rerun.
+- **Not warning-free:** existing audit warnings cover unmaintained/yanked and
+  unsoundness advisories (`paste`, `adler`, `anyhow`, `tokio`, `lru`, `chacha20`,
+  `futures-util`, depending on the owning lock). Cargo-deny retains duplicate/
+  unused-license-allowance warnings; VSIX reports an unbundled-file-count warning.
+  No advisory/warning suppression was added. Existing bridge-only supplemental
+  `result_large_err` Clippy debt from Phases 6–7 remains outside required gates.
+- Hosted CI/release dispatch and all Flutter widget/golden/integration/platform
+  work remain unexecuted and human-owned. Existing UI tests are byte-unchanged.
+
 - [ ] Review English/Indonesian translations; structural TODO stubs are not proof of quality.
 - [ ] Verify unsupported locale fallback is distinguishable from raw unresolved IDs.
 - [ ] Confirm Fluent FSI/PDI marks survive host plain-text rendering.
@@ -91,12 +130,14 @@ exist until phase 8.
 - [ ] Export/re-sign both separately trusted fixtures; compare repeated bytes and discard private keys.
 - [ ] Confirm old-v1 rejection/re-export/restart recovery and save PII policies.
 
-## Human-deferred / future-phase coverage
+## Human-deferred acceptance
 
 Phases 6–7 cover project Dart loaders, requested/resolved locale DTOs and all bundle
-routes through real Rust and injected non-UI Dart tests. Phase 8 adds workspace
-completion/definition/references/rename/sync/diagnostics tests. Phase 9 localizes
-Station Nine and Flutter shell copy; phase 10 owns CI/release lockstep.
+routes through real Rust and injected non-UI Dart tests. Phase 8 tests workspace
+completion/definition/references/rename/sync/diagnostics, including incomplete
+resources and version/disk freshness. Phase 9 localizes Station Nine and Flutter
+shell copy; phase 10 gates contracts/catalogs/editor/dependencies and non-UI tests
+in CI/release. These implementation results do not imply hosted/platform acceptance.
 
 Humans alone create/modify/run game/Inspector widget, route, golden and integration
 tests. Acceptance includes candidate save/restore language-switch rollback, no

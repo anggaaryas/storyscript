@@ -8,3 +8,8 @@ compiler-version = "0.1.0-localization.1"
 [assets]
 root = "assets"
 literal-policy = "required"
+
+[localization]
+default-locale = "en"
+supported-locales = ["en", "id"]
+root = "localization"

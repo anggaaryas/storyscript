@@ -34,6 +34,11 @@ Future<void> main() async {
         },
       ),
       gameController: GameController(
+        bundleLoader: StoryBundleLoader(
+          trustStore: StoryBundleTrustStore([
+            StoryBundleTrustKey(_decodeHex(gameKeyHex)),
+          ]),
+        ),
         loader: StoryBundlePlayerLoader(
           trustStore: StoryBundleTrustStore([
             StoryBundleTrustKey(_decodeHex(gameKeyHex)),

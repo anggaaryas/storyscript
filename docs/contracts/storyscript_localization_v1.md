@@ -1,8 +1,8 @@
 # StoryScript Localization v1 Contract
 
-Status: implemented rewritten-v1 Rust core and source/bundle bridges (phases 1–7); checkpoints are tracked in
+Status: implemented rewritten-v1 toolchain, editor and reference app; checkpoints are tracked in
 `docs/plan/20261002001_storyscript_localization_plan.md`. This contract does not
-claim that later editor/UI/CI phases have shipped.
+claim human-owned widget/integration/platform acceptance.
 
 ## Ownership and syntax
 
@@ -40,6 +40,8 @@ Catalogs live at `<localization-root>/<canonical-locale>.ftl` inside the project
 Absolute/traversing paths, symlink escape, case/Unicode aliases, duplicate canonical
 tags and a missing default are invalid. English is the reference default and
 Indonesian the reference translation, not a restriction on project languages.
+The canonical **default locale** must be included in the complete **supported locale**
+set; every declared locale is a strict build input, not a partial fallback resource.
 
 ## Signed wire boundary
 

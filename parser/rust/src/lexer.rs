@@ -315,13 +315,21 @@ impl Lexer {
                 let mut id = String::new();
                 let mut closed = false;
                 while let Some(c) = self.advance() {
-                    if c == '"' { closed = true; break; }
+                    if c == '"' {
+                        closed = true;
+                        break;
+                    }
                     id.push(c);
                 }
                 if !closed || !crate::localization::valid_message_id(&id) {
-                    self.diagnostics.push(Diagnostic::new(DiagnosticCode::ELocalizationIdInvalid,
+                    self.diagnostics.push(Diagnostic::new(
+                        DiagnosticCode::ELocalizationIdInvalid,
                         "Keyed text must contain a native Fluent message ID of at most 256 bytes",
-                        Phase::Lex, "GLOBAL", line, col));
+                        Phase::Lex,
+                        "GLOBAL",
+                        line,
+                        col,
+                    ));
                 }
                 Token::LocalizedText(id)
             }

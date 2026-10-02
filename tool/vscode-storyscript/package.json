@@ -16,11 +16,18 @@
     "Programming Languages"
   ],
   "activationEvents": [
-    "onLanguage:storyscript"
+    "onLanguage:storyscript",
+    "onLanguage:fluent",
+    "workspaceContains:**/StoryScript.toml"
   ],
   "main": "./out/client/extension.js",
   "contributes": {
     "languages": [
+      {
+        "id": "fluent",
+        "aliases": ["Fluent"],
+        "extensions": [".ftl"]
+      },
       {
         "id": "storyscript",
         "aliases": [
@@ -39,6 +46,11 @@
     ],
     "grammars": [
       {
+        "language": "fluent",
+        "scopeName": "source.ftl",
+        "path": "./syntaxes/fluent.tmLanguage.json"
+      },
+      {
         "language": "storyscript",
         "scopeName": "source.storyscript",
         "path": "./syntaxes/storyscript.tmLanguage.json"
@@ -46,11 +58,14 @@
     ]
   },
   "scripts": {
+    "test": "npm run compile && tsc -p server/test/tsconfig.json && node --test out/test/test/*.test.js",
     "compile": "tsc -b ./client/tsconfig.json && tsc -b ./server/tsconfig.json",
     "watch": "tsc -b ./client/tsconfig.json --watch & tsc -b ./server/tsconfig.json --watch",
     "package": "npm run compile && npx vsce package"
   },
   "dependencies": {
+    "@fluent/syntax": "0.19.0",
+    "@iarna/toml": "2.2.5",
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.11"

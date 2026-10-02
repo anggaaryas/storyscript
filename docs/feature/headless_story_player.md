@@ -28,7 +28,8 @@ session calls remain available for legacy applications.
 These Dart source APIs remain raw: keyed text displays IDs with no resolved locale.
 Rust catalog-aware callers use `SemanticPlayer::from_project`/`restore_project`
 with a project root and ordered preferences. `resolved_locale()` reports the
-immutable selected locale. Locale-aware source Dart APIs are deferred to phase 6.
+immutable selected locale. Dart `openProject` / `restoreProject` accept
+`StoryPlayerLocalePreferences` and return immutable resolution metadata.
 
 ## StoryBundle flow
 
@@ -41,8 +42,9 @@ Import `storyscript_bundle_player.dart`. `StoryBundlePlayerLoader` supports:
 - multiple isolated players sharing one verified Rust bundle lease.
 
 Rust `_with_locales` bundle open/restore methods negotiate a verified selected
-catalog. Existing bundle constructors choose the default locale; Dart preference
-DTOs are phase 7. Generic Inspector loading receives default/supported locale
+catalog. All six Dart open/restore routes accept named
+`locales: StoryBundlePlayerLocalePreferences([...])`; `player.resolvedLocale` is
+immutable. Generic Inspector loading receives default/supported locale
 metadata in the generated model but never eagerly copies all catalog bodies.
 
 Disposing a `LoadedStoryBundle` releases that caller's handle. Existing child
@@ -58,13 +60,17 @@ routes and endings, conditional choices, illustrated locations, and varied
 portrait expressions. The scrollable chapter reader resets to the top on each
 new semantic event; it does not store reading position across sessions.
 Its `game/story/main.StoryScript` is compiled into a separate fixture and loaded
-through the strict `StoryBundlePlayerLoader.openBytes` path; the widget consumes
+through a retained strictly verified bundle and `StoryBundlePlayerLoader.fromBundle`; the widget consumes
 compact deltas, calls `advance()` or `choose(index)`, lazily reads verified SVG
 background/portrait assets, and disposes its player when replaced or removed.
 It neither interprets StoryScript in Dart nor falls back to unsigned loading.
 The original Bundle Inspector is available from the toolbar with its own
 separately trusted fixture. Both fixtures were re-exported for the rewritten v1;
-the chapter/UI remain plain English until localization phase 9. See the example
+the chapter has 86 keyed sites and complete English/Indonesian catalogs. Flutter
+`gen_l10n` ARBs own shell/menu/accessibility text for both routes. Language changes
+export a locale-neutral save and restore a candidate from the same verified lease,
+committing the app shell locale only after success. Failure retains locale, event,
+artwork and progress; current PREP/media are not replayed. See the example
 README for run and regeneration instructions.
 The sample omits persistent saves and audio; those remain host responsibilities.
 

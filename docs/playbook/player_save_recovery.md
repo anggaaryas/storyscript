@@ -7,6 +7,8 @@ Audience: operators and support engineers diagnosing headless-player failures.
 Keyed current/pending/choice/history records store IDs and exact argument snapshots,
 not rendered prose or a selected locale. Rust project/verified-bundle restore can
 negotiate different requested preferences and rerender without PREP/STORY replay.
+Both Dart bridges support the same project/bundle locale preferences at restore.
+Station Nine commits shell locale only after candidate restoration succeeds.
 Check resolved locale, snapshots and numeric/formatting bounds; keep the existing
 player unchanged if candidate restore fails. Raw source/path restore displays IDs.
 The rewritten-v1 runtime rejects prior progress without migration: re-export bundles

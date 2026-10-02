@@ -204,6 +204,77 @@ fn station_nine_signed_game_has_distinct_playable_branches() {
 }
 
 #[test]
+fn station_nine_localized_fixture_matches_source_all_routes_and_rerenders_checkpoints() {
+    let bundle = load_signed(GAME_BUNDLE, GAME_KEY_HEX);
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../storyscript_bundle/example/game");
+    for locale in ["en", "id-ID", "fr"] {
+        let preferences = localization_support::prefs(&[locale]);
+        for route in [(0, 0), (0, 1), (1, 0), (1, 1), (1, 2)] {
+            let mut source =
+                SemanticPlayer::from_project(&root, &preferences, HARD_LIMITS).unwrap();
+            let mut player =
+                SemanticPlayer::from_loaded_bundle_with_locales(&bundle, &preferences, HARD_LIMITS)
+                    .unwrap();
+            assert_eq!(
+                player.resolved_locale(),
+                Some(if locale == "id-ID" { "id" } else { "en" })
+            );
+            let mut choice = 0;
+            let mut saw_count = false;
+            let mut saw_stability = false;
+            let mut saw_translated_choice = false;
+            for _ in 0..160 {
+                let delta = player.current();
+                assert_eq!(delta.current, source.current().current);
+                assert_eq!(delta.effects, source.current().effects);
+                if let SemanticEvent::Narration(text) = &delta.current {
+                    saw_count |= text.contains("43");
+                    saw_stability |= text.contains("35");
+                }
+                if let SemanticEvent::Choices(choices) = &delta.current {
+                    if locale == "id-ID" && choice == 0 {
+                        assert!(choices[0].text.starts_with("Perbaiki"));
+                        saw_translated_choice = true;
+                    }
+                    let save = player.export_save().unwrap();
+                    let other = if locale == "id-ID" { "en" } else { "id" };
+                    let restored = SemanticPlayer::restore_loaded_bundle_with_locales(
+                        &bundle,
+                        &save,
+                        &localization_support::prefs(&[other]),
+                        HARD_LIMITS,
+                    )
+                    .unwrap();
+                    assert_eq!(restored.current().sequence, delta.sequence);
+                    assert_eq!(restored.export_save().unwrap(), save);
+                    assert!(
+                        matches!(&restored.current().current, SemanticEvent::Choices(v) if v[0].text != choices[0].text)
+                    );
+                    assert!(
+                        !save
+                            .windows("Patch the coolant".len())
+                            .any(|v| v == b"Patch the coolant")
+                    );
+                    let selected = if choice == 0 { route.0 } else { route.1 };
+                    choice += 1;
+                    player.choose(selected).unwrap();
+                    source.choose(selected).unwrap();
+                } else if matches!(delta.current, SemanticEvent::End) {
+                    break;
+                } else {
+                    player.advance().unwrap();
+                    source.advance().unwrap();
+                }
+            }
+            assert_eq!(choice, 2);
+            assert!(saw_count && saw_stability);
+            assert!(locale != "id-ID" || saw_translated_choice);
+            assert!(matches!(player.current().current, SemanticEvent::End));
+        }
+    }
+}
+
+#[test]
 fn verified_bundle_and_source_use_lockstep_semantics_but_distinct_origins() {
     let bundle = loaded();
     let mut bundled = SemanticPlayer::from_loaded_bundle(&bundle, HARD_LIMITS).unwrap();
